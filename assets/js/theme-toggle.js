@@ -3,6 +3,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const themeButtons = document.querySelectorAll('[data-theme-set]');
   const html = document.documentElement;
 
+  /**
+   * Applies a theme mode, persists the selection, and updates the active theme control.
+   * @param {string} theme - The theme mode to apply, such as `auto`, `dark`, or `light`.
+   */
   function setTheme(theme) {
     if (theme === 'auto') {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
