@@ -1,0 +1,60 @@
+---
+okf_version: "0.2"
+type: "overview"
+title: "Digital Custody Asset (DCA) as a Service Platform"
+created: "2026-08-25"
+status: "verified"
+language: "en-GB"
+layout: "default"
+---
+
+# 🛡️ Digital Custody Asset (DCA) as a Service Platform
+
+Welcome to the official documentation portal for the **Digital Custody Asset (DCA) as a Service Platform**.
+This platform provides institutional-grade white-label & API-based Digital Asset Custody solutions built under **Concentric Clean Architecture** principles and governed strictly by the **Deep State of Mind (DSOM) Protocol**.
+
+---
+
+## 🚀 Quick Navigation & Key Modules
+
+<div class="card-grid">
+  <div class="card">
+    <h3>🏛️ Architecture Overview</h3>
+    <p>Explore MPC & HSM vault tiering, segregated client ledgers, and institutional regulatory charters.</p>
+    <a href="{{ site.baseurl }}/docs/explanation/architecture-overview.html" class="btn">Read Architecture</a>
+  </div>
+  <div class="card">
+    <h3>📊 Market Dynamics</h3>
+    <p>In-depth analysis of challenges, compliance caveats, and strategic revenue opportunities.</p>
+    <a href="{{ site.baseurl }}/docs/explanation/challenges-and-opportunities.html" class="btn">Read Market Analysis</a>
+  </div>
+  <div class="card">
+    <h3>⚙️ Benchmark Patterns</h3>
+    <p>Comparative benchmark matrix of leading institutional custodians (Coinbase, Anchorage, BitGo, BNY Mellon).</p>
+    <a href="{{ site.baseurl }}/docs/reference/implementation-patterns.html" class="btn">View Benchmarks</a>
+  </div>
+  <div class="card">
+    <h3>📑 Documentation Index</h3>
+    <p>Complete auto-indexed table of contents covering all documentation quadrant sections.</p>
+    <a href="{{ site.baseurl }}/SUMMARY.html" class="btn">View Summary Index</a>
+  </div>
+</div>
+
+---
+
+## 🛠️ System Highlights & Specifications
+
+- **Key Management:** MPC (Multi-Party Computation) threshold quorums ($t$-of-$n$) paired with HSM-backed vault tiering (Hot, Warm, Cold).
+- **Asset Segregation:** Strict client sub-account segregation ensuring absolute zero commingling of customer digital assets.
+- **Policy Engine:** Granular transaction controls, velocity limits, multi-signer authorization quorums, and address allowlisting.
+- **Concentric Clean Architecture:** Core domain entities in `src/dca_service/core/` have zero external third-party dependencies.
+- **Triple-Ledger Governance:** Maintained via `README.md`, `CHANGELOG.md`, `SUMMARY.md`, and `HISTORY.md`.
+
+---
+
+## 📖 Primary Documentation Ledgers
+
+- 📘 **[System Overview & Setup](README.html)** - Project overview, setup instructions, and testing.
+- 📜 **[Changelog](CHANGELOG.html)** - Complete historical log of notable changes.
+- 🕒 **[Project History Ledger](HISTORY.html)** - Detailed chronological progression log.
+- 🧭 **[Documentation Index](SUMMARY.html)** - Dynamic index of all documentation articles.
