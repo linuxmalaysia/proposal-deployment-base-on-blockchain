@@ -22,8 +22,8 @@ language: "en-GB"
 
 ## Revenue & Strategic Opportunities
 
-1. **Tokenization & Collateral Management:**
-   - Capitalising on automated issuance and lifecycle management of tokenized treasury bills, money market funds, and private credit.
+1. **Tokenisation & Collateral Management:**
+   - Capitalising on automated issuance and lifecycle management of tokenised treasury bills, money market funds, and private credit.
 2. **Margin Bundling (Custody + Settlement + Staking):**
    - Pure custody fees compress over time; yield generation via staking and instant off-exchange settlement captures expanding margins.
 3. **Banks as Enterprise Clients:**

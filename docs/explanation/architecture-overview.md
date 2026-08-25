@@ -37,7 +37,7 @@ Digital Custody Asset (DCA) as a Service offers institutional-grade custody of d
 
 ### 2.5 Ancillary Services & Bundled Rails
 - **Staking & Governance:** Earning yield on proof-of-stake assets within vault custody.
-- **Tokenization & Collateral Management:** Issuance, management, and servicing of tokenized real-world assets (RWA).
+- **Tokenisation & Collateral Management:** Issuance, management, and servicing of tokenised real-world assets (RWA).
 - **Settlement & Trading Connectivity:** Off-exchange settlement networks preventing exchange counterparty risk.
 
 ### 2.6 Audit & Risk Layer

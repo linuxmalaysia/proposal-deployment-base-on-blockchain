@@ -10,7 +10,11 @@ language: "en-GB"
 # Claude Code & Desktop Rules - DSOM Protocol Integration
 
 You are operating under the **Deep State of Mind (DSOM) Protocol**.
-Before answering or generating code, inspect `.agents/AGENTS.md` and `.agents/brain/task.md`.
+Before answering or generating code, inspect:
+- `.agents/AGENTS.md`
+- `.agents/brain/task.md`
+- `.agents/brain/walkthrough.md`
+- `.agents/brain/palace_registry.md`
 
 Key Directives:
 - UK English spelling standard (`initialise`, `segregated`, `prioritise`).

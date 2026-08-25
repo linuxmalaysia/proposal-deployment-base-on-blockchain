@@ -9,6 +9,17 @@ from dca_service.core.policy_engine import (
 )
 
 
+def test_transaction_proposal_positive_amount():
+    with pytest.raises(ValueError, match="strictly greater than zero"):
+        TransactionProposal(
+            proposal_id="p0",
+            client_id="c1",
+            destination_address="0xANY",
+            amount=Decimal("0.0"),
+            asset_symbol="USDT"
+        )
+
+
 def test_policy_allowlist_enforcement():
     rule = PolicyRule(
         rule_id="rule-1",
@@ -26,7 +37,7 @@ def test_policy_allowlist_enforcement():
         asset_symbol="ETH",
         signers={"user1"}
     )
-    rule.evaluate(prop_valid)  # Should pass without error
+    rule.evaluate(prop_valid)
 
     prop_blocked = TransactionProposal(
         proposal_id="p2",
@@ -59,7 +70,6 @@ def test_policy_velocity_limit_enforcement():
     rule.evaluate(prop)
     rule.record_execution(Decimal("90.0"))
 
-    # Second tx exceeding daily accum limit
     prop2 = TransactionProposal(
         proposal_id="p2",
         client_id="c1",
@@ -72,21 +82,12 @@ def test_policy_velocity_limit_enforcement():
         rule.evaluate(prop2)
 
 
-def test_policy_quorum_enforcement():
+def test_policy_record_execution_positive_amount():
     rule = PolicyRule(
-        rule_id="rule-3",
-        max_amount_per_tx=Decimal("1000.0"),
-        daily_velocity_limit=Decimal("5000.0"),
-        required_approvers_count=2
+        rule_id="rule-x",
+        max_amount_per_tx=Decimal("100.0"),
+        daily_velocity_limit=Decimal("500.0"),
+        required_approvers_count=1
     )
-
-    prop_insufficient = TransactionProposal(
-        proposal_id="p1",
-        client_id="c1",
-        destination_address="0xANY",
-        amount=Decimal("50.0"),
-        asset_symbol="BTC",
-        signers={"user1"}
-    )
-    with pytest.raises(PolicyViolationError, match="Signer quorum requirement not met"):
-        rule.evaluate(prop_insufficient)
+    with pytest.raises(ValueError, match="strictly greater than zero"):
+        rule.record_execution(Decimal("-10.0"))

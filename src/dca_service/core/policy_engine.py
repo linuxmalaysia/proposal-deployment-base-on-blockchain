@@ -24,6 +24,10 @@ class TransactionProposal:
     asset_symbol: str
     signers: Set[str] = field(default_factory=set)
 
+    def __post_init__(self) -> None:
+        if self.amount <= Decimal("0.0"):
+            raise ValueError("Transaction proposal amount must be strictly greater than zero.")
+
 
 @dataclass
 class PolicyRule:
@@ -61,4 +65,6 @@ class PolicyRule:
             )
 
     def record_execution(self, amount: Decimal) -> None:
+        if amount <= Decimal("0.0"):
+            raise ValueError("Execution amount must be strictly greater than zero.")
         self.current_daily_accumulated += amount

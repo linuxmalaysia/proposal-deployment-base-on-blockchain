@@ -13,6 +13,7 @@ Welcome, AI Agent (Jules, Cursor, Copilot, Claude).
 This repository operates under the **Deep State of Mind (DSOM) Protocol**.
 
 ## 🚀 Immediate AI Routing Mandate
+
 Before processing any task or modifying code, you MUST load and obey the sovereign AI rules:
 - Read Master AI Constitution: `.agents/AGENTS.md`
 - Active State Memory: `.agents/brain/task.md`
@@ -20,6 +21,7 @@ Before processing any task or modifying code, you MUST load and obey the soverei
 - Spatial Palace Registry: `.agents/brain/palace_registry.md`
 
 ## 🛡️ Core Rules Summary
+
 1. **Linguistic Sovereignty:** Standard UK English (`initialise`, `prioritise`) or DBP-standard Bahasa Melayu Malaysia (Piawai).
 2. **Environment & Dependency:** All Python operations must run via `uv` (`uv run pytest`, `uv add`). Zero global mutations.
 3. **Clean Architecture:** Domain business logic in `src/dca_service/core/` must have zero external framework dependencies.

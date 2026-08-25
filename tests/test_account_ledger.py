@@ -26,12 +26,19 @@ def test_segregated_ledger_commingling_prevention():
     ledger_a = SegregatedLedger(ledger_id="led-a", client_id="client-a")
     ledger_a.get_or_create_sub_account("sub-a1", "ETH")
 
-    # Accessing existing sub-account with wrong client ID raises ComminglingError
     ledger_b = SegregatedLedger(ledger_id="led-b", client_id="client-b")
     ledger_b.sub_accounts["sub-a1"] = ledger_a.sub_accounts["sub-a1"]
 
     with pytest.raises(ComminglingError, match="belongs to client client-a, not client-b"):
         ledger_b.get_or_create_sub_account("sub-a1", "ETH")
+
+
+def test_sub_account_asset_mismatch_prevention():
+    ledger = SegregatedLedger(ledger_id="led-1", client_id="client-a")
+    ledger.get_or_create_sub_account("sub-1", "BTC")
+
+    with pytest.raises(ValueError, match="does not match requested 'ETH'"):
+        ledger.get_or_create_sub_account("sub-1", "ETH")
 
 
 def test_internal_transfer_same_client():

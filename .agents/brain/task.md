@@ -20,11 +20,9 @@ language: "en-GB"
 - [x] Initialise Python project using `uv init` and install `pytest`.
 - [x] Create project directory layout (`src/`, `tests/`, `tools/`, `docs/`, `.agents/`).
 - [x] Establish DSOM Universal Gateway Matrix (`AGENTS.md`, `.agents/AGENTS.md`).
-
-### In Progress
-- [/] Bootstrap DSOM 6-Pillar Minimal Footprint (`.agents/brain/`, `tools/`, triple-ledgers).
+- [x] Author In-Depth DCA-as-a-Service Research & Diátaxis Specification Docs.
+- [x] Implement Core Domain Modules: Key Management, Account Ledger, Policy Engine, Ancillary Rails & Audit Logger.
+- [x] Implement complete pytest test suite.
 
 ### Pending Tasks
-- [ ] Author In-Depth DCA-as-a-Service Research & Diátaxis Specification Docs.
-- [ ] Implement Core Domain Modules: Key Management, Account Ledger, Policy Engine, Ancillary Rails & Audit Logger.
-- [ ] Implement and run complete pytest test suite.
+- [ ] Run full test suite verification under `uv run pytest`.

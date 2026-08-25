@@ -1,7 +1,7 @@
 [project]
 name = "dca-service"
 version = "0.1.0"
-description = "Add your description here"
+description = "Institutional-grade Digital Custody Asset (DCA) as a Service platform"
 authors = [
     { name = "google-labs-jules[bot]", email = "161369871+google-labs-jules[bot]@users.noreply.github.com" }
 ]

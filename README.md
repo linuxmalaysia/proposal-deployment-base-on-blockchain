@@ -15,7 +15,7 @@ Institutional-grade white-label & API-based Digital Asset Custody Platform built
 - **Key Management:** MPC (Multi-Party Computation) threshold quorums and HSM-backed Hot/Warm/Cold vault tiering.
 - **Client Segregation:** Isolated sub-account ledgers enforcing zero commingling of digital assets.
 - **Policy Engine:** Granular approval workflows, velocity limits, multi-signer quorums, and address allowlists.
-- **Ancillary Services:** Integrated proof-of-stake hooks and tokenized collateral management interfaces.
+- **Ancillary Services:** Integrated proof-of-stake hooks and tokenised collateral management interfaces.
 - **Immutable Audit Trail:** SOC 1 / SOC 2 compliant structured event auditing.
 
 ## 🛠️ Environment & Running Tests

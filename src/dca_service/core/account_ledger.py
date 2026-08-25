@@ -55,6 +55,10 @@ class SegregatedLedger:
                 raise ComminglingError(
                     f"Sub-account {sub_account_id} belongs to client {existing.client_id}, not {self.client_id}."
                 )
+            if existing.asset_symbol != asset_symbol:
+                raise ValueError(
+                    f"Sub-account {sub_account_id} asset '{existing.asset_symbol}' does not match requested '{asset_symbol}'."
+                )
             return existing
 
         sub_acc = SubAccount(
@@ -77,6 +81,9 @@ class SegregatedLedger:
 
         source = self.sub_accounts[from_sub_acc_id]
         destination = self.sub_accounts[to_sub_acc_id]
+
+        if source.client_id != self.client_id or destination.client_id != self.client_id:
+            raise ComminglingError("Cannot transfer funds between accounts belonging to different clients.")
 
         if source.asset_symbol != destination.asset_symbol:
             raise ValueError("Cannot transfer directly between different asset symbols.")
