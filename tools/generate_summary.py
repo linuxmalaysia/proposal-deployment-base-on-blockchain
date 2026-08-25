@@ -8,15 +8,7 @@ generating/updating SUMMARY.md with OKF v0.2 frontmatter.
 from pathlib import Path
 
 def get_markdown_title(file_path: Path) -> str:
-    """
-    Extract a Markdown document title from its frontmatter or first level-one heading.
-    
-    Parameters:
-        file_path (Path): Path to the Markdown file.
-    
-    Returns:
-        str: The extracted title, or a title derived from the filename when no title is found or the file cannot be read.
-    """
+    """Extract title from OKF frontmatter or first Markdown heading."""
     try:
         content = file_path.read_text(encoding="utf-8")
     except Exception:
@@ -45,9 +37,7 @@ def get_markdown_title(file_path: Path) -> str:
     return file_path.stem.replace("-", " ").title()
 
 def generate_summary() -> None:
-    """
-    Generate the repository's `SUMMARY.md` documentation index.
-    """
+    """Generate SUMMARY.md index file."""
     repo_root = Path(__file__).parent.parent
     summary_path = repo_root / "SUMMARY.md"
 
@@ -71,6 +61,7 @@ def generate_summary() -> None:
         "# Documentation Index",
         "",
         "## Core Ledgers",
+        "",
     ]
 
     for file_name, fallback_title in root_files:
@@ -81,6 +72,7 @@ def generate_summary() -> None:
 
     summary_lines.append("")
     summary_lines.append("## Documentation Sections")
+    summary_lines.append("")
 
     docs_dir = repo_root / "docs"
     if docs_dir.exists():
@@ -88,6 +80,7 @@ def generate_summary() -> None:
         for subdir in subdirs:
             subdir_name = subdir.name.replace("-", " ").title()
             summary_lines.append(f"### {subdir_name}")
+            summary_lines.append("")
 
             md_files = sorted(list(subdir.glob("**/*.md")))
             for md_file in md_files:
@@ -99,6 +92,7 @@ def generate_summary() -> None:
         loose_files = sorted([f for f in docs_dir.glob("*.md") if f.is_file()])
         if loose_files:
             summary_lines.append("### General Documentation")
+            summary_lines.append("")
             for md_file in loose_files:
                 rel_path = md_file.relative_to(repo_root).as_posix()
                 title = get_markdown_title(md_file)

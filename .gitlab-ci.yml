@@ -9,9 +9,10 @@ pages:
   before_script:
     - apt-get update -qq && apt-get install -y python3
     - python3 tools/generate_summary.py
-    - gem install jekyll
+    - bundle config set --local path 'vendor'
+    - bundle install
   script:
-    - jekyll build -d public
+    - bundle exec jekyll build -d public
   artifacts:
     paths:
       - public

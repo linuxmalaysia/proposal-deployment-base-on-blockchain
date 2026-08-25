@@ -2,15 +2,11 @@
 document.addEventListener('DOMContentLoaded', function() {
   const themeButtons = document.querySelectorAll('[data-theme-set]');
   const html = document.documentElement;
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-  /**
-   * Applies a theme mode, persists the selection, and updates the active theme control.
-   * @param {string} theme - The theme mode to apply, such as `auto`, `dark`, or `light`.
-   */
   function setTheme(theme) {
     if (theme === 'auto') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      html.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+      html.setAttribute('data-theme', mediaQuery.matches ? 'dark' : 'light');
     } else {
       html.setAttribute('data-theme', theme);
     }
@@ -24,6 +20,13 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+
+  mediaQuery.addEventListener('change', function(e) {
+    const savedTheme = localStorage.getItem('dca_theme') || 'auto';
+    if (savedTheme === 'auto') {
+      html.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+    }
+  });
 
   const savedTheme = localStorage.getItem('dca_theme') || 'auto';
   setTheme(savedTheme);
