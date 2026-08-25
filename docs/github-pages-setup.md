@@ -32,11 +32,16 @@ Once set to **GitHub Actions**, GitHub will automatically execute `.github/workf
 ## ❓ Why the 404 Error Occurred & How It Is Solved
 
 ### Root Causes of 404 Errors:
-1. **Missing Root `index.md` / `index.html`:** GitHub Pages default web server looks for an `index.html` or `index.md` file at the repository root. Without one, accessing the root domain (`https://<username>.github.io/<repository>/`) produces a 404 File Not Found response.
-2. **Pages Source Misconfiguration:** If the Pages source is set to a legacy branch (e.g., `gh-pages` or `main / (root)`) without GitHub Actions enabled, GitHub does not execute custom build workflows or pre-install dependencies.
-3. **Missing `_config.yml` Includes:** Standard Jekyll excludes files starting with underscores or non-standard paths. Custom root ledgers (`README.md`, `CHANGELOG.md`, `SUMMARY.md`, `HISTORY.md`) must be explicitly declared in `_config.yml`.
+1. **Repository Subpath `baseurl` Misconfiguration:** When hosted under a repository subpath (e.g. `https://linuxmalaysia.github.io/proposal-deployment-base-on-blockchain/`), an empty `baseurl: ""` setting in `_config.yml` causes assets (`style.css`, `theme-toggle.js`, `favicon.ico`) to be fetched from the domain root (`https://linuxmalaysia.github.io/assets/...`) instead of the repository subpath, triggering 404 Not Found errors.
+2. **Missing Root `index.md` / `index.html`:** GitHub Pages default web server looks for an `index.html` or `index.md` file at the repository root. Without one, accessing the root URL produces a 404 response.
+3. **Pages Source Misconfiguration:** If the Pages source is set to a legacy branch (e.g., `gh-pages` or `main / (root)`) without GitHub Actions enabled, GitHub does not execute custom build workflows or pre-install dependencies.
+4. **Missing `_config.yml` Includes:** Standard Jekyll excludes non-standard root files. Custom root ledgers (`README.md`, `CHANGELOG.md`, `SUMMARY.md`, `HISTORY.md`, `favicon.ico`) must be explicitly declared in `_config.yml`.
 
 ### Solved Implementation:
+
+- Configured `baseurl: "/proposal-deployment-base-on-blockchain"` and `url: "https://linuxmalaysia.github.io"` in `_config.yml`.
+- Updated `_layouts/default.html` and `index.md` to use Liquid `{{ 'path' | relative_url }}` filter for CSS, JS scripts, favicons, and navigation links.
+- Created root `favicon.ico` and `assets/favicon.ico` to eliminate favicon 404 console errors.
 - Created root `index.md` with laboratory template layout.
 - Added `_config.yml` explicitly instructing Jekyll to process `docs/` and root ledgers.
 - Updated `.github/workflows/jekyll-gh-pages.yml` to automatically run `python tools/generate_summary.py` before Jekyll compilation.

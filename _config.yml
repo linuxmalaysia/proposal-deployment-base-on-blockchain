@@ -1,8 +1,8 @@
 # Jekyll configuration for Digital Custody Asset (DCA) as a Service Platform
 title: "Digital Custody Asset (DCA) as a Service Platform"
 description: "Institutional-grade white-label & API-based Digital Asset Custody Platform governed by DSOM Protocol."
-baseurl: ""
-url: ""
+baseurl: "/proposal-deployment-base-on-blockchain"
+url: "https://linuxmalaysia.github.io"
 
 # Build settings
 markdown: kramdown
@@ -19,6 +19,7 @@ include:
   - CHANGELOG.md
   - SUMMARY.md
   - HISTORY.md
+  - favicon.ico
   - docs
 
 # Exclude system and environment directories

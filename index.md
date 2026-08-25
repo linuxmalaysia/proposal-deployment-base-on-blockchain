@@ -21,22 +21,22 @@ This platform provides institutional-grade white-label & API-based Digital Asset
   <div class="card">
     <h3>🏛️ Architecture Overview</h3>
     <p>Explore MPC & HSM vault tiering, segregated client ledgers, and institutional regulatory charters.</p>
-    <a href="{{ site.baseurl }}/docs/explanation/architecture-overview.html" class="btn">Read Architecture</a>
+    <a href="{{ '/docs/explanation/architecture-overview.html' | relative_url }}" class="btn">Read Architecture</a>
   </div>
   <div class="card">
     <h3>📊 Market Dynamics</h3>
     <p>In-depth analysis of challenges, compliance caveats, and strategic revenue opportunities.</p>
-    <a href="{{ site.baseurl }}/docs/explanation/challenges-and-opportunities.html" class="btn">Read Market Analysis</a>
+    <a href="{{ '/docs/explanation/challenges-and-opportunities.html' | relative_url }}" class="btn">Read Market Analysis</a>
   </div>
   <div class="card">
     <h3>⚙️ Benchmark Patterns</h3>
     <p>Comparative benchmark matrix of leading institutional custodians (Coinbase, Anchorage, BitGo, BNY Mellon).</p>
-    <a href="{{ site.baseurl }}/docs/reference/implementation-patterns.html" class="btn">View Benchmarks</a>
+    <a href="{{ '/docs/reference/implementation-patterns.html' | relative_url }}" class="btn">View Benchmarks</a>
   </div>
   <div class="card">
     <h3>📑 Documentation Index</h3>
     <p>Complete auto-indexed table of contents covering all documentation quadrant sections.</p>
-    <a href="{{ site.baseurl }}/SUMMARY.html" class="btn">View Summary Index</a>
+    <a href="{{ '/SUMMARY.html' | relative_url }}" class="btn">View Summary Index</a>
   </div>
 </div>
 
