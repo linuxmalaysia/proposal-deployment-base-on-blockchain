@@ -8,7 +8,15 @@ generating/updating SUMMARY.md with OKF v0.2 frontmatter.
 from pathlib import Path
 
 def get_markdown_title(file_path: Path) -> str:
-    """Extract title from OKF frontmatter or first Markdown heading."""
+    """
+    Extract a Markdown document title from its frontmatter or first level-one heading.
+    
+    Parameters:
+        file_path (Path): Path to the Markdown file.
+    
+    Returns:
+        str: The extracted title, or a title derived from the filename when no title is found or the file cannot be read.
+    """
     try:
         content = file_path.read_text(encoding="utf-8")
     except Exception:
@@ -37,7 +45,9 @@ def get_markdown_title(file_path: Path) -> str:
     return file_path.stem.replace("-", " ").title()
 
 def generate_summary() -> None:
-    """Generate SUMMARY.md index file."""
+    """
+    Generate the repository's `SUMMARY.md` documentation index.
+    """
     repo_root = Path(__file__).parent.parent
     summary_path = repo_root / "SUMMARY.md"
 

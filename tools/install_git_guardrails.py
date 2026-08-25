@@ -55,7 +55,12 @@ def check_okf_frontmatter(file_path: Path) -> bool:
     return True
 
 def run_pre_commit_checks() -> int:
-    """Execute DSOM pre-commit guardrail checks."""
+    """
+    Run repository pre-commit guardrail checks, including summary generation, Markdown frontmatter validation, and tests.
+    
+    Returns:
+    	int: `0` if all checks pass; otherwise, the failing command's return code or `1` for frontmatter violations.
+    """
     print("🛡️ Running DSOM Pre-Commit Guardrails...")
 
     repo_root = Path(__file__).parent.parent
