@@ -1,0 +1,12 @@
+# Cursor AI Rules - DSOM Protocol Integration
+# See AGENTS.md and .agents/AGENTS.md for full directives.
+
+rule_version: "0.2"
+language: "en-GB"
+python_toolchain: "uv"
+
+always_enforce:
+  - "Run all python operations using 'uv run'"
+  - "Maintain OKF v0.2 frontmatter on all markdown files"
+  - "Follow concentric clean architecture in src/dca_service/core/"
+  - "Update spatial memory in .agents/brain/ when state changes"
