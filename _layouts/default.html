@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en-GB" data-theme="auto">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page.title | default: site.title }} - DCA as a Service</title>
+  <meta name="description" content="{{ site.description }}">
+  <link rel="stylesheet" href="{{ site.baseurl }}/assets/css/style.css">
+  <script src="{{ site.baseurl }}/assets/js/theme-toggle.js" defer></script>
+</head>
+<body>
+
+  <!-- Laboratory Top Header -->
+  <header class="lab-header">
+    <div class="lab-header-top">
+      <div class="lab-title">
+        <h1>🏛️ DIGITAL CUSTODY ASSET (DCA) :: LABORATORY</h1>
+        <div class="lab-subtitle">DSOM PROTOCOL // STRICT CLEAN ARCHITECTURE // OKF v0.2</div>
+      </div>
+      <div class="lab-controls">
+        <div class="theme-toggle-group">
+          <button type="button" class="theme-btn" data-theme-set="light">☀️ LIGHT</button>
+          <button type="button" class="theme-btn" data-theme-set="dark">🌙 DARK</button>
+          <button type="button" class="theme-btn" data-theme-set="auto">💻 AUTO</button>
+        </div>
+        <span class="lab-badge">OKF v0.2</span>
+        <span class="lab-badge">STATIC SSG</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Top Navigation Bar -->
+  <nav class="top-nav">
+    <div class="top-nav-inner">
+      <a href="{{ site.baseurl }}/" {% if page.url == "/" %}class="active"{% endif %}>[1] Home</a>
+      <a href="{{ site.baseurl }}/README.html" {% if page.url == "/README.html" %}class="active"{% endif %}>[2] Overview</a>
+      <a href="{{ site.baseurl }}/CHANGELOG.html" {% if page.url == "/CHANGELOG.html" %}class="active"{% endif %}>[3] Changelog</a>
+      <a href="{{ site.baseurl }}/HISTORY.html" {% if page.url == "/HISTORY.html" %}class="active"{% endif %}>[4] History</a>
+      <a href="{{ site.baseurl }}/SUMMARY.html" {% if page.url == "/SUMMARY.html" %}class="active"{% endif %}>[5] Docs Index</a>
+      <a href="{{ site.baseurl }}/docs/explanation/architecture-overview.html">[6] Architecture</a>
+      <a href="{{ site.baseurl }}/docs/reference/implementation-patterns.html">[7] Benchmarks</a>
+    </div>
+  </nav>
+
+  <!-- Main Grid Container -->
+  <div class="page-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <h2>📌 Core Navigation</h2>
+      <ul class="sidebar-nav">
+        <li><a href="{{ site.baseurl }}/">🏠 Portal Landing</a></li>
+        <li><a href="{{ site.baseurl }}/README.html">📘 System Overview</a></li>
+        <li><a href="{{ site.baseurl }}/CHANGELOG.html">📜 Changelog</a></li>
+        <li><a href="{{ site.baseurl }}/HISTORY.html">🕒 Project History</a></li>
+        <li><a href="{{ site.baseurl }}/SUMMARY.html">🧭 Documentation Summary</a></li>
+      </ul>
+
+      <h2 style="margin-top: 1.5rem;">📚 Documentation Quadrants</h2>
+      <ul class="sidebar-nav">
+        <li><a href="{{ site.baseurl }}/docs/explanation/architecture-overview.html">🏛️ Custody Architecture</a></li>
+        <li><a href="{{ site.baseurl }}/docs/explanation/challenges-and-opportunities.html">📊 Market Dynamics</a></li>
+        <li><a href="{{ site.baseurl }}/docs/reference/implementation-patterns.html">⚙️ Benchmark Patterns</a></li>
+        <li><a href="{{ site.baseurl }}/docs/github-pages-setup.html">🚀 GitHub Pages Setup</a></li>
+        <li><a href="{{ site.baseurl }}/docs/multi-platform-hosting.html">🌐 Multi-Platform Hosting</a></li>
+      </ul>
+    </aside>
+
+    <!-- Main Content Body -->
+    <main class="main-content">
+      {{ content }}
+    </main>
+  </div>
+
+  <!-- Laboratory Footer -->
+  <footer class="lab-footer">
+    <p>Digital Custody Asset (DCA) as a Service Platform &copy; 2026. Governed by DSOM Protocol.</p>
+    <p style="margin-top: 0.5rem; font-size: 0.75rem;">[ REL: 0.1.0 ] | [ ARCH: CONCENTRIC CLEAN ] | [ OKF: v0.2 ] | [ ENV: UV PYTHON 3.12 ]</p>
+  </footer>
+
+</body>
+</html>

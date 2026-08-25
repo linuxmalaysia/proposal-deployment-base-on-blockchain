@@ -1,0 +1,33 @@
+site_name: "Digital Custody Asset (DCA) as a Service Platform"
+site_description: "Institutional-grade white-label & API-based Digital Asset Custody Platform governed by DSOM Protocol."
+site_author: "Harisfazillah Jamel"
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+
+nav:
+  - Home: README.md
+  - Changelog: CHANGELOG.md
+  - History: HISTORY.md
+  - Summary: SUMMARY.md
+  - Architecture: docs/explanation/architecture-overview.md
+  - Challenges: docs/explanation/challenges-and-opportunities.md
+  - Benchmarks: docs/reference/implementation-patterns.md
+  - Setup Guide: docs/github-pages-setup.md

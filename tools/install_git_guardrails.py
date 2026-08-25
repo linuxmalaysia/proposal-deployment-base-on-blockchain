@@ -59,6 +59,16 @@ def run_pre_commit_checks() -> int:
     print("🛡️ Running DSOM Pre-Commit Guardrails...")
 
     repo_root = Path(__file__).parent.parent
+
+    # Auto-generate SUMMARY.md index
+    summary_script = repo_root / "tools" / "generate_summary.py"
+    if summary_script.exists():
+        print("📑 Auto-generating SUMMARY.md index...")
+        gen_result = subprocess.run(["uv", "run", "python", str(summary_script)], cwd=repo_root)
+        if gen_result.returncode != 0:
+            print("❌ Guardrail violation: SUMMARY.md generation failed.")
+            return gen_result.returncode
+
     md_files = list(repo_root.glob("**/*.md"))
 
     failed = False
