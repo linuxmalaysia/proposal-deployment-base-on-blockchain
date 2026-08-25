@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ page.title | default: site.title }} - DCA as a Service</title>
   <meta name="description" content="{{ site.description }}">
-  <link rel="stylesheet" href="{{ site.baseurl }}/assets/css/style.css">
-  <script src="{{ site.baseurl }}/assets/js/theme-toggle.js" defer></script>
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <script src="{{ '/assets/js/theme-toggle.js' | relative_url }}" defer></script>
+  <link rel="icon" type="image/x-icon" href="{{ '/favicon.ico' | relative_url }}">
+  <link rel="shortcut icon" type="image/x-icon" href="{{ '/favicon.ico' | relative_url }}">
 </head>
 <body>
 
@@ -32,13 +34,13 @@
   <!-- Top Navigation Bar -->
   <nav class="top-nav">
     <div class="top-nav-inner">
-      <a href="{{ site.baseurl }}/" {% if page.url == "/" %}class="active"{% endif %}>[1] Home</a>
-      <a href="{{ site.baseurl }}/README.html" {% if page.url == "/README.html" %}class="active"{% endif %}>[2] Overview</a>
-      <a href="{{ site.baseurl }}/CHANGELOG.html" {% if page.url == "/CHANGELOG.html" %}class="active"{% endif %}>[3] Changelog</a>
-      <a href="{{ site.baseurl }}/HISTORY.html" {% if page.url == "/HISTORY.html" %}class="active"{% endif %}>[4] History</a>
-      <a href="{{ site.baseurl }}/SUMMARY.html" {% if page.url == "/SUMMARY.html" %}class="active"{% endif %}>[5] Docs Index</a>
-      <a href="{{ site.baseurl }}/docs/explanation/architecture-overview.html">[6] Architecture</a>
-      <a href="{{ site.baseurl }}/docs/reference/implementation-patterns.html">[7] Benchmarks</a>
+      <a href="{{ '/' | relative_url }}" {% if page.url == "/" %}class="active"{% endif %}>[1] Home</a>
+      <a href="{{ '/README.html' | relative_url }}" {% if page.url == "/README.html" %}class="active"{% endif %}>[2] Overview</a>
+      <a href="{{ '/CHANGELOG.html' | relative_url }}" {% if page.url == "/CHANGELOG.html" %}class="active"{% endif %}>[3] Changelog</a>
+      <a href="{{ '/HISTORY.html' | relative_url }}" {% if page.url == "/HISTORY.html" %}class="active"{% endif %}>[4] History</a>
+      <a href="{{ '/SUMMARY.html' | relative_url }}" {% if page.url == "/SUMMARY.html" %}class="active"{% endif %}>[5] Docs Index</a>
+      <a href="{{ '/docs/explanation/architecture-overview.html' | relative_url }}">[6] Architecture</a>
+      <a href="{{ '/docs/reference/implementation-patterns.html' | relative_url }}">[7] Benchmarks</a>
     </div>
   </nav>
 
@@ -48,20 +50,20 @@
     <aside class="sidebar">
       <h2>📌 Core Navigation</h2>
       <ul class="sidebar-nav">
-        <li><a href="{{ site.baseurl }}/">🏠 Portal Landing</a></li>
-        <li><a href="{{ site.baseurl }}/README.html">📘 System Overview</a></li>
-        <li><a href="{{ site.baseurl }}/CHANGELOG.html">📜 Changelog</a></li>
-        <li><a href="{{ site.baseurl }}/HISTORY.html">🕒 Project History</a></li>
-        <li><a href="{{ site.baseurl }}/SUMMARY.html">🧭 Documentation Summary</a></li>
+        <li><a href="{{ '/' | relative_url }}">🏠 Portal Landing</a></li>
+        <li><a href="{{ '/README.html' | relative_url }}">📘 System Overview</a></li>
+        <li><a href="{{ '/CHANGELOG.html' | relative_url }}">📜 Changelog</a></li>
+        <li><a href="{{ '/HISTORY.html' | relative_url }}">🕒 Project History</a></li>
+        <li><a href="{{ '/SUMMARY.html' | relative_url }}">🧭 Documentation Summary</a></li>
       </ul>
 
       <h2 style="margin-top: 1.5rem;">📚 Documentation Quadrants</h2>
       <ul class="sidebar-nav">
-        <li><a href="{{ site.baseurl }}/docs/explanation/architecture-overview.html">🏛️ Custody Architecture</a></li>
-        <li><a href="{{ site.baseurl }}/docs/explanation/challenges-and-opportunities.html">📊 Market Dynamics</a></li>
-        <li><a href="{{ site.baseurl }}/docs/reference/implementation-patterns.html">⚙️ Benchmark Patterns</a></li>
-        <li><a href="{{ site.baseurl }}/docs/github-pages-setup.html">🚀 GitHub Pages Setup</a></li>
-        <li><a href="{{ site.baseurl }}/docs/multi-platform-hosting.html">🌐 Multi-Platform Hosting</a></li>
+        <li><a href="{{ '/docs/explanation/architecture-overview.html' | relative_url }}">🏛️ Custody Architecture</a></li>
+        <li><a href="{{ '/docs/explanation/challenges-and-opportunities.html' | relative_url }}">📊 Market Dynamics</a></li>
+        <li><a href="{{ '/docs/reference/implementation-patterns.html' | relative_url }}">⚙️ Benchmark Patterns</a></li>
+        <li><a href="{{ '/docs/github-pages-setup.html' | relative_url }}">🚀 GitHub Pages Setup</a></li>
+        <li><a href="{{ '/docs/multi-platform-hosting.html' | relative_url }}">🌐 Multi-Platform Hosting</a></li>
       </ul>
     </aside>
 
