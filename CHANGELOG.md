@@ -20,5 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Greenfield project setup with Python `uv` toolchain.
 - DSOM Protocol 6-Pillar downstream footprint (`AGENTS.md`, `.agents/brain/`, spatial memory anchors).
 - Core domain models for MPC Key Management, Segregated Client Ledger, Policy Engine, and Ancillary Audit logging.
-- Pytest suite covering all core domain modules.
-- Diátaxis documentation suite covering institutional DCA-as-a-Service architecture, implementation patterns, and regulatory frameworks.
+- Percona Server for PostgreSQL & TimescaleDB Dual-Write Blockchain Synchroniser architecture, domain entities (`src/dca_service/core/blockchain_sync.py`), and storage adapters (`src/dca_service/adapters/timescaledb_adapter.py`).
+- Comprehensive pytest suite covering dual-write workflows, error recovery, and TimescaleDB hypertable chunk archiving policies.
+- Diátaxis documentation suite covering institutional DCA-as-a-Service architecture, implementation patterns, regulatory frameworks, and PostgreSQL/TimescaleDB time-series sync design.
