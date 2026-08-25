@@ -10,6 +10,7 @@ language: "en-GB"
 # Execution Walkthrough (`walkthrough.md`)
 
 ## Session Log: 2026-08-25 (Greenfield Setup & PR Feedback)
+
 - Initialised `dca-service` Python package using `uv init --lib --name dca-service`.
 - Added `pytest` development dependency with `uv add --dev pytest`.
 - Constructed clean architecture folder layout:

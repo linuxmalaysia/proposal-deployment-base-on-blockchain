@@ -34,8 +34,21 @@ def check_okf_frontmatter(file_path: Path) -> bool:
         print(f"❌ Guardrail violation: {file_path} missing closing '---' YAML frontmatter delimiter.")
         return False
 
-    frontmatter_block = "\n".join(lines[1:closing_index])
-    if 'okf_version: "0.2"' not in frontmatter_block and "okf_version: '0.2'" not in frontmatter_block and "okf_version: 0.2" not in frontmatter_block:
+    frontmatter_lines = lines[1:closing_index]
+    okf_version_found = False
+    for line in frontmatter_lines:
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        if ":" in stripped:
+            key, val = stripped.split(":", 1)
+            if key.strip() == "okf_version":
+                clean_val = val.strip().strip("'\"")
+                if clean_val == "0.2":
+                    okf_version_found = True
+                    break
+
+    if not okf_version_found:
         print(f"❌ Guardrail violation: {file_path} frontmatter missing exact okf_version '0.2'.")
         return False
 

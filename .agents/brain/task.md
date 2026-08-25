@@ -25,4 +25,5 @@ language: "en-GB"
 - [x] Implement complete pytest test suite.
 
 ### Pending Tasks
+
 - [ ] Run full test suite verification under `uv run pytest`.
