@@ -38,6 +38,7 @@ Once set to **GitHub Actions**, GitHub will automatically execute `.github/workf
 4. **Missing `_config.yml` Includes:** Standard Jekyll excludes non-standard root files. Custom root ledgers (`README.md`, `CHANGELOG.md`, `SUMMARY.md`, `HISTORY.md`, `favicon.ico`) must be explicitly declared in `_config.yml`.
 
 ### Solved Implementation:
+
 - Configured `baseurl: "/proposal-deployment-base-on-blockchain"` and `url: "https://linuxmalaysia.github.io"` in `_config.yml`.
 - Updated `_layouts/default.html` and `index.md` to use Liquid `{{ 'path' | relative_url }}` filter for CSS, JS scripts, favicons, and navigation links.
 - Created root `favicon.ico` and `assets/favicon.ico` to eliminate favicon 404 console errors.
