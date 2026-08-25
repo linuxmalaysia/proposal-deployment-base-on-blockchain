@@ -88,7 +88,21 @@ To ensure deterministic consistency between Percona Server for PostgreSQL and th
 
 ---
 
-## 6. Summary of Architectural Benefits
+## 6. Key Distinction: Blockchain Technology vs Database Encryption
+
+A common point of confusion in institutional architecture is conflating the roles of **Database Encryption** (e.g. Transparent Data Encryption / TDE in PostgreSQL) and **Blockchain Technology**. Both are critical cryptographic mechanisms, yet they solve fundamentally distinct security concerns.
+
+| Dimension / Feature | Database Encryption (Percona PostgreSQL) | Blockchain Technology (Public/Private Ledgers) |
+| :--- | :--- | :--- |
+| **Primary Purpose** | **Confidentiality:** Ensures data cannot be read by unauthorised third parties or external intruders. | **Integrity:** Ensures data historical records can never be altered, modified, or deleted once confirmed. |
+| **Core Concept** | Encrypts sensitive data at rest and in transit ("Digital Vault"). Only authorized keyholders can decrypt and access the contents. | Open/permissioned append-only ledger recording immutable "digital fingerprints" (cryptographic hash digests). Any modification breaks hash chain verification. |
+| **Threat Protection** | Protects against physical hard drive theft, storage media compromise, and external hacker intrusion. | Protects against internal fraud, unauthorized database administrator (DBA) manipulation, and retroactive log falsification. |
+
+By pairing **Database Encryption** within Percona Server for PostgreSQL (to protect client privacy and key material at rest) with **Blockchain Synchronization** (to anchor immutable hashes on-chain), the DCA Platform achieves comprehensive security covering both confidentiality and tamper-proof integrity.
+
+---
+
+## 7. Summary of Architectural Benefits
 
 - **High Speed & Low Latency:** Queries for balances, audit logs, and analytics execute against Percona PostgreSQL in milliseconds instead of scanning raw blockchain blocks.
 - **Immutable On-Chain Verification:** Blockchain storage is leveraged exclusively for settlement and cryptographic immutability.
