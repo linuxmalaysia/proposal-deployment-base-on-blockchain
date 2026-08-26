@@ -1,0 +1,212 @@
+"""Adapter layer for Percona Server for PostgreSQL / TimescaleDB and Blockchain Synchronisation.
+
+This module provides simulated persistence adapters for TimescaleDB hypertables,
+chunk archiving managers, and dual-write blockchain synchroniser service.
+"""
+
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
+import hashlib
+
+from dca_service.core.blockchain_sync import (
+    HypertableArchivingPolicy,
+    HypertableChunkInfo,
+    HypertableChunkState,
+    SyncState,
+    TimeSeriesTransactionEntry,
+)
+
+
+class TimescaleDBAdapter:
+    """Adapter simulating Percona Server for PostgreSQL with TimescaleDB hypertables."""
+
+    def __init__(self, hypertable_name: str = "blockchain_transactions"):
+        self.hypertable_name = hypertable_name
+        self._records: Dict[str, TimeSeriesTransactionEntry] = {}
+        self._chunks: List[HypertableChunkInfo] = []
+
+    def insert_transaction(self, entry: TimeSeriesTransactionEntry) -> TimeSeriesTransactionEntry:
+        """Insert a transaction into the TimescaleDB hypertable idempotently."""
+        if entry.transaction_id in self._records:
+            existing = self._records[entry.transaction_id]
+            # If entry matches existing ID and payload parameters, return existing (idempotent retry)
+            if (
+                existing.account_id == entry.account_id
+                and existing.asset_symbol == entry.asset_symbol
+                and existing.amount == entry.amount
+                and existing.timestamp == entry.timestamp
+            ):
+                return existing
+            raise ValueError(f"Transaction ID '{entry.transaction_id}' already exists with different payload.")
+
+        self._records[entry.transaction_id] = entry
+        return entry
+
+    def update_sync_state(
+        self,
+        transaction_id: str,
+        new_state: SyncState,
+        block_id: Optional[int] = None,
+        tx_hash: Optional[str] = None,
+        failure_reason: Optional[str] = None,
+    ) -> TimeSeriesTransactionEntry:
+        """Update transaction sync state in the hypertable."""
+        if transaction_id not in self._records:
+            raise KeyError(f"Transaction ID {transaction_id} not found in hypertable.")
+
+        existing = self._records[transaction_id]
+        updated = TimeSeriesTransactionEntry(
+            transaction_id=existing.transaction_id,
+            account_id=existing.account_id,
+            asset_symbol=existing.asset_symbol,
+            amount=existing.amount,
+            timestamp=existing.timestamp,
+            metadata=existing.metadata,
+            sync_state=new_state,
+            block_id=block_id if block_id is not None else existing.block_id,
+            tx_hash=tx_hash if tx_hash is not None else existing.tx_hash,
+            retry_count=existing.retry_count if failure_reason is None else existing.retry_count + 1,
+            failure_reason=failure_reason if failure_reason is not None else existing.failure_reason,
+        )
+        self._records[transaction_id] = updated
+        return updated
+
+    def get_transaction(self, transaction_id: str) -> Optional[TimeSeriesTransactionEntry]:
+        """Retrieve a transaction by ID."""
+        return self._records.get(transaction_id)
+
+    def query_pending_sync(self) -> List[TimeSeriesTransactionEntry]:
+        """Query transactions pending blockchain sync."""
+        return [
+            rec for rec in self._records.values()
+            if rec.sync_state in (SyncState.DB_RECORDED, SyncState.PENDING_BLOCKCHAIN, SyncState.SYNC_FAILED)
+        ]
+
+    def get_all_transactions(self) -> List[TimeSeriesTransactionEntry]:
+        """Return all stored transaction entries."""
+        return list(self._records.values())
+
+    def add_chunk_info(self, chunk: HypertableChunkInfo) -> None:
+        """Register a chunk in the hypertable catalog."""
+        self._chunks.append(chunk)
+
+    def get_chunks(self) -> List[HypertableChunkInfo]:
+        """Return all registered hypertable chunks."""
+        return list(self._chunks)
+
+    def apply_archiving_policy(self, policy: HypertableArchivingPolicy, now: datetime) -> Dict[str, int]:
+        """Apply chunk compression and archiving policies based on age."""
+        if policy.hypertable_name != self.hypertable_name:
+            raise ValueError(
+                f"Policy hypertable name '{policy.hypertable_name}' does not match adapter hypertable '{self.hypertable_name}'."
+            )
+
+        compressed_count = 0
+        archived_count = 0
+
+        for chunk in self._chunks:
+            age_days = (now - chunk.range_end).days
+            if age_days >= policy.archive_after_days and chunk.state != HypertableChunkState.ARCHIVED_COLD_STORAGE:
+                chunk.state = HypertableChunkState.ARCHIVED_COLD_STORAGE
+                archived_count += 1
+            elif (
+                age_days >= policy.compress_after_days
+                and chunk.state == HypertableChunkState.ACTIVE_UNCOMPRESSED
+            ):
+                chunk.state = HypertableChunkState.COMPRESSED
+                chunk.compressed_size_bytes = max(100, chunk.record_count * 15)
+                compressed_count += 1
+
+        return {"compressed": compressed_count, "archived": archived_count}
+
+
+class BlockchainNodeAdapter:
+    """Adapter simulating a blockchain node RPC connection (BTC / ETH / L2)."""
+
+    def __init__(self, current_block: int = 100000):
+        self.current_block = current_block
+        self._on_chain_ledger: Dict[str, Dict] = {}
+        self.should_fail = False
+
+    def broadcast_transaction(self, entry: TimeSeriesTransactionEntry) -> Dict[str, str]:
+        """Broadcast transaction to blockchain node."""
+        if self.should_fail:
+            raise RuntimeError("Blockchain node broadcast network error.")
+
+        import json
+        payload_dict = {
+            "account_id": entry.account_id,
+            "amount": entry.amount,
+            "asset_symbol": entry.asset_symbol,
+            "metadata": entry.metadata,
+            "timestamp": entry.timestamp.isoformat(),
+            "transaction_id": entry.transaction_id,
+        }
+        raw_payload = json.dumps(payload_dict, sort_keys=True)
+        tx_hash = "0x" + hashlib.sha256(raw_payload.encode("utf-8")).hexdigest()
+
+        self.current_block += 1
+        record = {
+            "tx_hash": tx_hash,
+            "block_id": self.current_block,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "payload": raw_payload,
+        }
+        self._on_chain_ledger[tx_hash] = record
+        return {"tx_hash": tx_hash, "block_id": str(self.current_block)}
+
+    def get_on_chain_transaction(self, tx_hash: str) -> Optional[Dict]:
+        """Fetch transaction record from on-chain storage."""
+        return self._on_chain_ledger.get(tx_hash)
+
+
+class DualWriteBlockchainSyncService:
+    """Orchestrates Dual-Write pattern: write to database first, then to blockchain."""
+
+    def __init__(self, db_adapter: TimescaleDBAdapter, node_adapter: BlockchainNodeAdapter):
+        self.db = db_adapter
+        self.node = node_adapter
+
+    def process_new_transaction(
+        self,
+        transaction_id: str,
+        account_id: str,
+        asset_symbol: str,
+        amount: float,
+        timestamp: datetime,
+        metadata: Optional[Dict] = None,
+    ) -> TimeSeriesTransactionEntry:
+        """Execute dual-write: write to TimescaleDB first, then broadcast to blockchain."""
+        entry = TimeSeriesTransactionEntry(
+            transaction_id=transaction_id,
+            account_id=account_id,
+            asset_symbol=asset_symbol,
+            amount=amount,
+            timestamp=timestamp,
+            metadata=metadata or {},
+            sync_state=SyncState.DB_RECORDED,
+        )
+        stored_entry = self.db.insert_transaction(entry)
+
+        # Transition to PENDING_BLOCKCHAIN state
+        self.db.update_sync_state(transaction_id, SyncState.PENDING_BLOCKCHAIN)
+
+        try:
+            res = self.node.broadcast_transaction(stored_entry)
+            tx_hash = res["tx_hash"]
+            block_id = int(res["block_id"])
+
+            updated_entry = self.db.update_sync_state(
+                transaction_id=transaction_id,
+                new_state=SyncState.CHAIN_CONFIRMED,
+                block_id=block_id,
+                tx_hash=tx_hash,
+            )
+            return updated_entry
+        except Exception as exc:
+            updated_entry = self.db.update_sync_state(
+                transaction_id=transaction_id,
+                new_state=SyncState.SYNC_FAILED,
+                failure_reason=str(exc),
+            )
+            return updated_entry

@@ -24,13 +24,22 @@ language: "en-GB"
 - `.agents/brain/palace_registry.md` -> Spatial asset map.
 
 ### Source Code Core (`src/dca_service/core/`)
+
 - `key_management.py` -> MPC & HSM vault key management domain model.
 - `account_ledger.py` -> Segregated client ledger & non-commingling rules.
 - `policy_engine.py` -> Quorum approvals, limits, allow-lists.
 - `ancillary_audit.py` -> Staking, tokenization, immutable audit logger.
+- `blockchain_sync.py` -> TimescaleDB time-series models and blockchain sync states.
+
+### Adapters (`src/dca_service/adapters/`)
+
+- `timescaledb_adapter.py` -> Percona PostgreSQL / TimescaleDB hypertable persistence & dual-write service.
 
 ### Tests (`tests/`)
-- Pytest test suites mirroring domain core modules.
+
+- Pytest test suites mirroring core domain & adapter modules.
 
 ### Tools & Guardrails (`tools/`)
+
+- `tools/generate_summary.py` -> Documentation summary generator.
 - `tools/install_git_guardrails.py` -> DSOM git pre-commit hook validator.

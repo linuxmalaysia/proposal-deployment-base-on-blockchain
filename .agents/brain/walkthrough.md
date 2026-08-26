@@ -9,16 +9,17 @@ language: "en-GB"
 
 # Execution Walkthrough (`walkthrough.md`)
 
-## Session Log: 2026-08-25 (Greenfield Setup & PR Feedback)
+## Session Log: 2026-08-25 (Greenfield Setup & Core Engine)
 
 - Initialised `dca-service` Python package using `uv init --lib --name dca-service`.
 - Added `pytest` development dependency with `uv add --dev pytest`.
-- Constructed clean architecture folder layout:
-  - `src/dca_service/core/` (Pure domain entities and business rules)
-  - `tests/` (Pytest test suite)
-  - `tools/` (Git pre-commit guardrails and developer utilities)
-  - `docs/` (Diátaxis structured documentation with OKF v0.2 frontmatter)
-  - `.agents/brain/` (Spatial memory anchors)
-- Established DSOM Master AI Gateway Matrix in `AGENTS.md` and `.agents/AGENTS.md`.
+- Constructed clean architecture folder layout.
 - Implemented core domain controls: MPC/HSM vault key management, client account segregation, configurable policy engine, and ancillary audit logging.
-- Addressed PR review feedback: hardened key vault encapsulation, account ledger client ownership checks, deep-copied audit logging details, strict positive amounts on proposals/executions, and guardrail frontmatter parsing.
+
+## Session Log: 2026-08-25 (Percona PostgreSQL & TimescaleDB Dual-Write Engine)
+
+- Designed and authored architecture guide `docs/explanation/percona-timescaledb-blockchain-sync.md` documenting Percona Server for PostgreSQL, TimescaleDB hypertable time-series models, chunk archiving policies, and write-to-database-first-then-blockchain dual-write pattern.
+- Implemented core domain entities in `src/dca_service/core/blockchain_sync.py` adhering to Concentric Clean Architecture (zero third-party dependencies).
+- Implemented TimescaleDB hypertable persistence adapters, chunk archiving policies, and `DualWriteBlockchainSyncService` in `src/dca_service/adapters/timescaledb_adapter.py`.
+- Added comprehensive unit tests in `tests/test_blockchain_sync.py` covering dual-write workflows, broadcast failure state handling, and hypertable chunk compression/archiving strategies.
+- Updated triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and spatial memory anchors.

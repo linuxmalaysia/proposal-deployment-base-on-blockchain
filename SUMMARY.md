@@ -21,6 +21,7 @@ language: "en-GB"
 
 * [Institutional Digital Asset Custody Architecture](docs/explanation/architecture-overview.md)
 * [Challenges, Caveats, and Market Opportunities in DCA](docs/explanation/challenges-and-opportunities.md)
+* [Percona Server for PostgreSQL & TimescaleDB Dual-Write Blockchain Architecture](docs/explanation/percona-timescaledb-blockchain-sync.md)
 
 ### Reference
 
