@@ -1,12 +1,13 @@
 """Unit tests for Blockchain Synchroniser & TimescaleDB dual-write pattern."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import pytest
 
 from dca_service.adapters.timescaledb_adapter import (
     BlockchainNodeAdapter,
     DualWriteBlockchainSyncService,
     TimescaleDBAdapter,
+    normalize_metadata,
 )
 from dca_service.core.blockchain_sync import (
     HypertableArchivingPolicy,
@@ -225,3 +226,245 @@ def test_deterministic_tx_hash_payload_encoding():
     hash_b1 = node.broadcast_transaction(entry_boundary1)["tx_hash"]
     hash_b2 = node.broadcast_transaction(entry_boundary2)["tx_hash"]
     assert hash_b1 != hash_b2
+
+
+def test_metadata_normalization_and_datetime_support():
+    """Verify metadata normalization converts datetime and date objects and nested structures."""
+    db_adapter = TimescaleDBAdapter()
+    node_adapter = BlockchainNodeAdapter()
+    service = DualWriteBlockchainSyncService(db_adapter=db_adapter, node_adapter=node_adapter)
+
+    now = datetime.now(timezone.utc)
+    dt_val = datetime(2026, 8, 25, 12, 0, 0, tzinfo=timezone.utc)
+    date_val = date(2026, 8, 25)
+
+    entry = service.process_new_transaction(
+        transaction_id="tx_meta_01",
+        account_id="acc_vault_01",
+        asset_symbol="BTC",
+        amount=2.0,
+        timestamp=now,
+        metadata={
+            "created_at": dt_val,
+            "expiry_date": date_val,
+            "tags": ["custody", "institutional"],
+            "nested": {"key": "value"},
+        },
+    )
+
+    assert entry.metadata["created_at"] == dt_val.isoformat()
+    assert entry.metadata["expiry_date"] == date_val.isoformat()
+    assert entry.metadata["tags"] == ["custody", "institutional"]
+    assert entry.metadata["nested"] == {"key": "value"}
+
+
+def test_invalid_metadata_type_raises_before_persisting():
+    """Verify non-JSON-compatible metadata fails before database insertion or PENDING_BLOCKCHAIN state."""
+    db_adapter = TimescaleDBAdapter()
+    node_adapter = BlockchainNodeAdapter()
+    service = DualWriteBlockchainSyncService(db_adapter=db_adapter, node_adapter=node_adapter)
+
+    class CustomObject:
+        pass
+
+    now = datetime.now(timezone.utc)
+    invalid_metadata = {"unsupported": CustomObject()}
+
+    with pytest.raises(TypeError, match="Metadata value of type 'CustomObject' is not JSON-compatible."):
+        service.process_new_transaction(
+            transaction_id="tx_invalid_meta",
+            account_id="acc_vault_01",
+            asset_symbol="BTC",
+            amount=1.0,
+            timestamp=now,
+            metadata=invalid_metadata,
+        )
+
+    # Ensure transaction was NOT saved to the database or marked pending
+    assert db_adapter.get_transaction("tx_invalid_meta") is None
+    assert len(db_adapter.query_pending_sync()) == 0
+
+
+# ---------------------------------------------------------------------------
+# normalize_metadata() unit tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "value",
+    [None, True, False, 0, 42, -3.14, "", "custody_deposit"],
+)
+def test_normalize_metadata_primitives_pass_through_unchanged(value):
+    """Verify None, bool, int, float, and str values are returned unmodified."""
+    assert normalize_metadata(value) == value
+
+
+def test_normalize_metadata_converts_datetime_to_isoformat_string():
+    """Verify a top-level datetime value is converted to its ISO-8601 string."""
+    dt_val = datetime(2026, 1, 15, 9, 30, 0, tzinfo=timezone.utc)
+    assert normalize_metadata(dt_val) == dt_val.isoformat()
+    assert isinstance(normalize_metadata(dt_val), str)
+
+
+def test_normalize_metadata_converts_date_to_isoformat_string():
+    """Verify a top-level date value is converted to its ISO-8601 string."""
+    date_val = date(2026, 1, 15)
+    assert normalize_metadata(date_val) == date_val.isoformat()
+    assert isinstance(normalize_metadata(date_val), str)
+
+
+def test_normalize_metadata_dict_keys_are_stringified():
+    """Verify non-string dict keys are converted to strings."""
+    result = normalize_metadata({1: "one", 2.5: "two_point_five", "three": 3})
+    assert result == {"1": "one", "2.5": "two_point_five", "three": 3}
+    assert all(isinstance(k, str) for k in result)
+
+
+def test_normalize_metadata_recurses_into_nested_dicts():
+    """Verify nested dict values (including dates) are normalized recursively."""
+    dt_val = datetime(2026, 3, 1, 0, 0, 0, tzinfo=timezone.utc)
+    result = normalize_metadata({"outer": {"inner": {"created": dt_val, "count": 3}}})
+    assert result == {"outer": {"inner": {"created": dt_val.isoformat(), "count": 3}}}
+
+
+def test_normalize_metadata_converts_list_tuple_and_set_to_lists():
+    """Verify list, tuple, and set collections are all converted to lists."""
+    assert normalize_metadata(["a", "b", "c"]) == ["a", "b", "c"]
+    assert normalize_metadata(("a", "b", "c")) == ["a", "b", "c"]
+    # Sets are unordered; use a single-element set to keep the assertion deterministic.
+    assert normalize_metadata({"solo"}) == ["solo"]
+
+
+def test_normalize_metadata_recurses_into_list_elements():
+    """Verify elements within a list are individually normalized."""
+    dt_val = datetime(2026, 5, 5, 5, 5, 5, tzinfo=timezone.utc)
+    result = normalize_metadata([dt_val, {"nested_key": dt_val}, "plain"])
+    assert result == [dt_val.isoformat(), {"nested_key": dt_val.isoformat()}, "plain"]
+
+
+def test_normalize_metadata_unsupported_top_level_type_raises_typeerror():
+    """Verify an unsupported top-level type raises TypeError naming the offending type."""
+
+    class CustomObject:
+        pass
+
+    with pytest.raises(TypeError, match="Metadata value of type 'CustomObject' is not JSON-compatible."):
+        normalize_metadata(CustomObject())
+
+
+def test_normalize_metadata_unsupported_type_nested_in_list_raises_typeerror():
+    """Verify an unsupported type nested inside a list is also rejected."""
+
+    class CustomObject:
+        pass
+
+    with pytest.raises(TypeError, match="Metadata value of type 'CustomObject' is not JSON-compatible."):
+        normalize_metadata(["ok", CustomObject()])
+
+
+# ---------------------------------------------------------------------------
+# Additional BlockchainNodeAdapter.broadcast_transaction metadata tests
+# ---------------------------------------------------------------------------
+
+
+def test_broadcast_transaction_normalizes_datetime_metadata_without_raising():
+    """Verify broadcast_transaction can encode entries whose metadata contains raw datetime values."""
+    node = BlockchainNodeAdapter()
+    now = datetime.now(timezone.utc)
+    entry = TimeSeriesTransactionEntry(
+        transaction_id="tx_broadcast_dt",
+        account_id="acc_vault_01",
+        asset_symbol="ETH",
+        amount=3.0,
+        timestamp=now,
+        metadata={"created_at": datetime(2026, 2, 2, tzinfo=timezone.utc)},
+    )
+
+    result = node.broadcast_transaction(entry)
+
+    assert result["tx_hash"].startswith("0x")
+    on_chain = node.get_on_chain_transaction(result["tx_hash"])
+    assert on_chain is not None
+    assert "2026-02-02" in on_chain["payload"]
+
+
+def test_broadcast_transaction_raises_typeerror_for_unsupported_metadata():
+    """Verify broadcast_transaction propagates TypeError for non-JSON-compatible metadata."""
+
+    class CustomObject:
+        pass
+
+    node = BlockchainNodeAdapter()
+    now = datetime.now(timezone.utc)
+    entry = TimeSeriesTransactionEntry(
+        transaction_id="tx_broadcast_invalid",
+        account_id="acc_vault_01",
+        asset_symbol="ETH",
+        amount=3.0,
+        timestamp=now,
+        metadata={"bad": CustomObject()},
+    )
+
+    with pytest.raises(TypeError, match="Metadata value of type 'CustomObject' is not JSON-compatible."):
+        node.broadcast_transaction(entry)
+
+
+# ---------------------------------------------------------------------------
+# Additional DualWriteBlockchainSyncService.process_new_transaction metadata tests
+# ---------------------------------------------------------------------------
+
+
+def test_process_new_transaction_defaults_metadata_to_empty_dict():
+    """Verify omitting metadata results in an empty normalized dict, not None."""
+    db_adapter = TimescaleDBAdapter()
+    node_adapter = BlockchainNodeAdapter()
+    service = DualWriteBlockchainSyncService(db_adapter=db_adapter, node_adapter=node_adapter)
+
+    entry = service.process_new_transaction(
+        transaction_id="tx_no_meta",
+        account_id="acc_vault_01",
+        asset_symbol="BTC",
+        amount=0.5,
+        timestamp=datetime.now(timezone.utc),
+    )
+
+    assert entry.metadata == {}
+    assert entry.sync_state == SyncState.CHAIN_CONFIRMED
+
+
+def test_process_new_transaction_non_dict_metadata_raises_typeerror():
+    """Verify a top-level non-dict metadata value (e.g. a list) is rejected before persisting."""
+    db_adapter = TimescaleDBAdapter()
+    node_adapter = BlockchainNodeAdapter()
+    service = DualWriteBlockchainSyncService(db_adapter=db_adapter, node_adapter=node_adapter)
+
+    with pytest.raises(TypeError, match="Metadata must be a dictionary."):
+        service.process_new_transaction(
+            transaction_id="tx_list_meta",
+            account_id="acc_vault_01",
+            asset_symbol="BTC",
+            amount=1.0,
+            timestamp=datetime.now(timezone.utc),
+            metadata=["not", "a", "dict"],
+        )
+
+    assert db_adapter.get_transaction("tx_list_meta") is None
+
+
+def test_process_new_transaction_normalizes_non_string_metadata_keys():
+    """Verify integer dict keys in metadata are stringified before being stored."""
+    db_adapter = TimescaleDBAdapter()
+    node_adapter = BlockchainNodeAdapter()
+    service = DualWriteBlockchainSyncService(db_adapter=db_adapter, node_adapter=node_adapter)
+
+    entry = service.process_new_transaction(
+        transaction_id="tx_int_key_meta",
+        account_id="acc_vault_01",
+        asset_symbol="BTC",
+        amount=1.0,
+        timestamp=datetime.now(timezone.utc),
+        metadata={1: "priority_one"},
+    )
+
+    assert entry.metadata == {"1": "priority_one"}
+    assert entry.sync_state == SyncState.CHAIN_CONFIRMED
