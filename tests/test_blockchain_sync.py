@@ -334,3 +334,53 @@ def test_metadata_set_canonicalisation_and_validation():
             timestamp=now,
             metadata={"inf": float("inf")},
         )
+
+
+def test_reconcile_and_sync_on_chain_and_terminal_revert():
+    """Verify reconciliation queries on-chain state before re-broadcasting and handles terminal reverts."""
+    db_adapter = TimescaleDBAdapter()
+    node_adapter = BlockchainNodeAdapter()
+    service = DualWriteBlockchainSyncService(db_adapter=db_adapter, node_adapter=node_adapter)
+    now = datetime.now(timezone.utc)
+
+    # 1. First broadcast attempt fails network check
+    node_adapter.should_fail = True
+    failed_entry = service.process_new_transaction(
+        transaction_id="tx_recon_01",
+        account_id="acc_1",
+        asset_symbol="ETH",
+        amount=5.0,
+        timestamp=now,
+    )
+    assert failed_entry.sync_state == SyncState.SYNC_FAILED
+
+    # Manually insert on-chain record as if transaction actually reached node before network dropped
+    node_adapter.should_fail = False
+    stable_hash = node_adapter.compute_tx_hash(failed_entry)
+    node_adapter._on_chain_ledger[stable_hash] = {
+        "tx_hash": stable_hash,
+        "block_id": 100500,
+        "timestamp": now.isoformat(),
+        "payload": "mock_payload",
+        "reverted": False,
+    }
+
+    # Reconcile should detect on-chain presence and confirm without re-broadcasting
+    reconciled_entry = service.reconcile_and_sync("tx_recon_01")
+    assert reconciled_entry.sync_state == SyncState.CHAIN_CONFIRMED
+    assert reconciled_entry.block_id == 100500
+
+    # 2. Terminal revert handling
+    failed_entry_revert = service.process_new_transaction(
+        transaction_id="tx_revert_01",
+        account_id="acc_1",
+        asset_symbol="ETH",
+        amount=5.0,
+        timestamp=now,
+    )
+    revert_hash = node_adapter.compute_tx_hash(failed_entry_revert)
+    node_adapter._on_chain_ledger[revert_hash]["reverted"] = True
+
+    reconciled_revert = service.reconcile_and_sync("tx_revert_01")
+    assert reconciled_revert.sync_state == SyncState.SYNC_FAILED
+    assert "TERMINAL_REVERT" in reconciled_revert.failure_reason

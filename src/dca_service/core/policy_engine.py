@@ -28,6 +28,10 @@ class TransactionProposal:
         if self.amount <= Decimal("0.0"):
             raise ValueError("Transaction proposal amount must be strictly greater than zero.")
 
+        # Require signers to be a list before checking entries or duplicates
+        if not isinstance(self.signers, list):
+            raise ValueError("Signers must be provided as a list.")
+
         # Runtime validation: check for non-empty string values and duplicate signers
         for signer in self.signers:
             if not isinstance(signer, str) or not signer.strip():
@@ -48,7 +52,7 @@ class PolicyRule:
     authenticated_signers: Set[str] = field(default_factory=set)
     current_daily_accumulated: Decimal = Decimal("0.0")
 
-    def evaluate(self, proposal: TransactionProposal) -> None:
+    def evaluate(self, proposal: TransactionProposal, verified_authenticated_signers: Set[str] | None = None) -> None:
         """Evaluate a proposal against policy parameters. Raises PolicyViolationError if invalid."""
         # 1. Allowlist Check
         if self.allowlisted_addresses and proposal.destination_address not in self.allowlisted_addresses:
@@ -69,14 +73,20 @@ class PolicyRule:
             )
 
         # 4. Multi-Signer Quorum & Signer Validation Check
+        # Membership in TransactionProposal.signers alone is not treated as authentication evidence.
+        # Active session/signature verifier attestation must be supplied via verified_authenticated_signers.
+        auth_evidence = verified_authenticated_signers if verified_authenticated_signers is not None else set()
+
         valid_signers: set[str] = set()
         for signer in proposal.signers:
-            # Check authentication if authenticated_signers set is defined
-            if self.authenticated_signers and signer not in self.authenticated_signers:
+            # Check authentication evidence if authenticated_signers set or verifier attestation is enforced
+            if self.authenticated_signers and (signer not in self.authenticated_signers or signer not in auth_evidence):
                 raise PolicyViolationError(f"Signer '{signer}' is unauthenticated.")
-            # Check authorization if authorized_signers set is defined
+
+            # Check authorisation if authorized_signers set is defined
             if self.authorized_signers and signer not in self.authorized_signers:
                 raise PolicyViolationError(f"Signer '{signer}' is unauthorized.")
+
             valid_signers.add(signer)
 
         if len(valid_signers) < self.required_approvers_count:
