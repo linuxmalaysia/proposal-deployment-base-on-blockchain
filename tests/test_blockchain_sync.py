@@ -227,8 +227,8 @@ def test_deterministic_tx_hash_payload_encoding():
     assert hash_b1 != hash_b2
 
 
-def test_metadata_normalization_and_datetime_support():
-    """Verify metadata normalization converts datetime and date objects and nested structures."""
+def test_metadata_normalisation_and_datetime_support():
+    """Verify metadata normalisation converts datetime and date objects and nested structures."""
     db_adapter = TimescaleDBAdapter()
     node_adapter = BlockchainNodeAdapter()
     service = DualWriteBlockchainSyncService(db_adapter=db_adapter, node_adapter=node_adapter)
@@ -282,3 +282,55 @@ def test_invalid_metadata_type_raises_before_persisting():
     # Ensure transaction was NOT saved to the database or marked pending
     assert db_adapter.get_transaction("tx_invalid_meta") is None
     assert len(db_adapter.query_pending_sync()) == 0
+
+
+def test_metadata_set_canonicalisation_and_validation():
+    """Verify set canonicalisation, non-finite float rejection, and non-string key rejection."""
+    db_adapter = TimescaleDBAdapter()
+    node_adapter = BlockchainNodeAdapter()
+    service = DualWriteBlockchainSyncService(db_adapter=db_adapter, node_adapter=node_adapter)
+    now = datetime.now(timezone.utc)
+
+    # Set elements in different order produce identical normalized output
+    entry1 = TimeSeriesTransactionEntry(
+        transaction_id="tx_set_1",
+        account_id="acc_1",
+        asset_symbol="BTC",
+        amount=1.0,
+        timestamp=now,
+        metadata={"tags": {"b", "a", "c"}},
+    )
+    entry2 = TimeSeriesTransactionEntry(
+        transaction_id="tx_set_1",
+        account_id="acc_1",
+        asset_symbol="BTC",
+        amount=1.0,
+        timestamp=now,
+        metadata={"tags": {"c", "a", "b"}},
+    )
+
+    hash1 = node_adapter.broadcast_transaction(entry1)["tx_hash"]
+    hash2 = node_adapter.broadcast_transaction(entry2)["tx_hash"]
+    assert hash1 == hash2
+
+    # Non-string dictionary keys rejected
+    with pytest.raises(TypeError, match="Metadata dictionary key '123' of type 'int' is not a string."):
+        service.process_new_transaction(
+            transaction_id="tx_key_err",
+            account_id="acc_1",
+            asset_symbol="BTC",
+            amount=1.0,
+            timestamp=now,
+            metadata={123: "val"},  # type: ignore
+        )
+
+    # Non-finite float values rejected
+    with pytest.raises(ValueError, match="Non-finite float value"):
+        service.process_new_transaction(
+            transaction_id="tx_float_err",
+            account_id="acc_1",
+            asset_symbol="BTC",
+            amount=1.0,
+            timestamp=now,
+            metadata={"inf": float("inf")},
+        )

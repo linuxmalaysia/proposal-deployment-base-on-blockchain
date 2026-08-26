@@ -7,6 +7,7 @@ chunk archiving managers, and dual-write blockchain synchroniser service.
 from datetime import date, datetime, timezone
 import hashlib
 import json
+import math
 from typing import Any, Dict, List, Optional
 
 from dca_service.core.blockchain_sync import (
@@ -19,30 +20,32 @@ from dca_service.core.blockchain_sync import (
 
 
 def normalize_metadata(val: Any) -> Any:
+    """Recursively validate and normalise metadata into a JSON-compatible value tree.
+
+    Supports primitive JSON types, datetime and date objects (converted to ISO-formatted strings),
+    and nested dictionaries, lists, tuples, and sets.
     """
-    Recursively normalizes metadata into a JSON-compatible value tree.
-    
-    Parameters:
-        val (Any): The metadata value to normalize.
-    
-    Returns:
-        Any: The normalized value, with dates converted to ISO-formatted strings,
-            dictionary keys converted to strings, and collections converted to lists.
-    
-    Raises:
-        TypeError: If the value contains an unsupported type.
-    """
-    if val is None or isinstance(val, (bool, int, float, str)):
+    if val is None or isinstance(val, (bool, int, str)):
+        return val
+    elif isinstance(val, float):
+        if not math.isfinite(val):
+            raise ValueError(f"Non-finite float value '{val}' is not allowed in metadata.")
         return val
     elif isinstance(val, (datetime, date)):
         return val.isoformat()
     elif isinstance(val, dict):
         normalized_dict = {}
         for k, v in val.items():
-            normalized_dict[str(k)] = normalize_metadata(v)
+            if not isinstance(k, str):
+                raise TypeError(f"Metadata dictionary key '{k}' of type '{type(k).__name__}' is not a string.")
+            normalized_dict[k] = normalize_metadata(v)
         return normalized_dict
-    elif isinstance(val, (list, tuple, set)):
+    elif isinstance(val, (list, tuple)):
         return [normalize_metadata(item) for item in val]
+    elif isinstance(val, set):
+        normalized_items = [normalize_metadata(item) for item in val]
+        normalized_items.sort(key=lambda x: json.dumps(x, sort_keys=True))
+        return normalized_items
     else:
         raise TypeError(f"Metadata value of type '{type(val).__name__}' is not JSON-compatible.")
 
@@ -159,23 +162,14 @@ class BlockchainNodeAdapter:
         self.should_fail = False
 
     def broadcast_transaction(self, entry: TimeSeriesTransactionEntry) -> Dict[str, str]:
-        """
-        Broadcast a transaction entry to the blockchain node and record its confirmation.
-        
-        Parameters:
-            entry (TimeSeriesTransactionEntry): Transaction entry to broadcast.
-        
-        Returns:
-            Dict[str, str]: Mapping containing the transaction hash under ``tx_hash`` and
-                the assigned block identifier under ``block_id``.
-        
-        Raises:
-            RuntimeError: If blockchain broadcast failure simulation is enabled.
-        """
+        """Broadcast transaction to blockchain node."""
         if self.should_fail:
             raise RuntimeError("Blockchain node broadcast network error.")
 
-        normalized_meta = normalize_metadata(entry.metadata or {})
+        if not isinstance(entry.metadata, dict):
+            raise TypeError("Metadata must be a dictionary.")
+
+        normalized_meta = normalize_metadata(entry.metadata)
         payload_dict = {
             "account_id": entry.account_id,
             "amount": entry.amount,
@@ -218,27 +212,12 @@ class DualWriteBlockchainSyncService:
         timestamp: datetime,
         metadata: Optional[Dict] = None,
     ) -> TimeSeriesTransactionEntry:
-        """
-        Process a transaction through database recording and blockchain synchronization.
-        
-        Parameters:
-        	transaction_id (str): Unique identifier for the transaction.
-        	account_id (str): Identifier of the associated account.
-        	asset_symbol (str): Symbol of the transacted asset.
-        	amount (float): Transaction amount.
-        	timestamp (datetime): Time associated with the transaction.
-        	metadata (Optional[Dict]): Additional transaction metadata.
-        
-        Returns:
-        	TimeSeriesTransactionEntry: The transaction entry with a confirmed or failed synchronization state.
-        
-        Raises:
-        	TypeError: If metadata cannot be normalized into a dictionary.
-        """
-        raw_metadata = metadata or {}
-        normalized_meta = normalize_metadata(raw_metadata)
-        if not isinstance(normalized_meta, dict):
+        """Execute dual-write: write to TimescaleDB first, then broadcast to blockchain."""
+        raw_metadata = {} if metadata is None else metadata
+        if not isinstance(raw_metadata, dict):
             raise TypeError("Metadata must be a dictionary.")
+
+        normalized_meta = normalize_metadata(raw_metadata)
 
         entry = TimeSeriesTransactionEntry(
             transaction_id=transaction_id,
