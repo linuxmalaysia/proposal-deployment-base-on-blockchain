@@ -29,6 +29,11 @@ This platform provides institutional-grade white-label & API-based Digital Asset
     <a href="{{ '/docs/explanation/challenges-and-opportunities.html' | relative_url }}" class="btn">Read Market Analysis</a>
   </div>
   <div class="card">
+    <h3>⚡ Percona & TimescaleDB Sync</h3>
+    <p>Dual-write architecture, hypertable archiving, and immutable blockchain ledger settlement.</p>
+    <a href="{{ '/docs/explanation/percona-timescaledb-blockchain-sync.html' | relative_url }}" class="btn">Read Blockchain Sync</a>
+  </div>
+  <div class="card">
     <h3>⚙️ Benchmark Patterns</h3>
     <p>Comparative benchmark matrix of leading institutional custodians (Coinbase, Anchorage, BitGo, BNY Mellon).</p>
     <a href="{{ '/docs/reference/implementation-patterns.html' | relative_url }}" class="btn">View Benchmarks</a>
@@ -55,6 +60,7 @@ This platform provides institutional-grade white-label & API-based Digital Asset
 ## 📖 Primary Documentation Ledgers
 
 - 📘 **[System Overview & Setup](README.html)** - Project overview, setup instructions, and testing.
+- ⚡ **[Percona PostgreSQL & TimescaleDB Sync](docs/explanation/percona-timescaledb-blockchain-sync.html)** - Dual-write pattern and hypertable archiving architecture.
 - 📜 **[Changelog](CHANGELOG.html)** - Complete historical log of notable changes.
 - 🕒 **[Project History Ledger](HISTORY.html)** - Detailed chronological progression log.
 - 🧭 **[Documentation Index](SUMMARY.html)** - Dynamic index of all documentation articles.

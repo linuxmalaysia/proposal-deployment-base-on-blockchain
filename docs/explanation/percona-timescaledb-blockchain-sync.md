@@ -70,7 +70,7 @@ A critical challenge with dual-write models is storage expansion. While blockcha
 
 - **Hypertable Archiving:** In production deployments, aged hypertable chunks (e.g., older than 90 days) can be marked read-only, compressed, or decoupled and moved to object storage (e.g., S3 / MinIO) while remaining queryable via database Foreign Data Wrappers (FDW). Note that `TimescaleDBAdapter.apply_archiving_policy` provides a simulated in-memory metadata state transition for testing and evaluation purposes.
 
-- **Blockchain Storage Partitioning:** High-overhead data remains in database storage; only minimal cryptographic proof data is maintained on-chain to minimise cost and chain bloat.
+- **Blockchain Storage Partitioning:** High-overhead data remains in database storage. In the reference adapter implementation, `BlockchainNodeAdapter.broadcast_transaction` broadcasts the full transaction payload; maintaining minimal cryptographic proof data on-chain represents a future production target to minimise cost and chain bloat.
 
 ---
 
@@ -103,11 +103,11 @@ A common point of confusion in institutional architecture is conflating the role
 
 | Dimension / Feature | Database Encryption (Percona PostgreSQL TDE & TLS) | Blockchain Technology (Public/Private Ledgers) |
 | :--- | :--- | :--- |
-| **Primary Purpose** | **Confidentiality:** Ensures data at rest (via Transparent Data Encryption / TDE) and data in transit (via TLS transport security) cannot be read by unauthorised third parties or external intruders. | **Integrity:** Ensures historical records can never be altered, modified, or deleted once confirmed on-chain. |
-| **Core Concept** | Encrypts database files on disk (TDE) and network packets on the wire (TLS). Only authorized keyholders / TLS clients can decrypt and access contents. | Open/permissioned append-only ledger recording immutable "digital fingerprints" (cryptographic hash digests). Any modification breaks hash chain verification. |
-| **Threat Protection** | Protects against physical hard drive theft, storage media compromise, and network eavesdropping. | Protects against internal fraud, unauthorised database administrator (DBA) manipulation, and retroactive log falsification. |
+| **Primary Purpose** | **Confidentiality:** Ensures data at rest (via Transparent Data Encryption / TDE) and data in transit (via TLS transport security) cannot be read by unauthorised third parties or external intruders. | **Tamper Evidence & Integrity Verification:** Enables detection of payload changes or historical alterations once confirmed on-chain. |
+| **Core Concept** | Encrypts database files on disk (TDE) and network packets on the wire (TLS). Only authorised keyholders / TLS clients can decrypt and access contents. | Open/permissioned append-only ledger recording immutable "digital fingerprints" (cryptographic hash digests). Any modification breaks hash chain verification. |
+| **Threat Protection** | Protects against physical hard drive theft, storage media compromise, and network eavesdropping. | Provides tamper evidence against internal fraud, unauthorised database administrator (DBA) manipulation, and retroactive log falsification by allowing reconciliation to detect payload modifications. |
 
-By pairing **Database Encryption** within Percona Server for PostgreSQL (TDE for data at rest, TLS for data in transit) with **Blockchain Synchronization** (to anchor immutable hashes on-chain), the DCA Platform achieves comprehensive security covering both confidentiality and tamper-proof integrity.
+By pairing **Database Encryption** within Percona Server for PostgreSQL (TDE for data at rest, TLS for data in transit) with **Blockchain Synchronization** (to anchor immutable hashes on-chain), the DCA Platform achieves comprehensive security covering confidentiality alongside tamper evidence. Verification procedure: after `BlockchainNodeAdapter.broadcast_transaction` returns the stored transaction hash, fetch the on-chain record using `get_on_chain_transaction(entry.tx_hash)`, recompute SHA-256 digest from `record["payload"]`, and compare the recomputed value with both `record["tx_hash"]` and the stored transaction hash, while retaining independent access-control and security controls.
 
 ---
 
@@ -116,4 +116,4 @@ By pairing **Database Encryption** within Percona Server for PostgreSQL (TDE for
 - **High Speed & Low Latency:** Queries for balances, audit logs, and analytics execute against Percona PostgreSQL in milliseconds instead of scanning raw blockchain blocks.
 - **Immutable On-Chain Verification:** Blockchain storage is leveraged exclusively for settlement and cryptographic immutability.
 - **Scalable Archiving:** TimescaleDB chunk compression and archiving keep local storage lean while preserving full history accessibility.
-- **Institutional Failover:** Percona HA tooling ensures continuous availability and disaster recovery readiness.
+- **Institutional Failover:** Percona HA tooling targets bounded availability and recovery-time objectives (e.g. RPO near zero, RTO bounded by failover orchestration timeouts), where overall disaster-recovery readiness depends on configured backup policies and continuous WAL-archive procedures.
