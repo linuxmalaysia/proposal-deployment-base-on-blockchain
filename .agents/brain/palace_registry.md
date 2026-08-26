@@ -43,6 +43,10 @@ language: "en-GB"
 
 - `docs/explanation/open-source-mpc-wallet-architecture.md` -> Coinbase `cb-mpc` open-source wallet architecture.
 - `docs/explanation/percona-timescaledb-blockchain-sync.md` -> Dual-write PostgreSQL / TimescaleDB architecture.
+- `docs/explanation/research-commercialisation-fund-dac-proposal.md` -> RCF and DAC proposal architecture document.
+- `docs/tutorials/getting-started-dca-dac.md` -> Getting Started Tutorial for DCA/DAC on Percona PostgreSQL.
+- `docs/how-to/install-and-configure-guardrails.md` -> How-To Guide for guardrails and tools.
+- `docs/reference/dca-dac-api-and-cli-reference.md` -> Core API, CLI, and Data Objects Reference.
 
 ### Tools & Guardrails (`tools/`)
 

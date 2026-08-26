@@ -3,7 +3,7 @@ okf_version: "0.2"
 type: "explanation"
 title: "Open-Source MPC Wallet System Architecture via cb-mpc"
 created: "2026-08-25"
-status: "proposed"
+status: "verified"
 language: "en-GB"
 ---
 
@@ -72,9 +72,9 @@ To establish an open-source MPC wallet infrastructure, the system orchestrates t
 
 ### 3.1 Participant Node Roles in a 2-of-3 Quorum Model
 
-- **Node A (Custodian MPC Compute Service):** An isolated compute service execution boundary that utilizes AWS KMS, Google Cloud KMS, or a PKCS#11 HSM exclusively to protect root key material and unwrap local key shares. The KMS/HSM does not host or execute arbitrary `cb-mpc` code.
+- **Node A (Custodian Engine Node):** An isolated compute service execution boundary that utilizes AWS KMS, Google Cloud KMS, or a PKCS#11 HSM exclusively to protect root key material and unwrap local key shares. The KMS/HSM does not host or execute arbitrary `cb-mpc` code.
 
-- **Node B (Client Approval & Native Bridge):** Node B provides client transaction approval and confirmation. Rather than running C++ `cb-mpc` code directly on untrusted mobile devices or WebAuthn runtimes, Node B executes within a defined and validated native bridge server or secure enclave boundary that proxies verified client approvals to native MPC worker processes.
+- **Node B (Client Co-Signer / Mobile / WebAuthn):** Node B provides client transaction approval and confirmation. Rather than running C++ `cb-mpc` code directly on untrusted mobile devices or WebAuthn runtimes, Node B executes within a defined and validated native bridge server or secure enclave boundary that proxies verified client approvals to native MPC worker processes.
 
 - **Node C (Institutional Recovery Guard Node):** Offline or air-gapped warm backup node managed by an independent trustee or secondary security layer. Activated during client key loss or disaster recovery.
 
@@ -129,38 +129,28 @@ To establish an open-source MPC wallet infrastructure, the system orchestrates t
 
 ## 5. Security Architecture, Key Share Protection & Auditing
 
-### 5.1 Envelope Encryption & AEAD Persistence Contract
+### 5.1 Envelope Encryption for Key Shares
 
-Secret key shares $SK_i$ persisted in the `KeyVault` store use an application-managed AEAD encryption contract compatible with `cb-mpc`:
+Secret key shares $SK_i$ persisted in the `KeyVault` store use an application-managed AEAD envelope encryption contract compatible with `cb-mpc`:
 - **AEAD Cipher & Nonce Storage:** AES-256-GCM symmetric encryption with a unique cryptographically random 96-bit nonce generated for every write operation. The generated GCM nonce is stored alongside versioned fields for nonce, AAD, ciphertext, and authentication tag so decryption can reconstruct all required inputs after restart.
 - **Tag Storage & Associated Data Binding:** The 128-bit authentication tag is stored alongside the ciphertext. Additional Associated Data (AAD) binds protocol type, curve identifier, blob version, vault ID, and party identity context.
 - **Context Validation:** Before decryption, the application validates versioned AAD context parameters, nonces, and AEAD tags to prevent ciphertext transposition or cross-party substitution attacks.
-- **DEK & KEK Responsibilities:** Data Encryption Keys (DEKs) encrypt raw shares, while Key Encryption Keys (KEKs) hosted in KMS/HSM wrap DEKs.
+- **DEK & KEK Responsibilities:** Data Encryption Key (DEK) encrypts raw shares, while Key Encryption Key (KEK) hosted in KMS/HSM wraps DEK.
 
-### 5.2 Proactive Secret Sharing & Key Compromise Recovery
+### 5.2 Proactive Secret Sharing & Key Refresh
 
-- **Refresh Scope:** `cb-mpc` proactive secret reshuffling generates new polynomial shares $SK_i'$ while preserving the same combined public key $PK$. It does not allow arbitrary cross-epoch share combination and protects only when fewer than the signing threshold $t$ of shares are collected within each epoch.
+- **Refresh Scope:** `cb-mpc` proactive secret reshuffling generates new polynomial shares $SK_i'$ while preserving the same combined public key $PK$. Renders stolen historic key shares mathematically useless. It does not allow arbitrary cross-epoch share combination and protects only when fewer than the signing threshold $t$ of shares are collected within each epoch.
 - **Compromise Limitation:** Proactive refresh **cannot** revoke or invalidate a key if an attacker has already obtained $t$ shares within a single epoch or reconstructed $SK$.
 - **Key Compromise Response Protocol:** If key share compromise is detected, the protocol requires stopping use of the affected key material immediately, performing a fresh DKG to generate a new master key $PK_{new}$, and migrating on-chain assets to $PK_{new}$.
 
-### 5.3 Audit Trails & Supporting Evidence
+### 5.3 Audit Trails & Compliance
 
 All MPC rounds, DKG invocations, policy evaluations, and state transitions generate structured audit events recorded in immutable audit logs. These logs provide supporting audit evidence suitable for SOC 1 Type II and SOC 2 Type II evaluation frameworks when evaluated alongside operational controls and assessment period attestations.
 
 ---
 
-## 6. Target System Integration Benefits & Chain Matrix
+## 6. Summary of System Integration Benefits
 
-### 6.1 Universal Chain Compatibility Matrix
-
-| Chain Network | Cryptographic Scheme | Preimage / Input Requirement | Signature Format / Encoding |
-| :--- | :--- | :--- | :--- |
-| **Bitcoin (Legacy / SegWit)** | secp256k1 ECDSA | Double-SHA256 Transaction Preimage | DER Encoded `(r, s)` + SIGHASH Byte |
-| **Bitcoin (Taproot / Schnorr)** | secp256k1 BIP340 Schnorr | Single SHA256 TapSighash Preimage | 64-byte `x-only (r, s)` |
-| **Ethereum & EVM L2s** | secp256k1 ECDSA | Keccak-256 Transaction Hash | 65-byte `(r, s, v)` Canonical Low-s |
-| **Solana & Near** | Ed25519 (Probabilistic Schnorr) | Original Raw Transaction Bytes | 64-byte Ed25519 Signature |
-
-### 6.2 Target Benefits
 - **100% Open-Source Cryptography:** Target utilization of transparent C++/Go implementations from Coinbase (`cb-mpc`), eliminating proprietary vendor lock-in.
 - **Clean Architecture Integration:** Pure mathematical constructs interface cleanly with core key management primitives (`src/dca_service/core/key_management.py`), preserving zero-dependency domain boundaries.
-- **Settlement Resilience:** High-speed off-chain interactive signing linked directly to Percona Server for PostgreSQL and TimescaleDB dual-write pipelines with robust `SYNC_FAILED` reconciliation.
+- **Enterprise Performance:** High-speed off-chain interactive signing linked directly to Percona Server for PostgreSQL and TimescaleDB dual-write pipelines.

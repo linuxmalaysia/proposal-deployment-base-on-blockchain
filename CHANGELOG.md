@@ -24,3 +24,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive pytest suite covering dual-write workflows, error recovery, and TimescaleDB hypertable chunk archiving policies.
 - Diátaxis documentation suite covering institutional DCA-as-a-Service architecture, implementation patterns, regulatory frameworks, and PostgreSQL/TimescaleDB time-series sync design.
 - Open-Source MPC Wallet System Architecture documentation based on Coinbase `cb-mpc` cryptography library ([`docs/explanation/open-source-mpc-wallet-architecture.md`](docs/explanation/open-source-mpc-wallet-architecture.md)).
+- Research Commercialisation Fund (RCF) and Digital Asset Custodian (DAC) proposal documentation anchored on Percona Server for PostgreSQL ([`docs/explanation/research-commercialisation-fund-dac-proposal.md`](docs/explanation/research-commercialisation-fund-dac-proposal.md)).
+- Complete Diátaxis Framework documentation expansion (Tutorials, How-To Guides, and Technical Reference).
