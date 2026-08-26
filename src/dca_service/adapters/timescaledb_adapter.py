@@ -19,10 +19,18 @@ from dca_service.core.blockchain_sync import (
 
 
 def normalize_metadata(val: Any) -> Any:
-    """Recursively validate and normalise metadata into a JSON-compatible value tree.
-
-    Supports primitive JSON types, datetime and date objects (converted to ISO-formatted strings),
-    and nested dictionaries, lists, tuples, and sets.
+    """
+    Recursively normalizes metadata into a JSON-compatible value tree.
+    
+    Parameters:
+        val (Any): The metadata value to normalize.
+    
+    Returns:
+        Any: The normalized value, with dates converted to ISO-formatted strings,
+            dictionary keys converted to strings, and collections converted to lists.
+    
+    Raises:
+        TypeError: If the value contains an unsupported type.
     """
     if val is None or isinstance(val, (bool, int, float, str)):
         return val
@@ -151,7 +159,19 @@ class BlockchainNodeAdapter:
         self.should_fail = False
 
     def broadcast_transaction(self, entry: TimeSeriesTransactionEntry) -> Dict[str, str]:
-        """Broadcast transaction to blockchain node."""
+        """
+        Broadcast a transaction entry to the blockchain node and record its confirmation.
+        
+        Parameters:
+            entry (TimeSeriesTransactionEntry): Transaction entry to broadcast.
+        
+        Returns:
+            Dict[str, str]: Mapping containing the transaction hash under ``tx_hash`` and
+                the assigned block identifier under ``block_id``.
+        
+        Raises:
+            RuntimeError: If blockchain broadcast failure simulation is enabled.
+        """
         if self.should_fail:
             raise RuntimeError("Blockchain node broadcast network error.")
 
@@ -198,7 +218,23 @@ class DualWriteBlockchainSyncService:
         timestamp: datetime,
         metadata: Optional[Dict] = None,
     ) -> TimeSeriesTransactionEntry:
-        """Execute dual-write: write to TimescaleDB first, then broadcast to blockchain."""
+        """
+        Process a transaction through database recording and blockchain synchronization.
+        
+        Parameters:
+        	transaction_id (str): Unique identifier for the transaction.
+        	account_id (str): Identifier of the associated account.
+        	asset_symbol (str): Symbol of the transacted asset.
+        	amount (float): Transaction amount.
+        	timestamp (datetime): Time associated with the transaction.
+        	metadata (Optional[Dict]): Additional transaction metadata.
+        
+        Returns:
+        	TimeSeriesTransactionEntry: The transaction entry with a confirmed or failed synchronization state.
+        
+        Raises:
+        	TypeError: If metadata cannot be normalized into a dictionary.
+        """
         raw_metadata = metadata or {}
         normalized_meta = normalize_metadata(raw_metadata)
         if not isinstance(normalized_meta, dict):
