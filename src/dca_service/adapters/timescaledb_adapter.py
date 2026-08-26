@@ -134,11 +134,15 @@ class BlockchainNodeAdapter:
             raise RuntimeError("Blockchain node broadcast network error.")
 
         import json
-        serialized_metadata = json.dumps(entry.metadata, sort_keys=True)
-        raw_payload = (
-            f"{entry.transaction_id}:{entry.account_id}:{entry.asset_symbol}:"
-            f"{entry.amount}:{entry.timestamp.isoformat()}:{serialized_metadata}"
-        )
+        payload_dict = {
+            "account_id": entry.account_id,
+            "amount": entry.amount,
+            "asset_symbol": entry.asset_symbol,
+            "metadata": entry.metadata,
+            "timestamp": entry.timestamp.isoformat(),
+            "transaction_id": entry.transaction_id,
+        }
+        raw_payload = json.dumps(payload_dict, sort_keys=True)
         tx_hash = "0x" + hashlib.sha256(raw_payload.encode("utf-8")).hexdigest()
 
         self.current_block += 1

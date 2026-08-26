@@ -179,11 +179,12 @@ def test_archiving_policy_hypertable_mismatch_validation():
 
 
 def test_deterministic_tx_hash_payload_encoding():
-    """Verify transaction hash generation includes asset_symbol and deterministic metadata."""
+    """Verify canonical JSON payload encoding and hashing behavior."""
     node = BlockchainNodeAdapter()
     now = datetime.now(timezone.utc)
 
-    entry = TimeSeriesTransactionEntry(
+    # 1. Equivalent metadata with different insertion order produces identical hash
+    entry_order1 = TimeSeriesTransactionEntry(
         transaction_id="tx_hash_1",
         account_id="acc_vault",
         asset_symbol="SOL",
@@ -192,7 +193,35 @@ def test_deterministic_tx_hash_payload_encoding():
         metadata={"tier": "vip", "region": "eu"},
     )
 
-    res = node.broadcast_transaction(entry)
-    tx_hash = res["tx_hash"]
-    assert tx_hash.startswith("0x")
-    assert len(tx_hash) == 66  # 0x + 64 hex chars
+    entry_order2 = TimeSeriesTransactionEntry(
+        transaction_id="tx_hash_1",
+        account_id="acc_vault",
+        asset_symbol="SOL",
+        amount=50.0,
+        timestamp=now,
+        metadata={"region": "eu", "tier": "vip"},
+    )
+
+    hash1 = node.broadcast_transaction(entry_order1)["tx_hash"]
+    hash2 = node.broadcast_transaction(entry_order2)["tx_hash"]
+    assert hash1 == hash2
+
+    # 2. Boundary-distinct field values produce different hashes
+    entry_boundary1 = TimeSeriesTransactionEntry(
+        transaction_id="tx_1:account_a",
+        account_id="vault",
+        asset_symbol="BTC",
+        amount=10.0,
+        timestamp=now,
+    )
+    entry_boundary2 = TimeSeriesTransactionEntry(
+        transaction_id="tx_1",
+        account_id="account_a:vault",
+        asset_symbol="BTC",
+        amount=10.0,
+        timestamp=now,
+    )
+
+    hash_b1 = node.broadcast_transaction(entry_boundary1)["tx_hash"]
+    hash_b2 = node.broadcast_transaction(entry_boundary2)["tx_hash"]
+    assert hash_b1 != hash_b2

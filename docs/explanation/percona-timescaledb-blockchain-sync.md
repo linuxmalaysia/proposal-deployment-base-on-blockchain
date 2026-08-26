@@ -82,7 +82,7 @@ To ensure deterministic consistency between Percona Server for PostgreSQL and th
 | :--- | :--- | :--- | :--- |
 | `DB_RECORDED` | Transaction record inserted into TimescaleDB hypertable. | Written to local hypertable log. | Not yet submitted. |
 | `PENDING_BLOCKCHAIN` | Transaction payload queued for broadcast. | Status updated; retry counter initialised. | Submitted to mempool / node RPC. |
-| `CHAIN_CONFIRMED` | Block inclusion verified on-chain. | Block ID, Tx Hash, & Block Timestamp attached. | Confirmed on ledger. |
+| `CHAIN_CONFIRMED` | Block inclusion verified on-chain. | Block ID & Tx Hash attached (reference implementation behavior). | Confirmed on ledger. |
 | `SYNC_FAILED` | Transmission error or execution revert on-chain. | Marked failed; failure reason logged. | Reverted / dropped. |
 
 ### 5.1 Dual-Write Flow Logic
