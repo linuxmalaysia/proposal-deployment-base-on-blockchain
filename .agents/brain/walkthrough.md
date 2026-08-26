@@ -28,3 +28,4 @@ language: "en-GB"
 
 - Authored comprehensive architectural specification `docs/explanation/open-source-mpc-wallet-architecture.md` linking Coinbase's open-source `cb-mpc` threshold cryptography library with P2P node transport, policy engine quorums, KMS/HSM share envelope encryption, and TimescaleDB dual-write pipelines.
 - Updated core ledgers (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and regenerated `SUMMARY.md` via `tools/generate_summary.py`.
+- Addressed PR comments: updated policy engine signer validation, updated cb-mpc doc frontmatter status to `proposed`, and expanded descriptions for probabilistic Schnorr, trust boundaries, session ID & abort handling, AEAD contract, `SYNC_FAILED` reconciliation, and proactive refresh compromise response.

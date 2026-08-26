@@ -7,7 +7,7 @@ and destination address allowlists.
 
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Set, List
+from typing import Set, List, Collection
 
 
 class PolicyViolationError(Exception):
@@ -22,11 +22,19 @@ class TransactionProposal:
     destination_address: str
     amount: Decimal
     asset_symbol: str
-    signers: Set[str] = field(default_factory=set)
+    signers: List[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.amount <= Decimal("0.0"):
             raise ValueError("Transaction proposal amount must be strictly greater than zero.")
+
+        # Runtime validation: check for non-empty string values and duplicate signers
+        for signer in self.signers:
+            if not isinstance(signer, str) or not signer.strip():
+                raise ValueError("Signer identity must be a non-empty string.")
+
+        if len(self.signers) != len(set(self.signers)):
+            raise ValueError("Duplicate signers detected in transaction proposal.")
 
 
 @dataclass
@@ -36,6 +44,8 @@ class PolicyRule:
     daily_velocity_limit: Decimal
     required_approvers_count: int
     allowlisted_addresses: Set[str] = field(default_factory=set)
+    authorized_signers: Set[str] = field(default_factory=set)
+    authenticated_signers: Set[str] = field(default_factory=set)
     current_daily_accumulated: Decimal = Decimal("0.0")
 
     def evaluate(self, proposal: TransactionProposal) -> None:
@@ -58,10 +68,20 @@ class PolicyRule:
                 f"Transaction amount {proposal.amount} causes daily velocity to exceed limit {self.daily_velocity_limit}."
             )
 
-        # 4. Multi-Signer Quorum Check
-        if len(proposal.signers) < self.required_approvers_count:
+        # 4. Multi-Signer Quorum & Signer Validation Check
+        valid_signers: set[str] = set()
+        for signer in proposal.signers:
+            # Check authentication if authenticated_signers set is defined
+            if self.authenticated_signers and signer not in self.authenticated_signers:
+                raise PolicyViolationError(f"Signer '{signer}' is unauthenticated.")
+            # Check authorization if authorized_signers set is defined
+            if self.authorized_signers and signer not in self.authorized_signers:
+                raise PolicyViolationError(f"Signer '{signer}' is unauthorized.")
+            valid_signers.add(signer)
+
+        if len(valid_signers) < self.required_approvers_count:
             raise PolicyViolationError(
-                f"Signer quorum requirement not met. Provided: {len(proposal.signers)}, Required: {self.required_approvers_count}."
+                f"Signer quorum requirement not met. Provided: {len(valid_signers)}, Required: {self.required_approvers_count}."
             )
 
     def record_execution(self, amount: Decimal) -> None:
