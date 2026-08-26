@@ -4,9 +4,10 @@ This module provides simulated persistence adapters for TimescaleDB hypertables,
 chunk archiving managers, and dual-write blockchain synchroniser service.
 """
 
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from datetime import date, datetime, timezone
 import hashlib
+import json
+from typing import Any, Dict, List, Optional
 
 from dca_service.core.blockchain_sync import (
     HypertableArchivingPolicy,
@@ -15,6 +16,27 @@ from dca_service.core.blockchain_sync import (
     SyncState,
     TimeSeriesTransactionEntry,
 )
+
+
+def normalize_metadata(val: Any) -> Any:
+    """Recursively validate and normalise metadata into a JSON-compatible value tree.
+
+    Supports primitive JSON types, datetime and date objects (converted to ISO-formatted strings),
+    and nested dictionaries, lists, tuples, and sets.
+    """
+    if val is None or isinstance(val, (bool, int, float, str)):
+        return val
+    elif isinstance(val, (datetime, date)):
+        return val.isoformat()
+    elif isinstance(val, dict):
+        normalized_dict = {}
+        for k, v in val.items():
+            normalized_dict[str(k)] = normalize_metadata(v)
+        return normalized_dict
+    elif isinstance(val, (list, tuple, set)):
+        return [normalize_metadata(item) for item in val]
+    else:
+        raise TypeError(f"Metadata value of type '{type(val).__name__}' is not JSON-compatible.")
 
 
 class TimescaleDBAdapter:
@@ -133,12 +155,12 @@ class BlockchainNodeAdapter:
         if self.should_fail:
             raise RuntimeError("Blockchain node broadcast network error.")
 
-        import json
+        normalized_meta = normalize_metadata(entry.metadata or {})
         payload_dict = {
             "account_id": entry.account_id,
             "amount": entry.amount,
             "asset_symbol": entry.asset_symbol,
-            "metadata": entry.metadata,
+            "metadata": normalized_meta,
             "timestamp": entry.timestamp.isoformat(),
             "transaction_id": entry.transaction_id,
         }
@@ -177,13 +199,18 @@ class DualWriteBlockchainSyncService:
         metadata: Optional[Dict] = None,
     ) -> TimeSeriesTransactionEntry:
         """Execute dual-write: write to TimescaleDB first, then broadcast to blockchain."""
+        raw_metadata = metadata or {}
+        normalized_meta = normalize_metadata(raw_metadata)
+        if not isinstance(normalized_meta, dict):
+            raise TypeError("Metadata must be a dictionary.")
+
         entry = TimeSeriesTransactionEntry(
             transaction_id=transaction_id,
             account_id=account_id,
             asset_symbol=asset_symbol,
             amount=amount,
             timestamp=timestamp,
-            metadata=metadata or {},
+            metadata=normalized_meta,
             sync_state=SyncState.DB_RECORDED,
         )
         stored_entry = self.db.insert_transaction(entry)

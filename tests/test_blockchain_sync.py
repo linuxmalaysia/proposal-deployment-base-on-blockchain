@@ -1,6 +1,6 @@
 """Unit tests for Blockchain Synchroniser & TimescaleDB dual-write pattern."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import pytest
 
 from dca_service.adapters.timescaledb_adapter import (
@@ -225,3 +225,60 @@ def test_deterministic_tx_hash_payload_encoding():
     hash_b1 = node.broadcast_transaction(entry_boundary1)["tx_hash"]
     hash_b2 = node.broadcast_transaction(entry_boundary2)["tx_hash"]
     assert hash_b1 != hash_b2
+
+
+def test_metadata_normalization_and_datetime_support():
+    """Verify metadata normalization converts datetime and date objects and nested structures."""
+    db_adapter = TimescaleDBAdapter()
+    node_adapter = BlockchainNodeAdapter()
+    service = DualWriteBlockchainSyncService(db_adapter=db_adapter, node_adapter=node_adapter)
+
+    now = datetime.now(timezone.utc)
+    dt_val = datetime(2026, 8, 25, 12, 0, 0, tzinfo=timezone.utc)
+    date_val = date(2026, 8, 25)
+
+    entry = service.process_new_transaction(
+        transaction_id="tx_meta_01",
+        account_id="acc_vault_01",
+        asset_symbol="BTC",
+        amount=2.0,
+        timestamp=now,
+        metadata={
+            "created_at": dt_val,
+            "expiry_date": date_val,
+            "tags": ["custody", "institutional"],
+            "nested": {"key": "value"},
+        },
+    )
+
+    assert entry.metadata["created_at"] == dt_val.isoformat()
+    assert entry.metadata["expiry_date"] == date_val.isoformat()
+    assert entry.metadata["tags"] == ["custody", "institutional"]
+    assert entry.metadata["nested"] == {"key": "value"}
+
+
+def test_invalid_metadata_type_raises_before_persisting():
+    """Verify non-JSON-compatible metadata fails before database insertion or PENDING_BLOCKCHAIN state."""
+    db_adapter = TimescaleDBAdapter()
+    node_adapter = BlockchainNodeAdapter()
+    service = DualWriteBlockchainSyncService(db_adapter=db_adapter, node_adapter=node_adapter)
+
+    class CustomObject:
+        pass
+
+    now = datetime.now(timezone.utc)
+    invalid_metadata = {"unsupported": CustomObject()}
+
+    with pytest.raises(TypeError, match="Metadata value of type 'CustomObject' is not JSON-compatible."):
+        service.process_new_transaction(
+            transaction_id="tx_invalid_meta",
+            account_id="acc_vault_01",
+            asset_symbol="BTC",
+            amount=1.0,
+            timestamp=now,
+            metadata=invalid_metadata,
+        )
+
+    # Ensure transaction was NOT saved to the database or marked pending
+    assert db_adapter.get_transaction("tx_invalid_meta") is None
+    assert len(db_adapter.query_pending_sync()) == 0
