@@ -20,6 +20,42 @@ def test_transaction_proposal_positive_amount():
         )
 
 
+def test_transaction_proposal_non_list_signers_rejected():
+    with pytest.raises(ValueError, match="Signers must be provided as a list"):
+        TransactionProposal(
+            proposal_id="p_non_list",
+            client_id="c1",
+            destination_address="0xANY",
+            amount=Decimal("10.0"),
+            asset_symbol="ETH",
+            signers={"signer1"}  # set passed instead of list
+        )
+
+
+def test_transaction_proposal_duplicate_signers_rejected():
+    with pytest.raises(ValueError, match="Duplicate signers detected"):
+        TransactionProposal(
+            proposal_id="p_dup",
+            client_id="c1",
+            destination_address="0xANY",
+            amount=Decimal("10.0"),
+            asset_symbol="ETH",
+            signers=["signer1", "signer1"]
+        )
+
+
+def test_transaction_proposal_empty_signer_identity_rejected():
+    with pytest.raises(ValueError, match="non-empty string"):
+        TransactionProposal(
+            proposal_id="p_empty",
+            client_id="c1",
+            destination_address="0xANY",
+            amount=Decimal("10.0"),
+            asset_symbol="ETH",
+            signers=["   "]
+        )
+
+
 def test_policy_allowlist_enforcement():
     rule = PolicyRule(
         rule_id="rule-1",
@@ -35,9 +71,9 @@ def test_policy_allowlist_enforcement():
         destination_address="0xAPPROVED",
         amount=Decimal("10.0"),
         asset_symbol="ETH",
-        signers={"user1"}
+        signers=["user1"]
     )
-    rule.evaluate(prop_valid)
+    rule.evaluate(prop_valid, verified_authenticated_signers={"user1"})
 
     prop_blocked = TransactionProposal(
         proposal_id="p2",
@@ -45,10 +81,10 @@ def test_policy_allowlist_enforcement():
         destination_address="0xUNAPPROVED",
         amount=Decimal("10.0"),
         asset_symbol="ETH",
-        signers={"user1"}
+        signers=["user1"]
     )
     with pytest.raises(PolicyViolationError, match="not on the allowlist"):
-        rule.evaluate(prop_blocked)
+        rule.evaluate(prop_blocked, verified_authenticated_signers={"user1"})
 
 
 def test_policy_velocity_limit_enforcement():
@@ -65,9 +101,9 @@ def test_policy_velocity_limit_enforcement():
         destination_address="0xANY",
         amount=Decimal("90.0"),
         asset_symbol="USDT",
-        signers={"user1"}
+        signers=["user1"]
     )
-    rule.evaluate(prop)
+    rule.evaluate(prop, verified_authenticated_signers={"user1"})
     rule.record_execution(Decimal("90.0"))
 
     prop2 = TransactionProposal(
@@ -76,10 +112,53 @@ def test_policy_velocity_limit_enforcement():
         destination_address="0xANY",
         amount=Decimal("70.0"),
         asset_symbol="USDT",
-        signers={"user1"}
+        signers=["user1"]
     )
     with pytest.raises(PolicyViolationError, match="causes daily velocity to exceed limit"):
-        rule.evaluate(prop2)
+        rule.evaluate(prop2, verified_authenticated_signers={"user1"})
+
+
+def test_policy_unauthenticated_signer_rejected():
+    rule = PolicyRule(
+        rule_id="rule-auth",
+        max_amount_per_tx=Decimal("100.0"),
+        daily_velocity_limit=Decimal("500.0"),
+        required_approvers_count=1,
+        authenticated_signers={"user1"}
+    )
+
+    prop_unauth = TransactionProposal(
+        proposal_id="p_unauth",
+        client_id="c1",
+        destination_address="0xANY",
+        amount=Decimal("10.0"),
+        asset_symbol="ETH",
+        signers=["user_fake"]
+    )
+    # Evaluated without verifier attestation for user_fake
+    with pytest.raises(PolicyViolationError, match="unauthenticated"):
+        rule.evaluate(prop_unauth, verified_authenticated_signers=set())
+
+
+def test_policy_unauthorized_signer_rejected():
+    rule = PolicyRule(
+        rule_id="rule-authz",
+        max_amount_per_tx=Decimal("100.0"),
+        daily_velocity_limit=Decimal("500.0"),
+        required_approvers_count=1,
+        authorized_signers={"user1", "user2"}
+    )
+
+    prop_unauthz = TransactionProposal(
+        proposal_id="p_unauthz",
+        client_id="c1",
+        destination_address="0xANY",
+        amount=Decimal("10.0"),
+        asset_symbol="ETH",
+        signers=["user3"]
+    )
+    with pytest.raises(PolicyViolationError, match="unauthorized"):
+        rule.evaluate(prop_unauthz, verified_authenticated_signers={"user3"})
 
 
 def test_policy_record_execution_positive_amount():

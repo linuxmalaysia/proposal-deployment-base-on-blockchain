@@ -161,6 +161,23 @@ class BlockchainNodeAdapter:
         self._on_chain_ledger: Dict[str, Dict] = {}
         self.should_fail = False
 
+    def compute_tx_hash(self, entry: TimeSeriesTransactionEntry) -> str:
+        """Compute stable transaction hash digest for payload."""
+        if not isinstance(entry.metadata, dict):
+            raise TypeError("Metadata must be a dictionary.")
+
+        normalized_meta = normalize_metadata(entry.metadata)
+        payload_dict = {
+            "account_id": entry.account_id,
+            "amount": entry.amount,
+            "asset_symbol": entry.asset_symbol,
+            "metadata": normalized_meta,
+            "timestamp": entry.timestamp.isoformat(),
+            "transaction_id": entry.transaction_id,
+        }
+        raw_payload = json.dumps(payload_dict, sort_keys=True)
+        return "0x" + hashlib.sha256(raw_payload.encode("utf-8")).hexdigest()
+
     def broadcast_transaction(self, entry: TimeSeriesTransactionEntry) -> Dict[str, str]:
         """Broadcast transaction to blockchain node."""
         if self.should_fail:
@@ -187,6 +204,7 @@ class BlockchainNodeAdapter:
             "block_id": self.current_block,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "payload": raw_payload,
+            "reverted": False,
         }
         self._on_chain_ledger[tx_hash] = record
         return {"tx_hash": tx_hash, "block_id": str(self.current_block)}
@@ -230,11 +248,38 @@ class DualWriteBlockchainSyncService:
         )
         stored_entry = self.db.insert_transaction(entry)
 
-        # Transition to PENDING_BLOCKCHAIN state
+        return self.reconcile_and_sync(transaction_id)
+
+    def reconcile_and_sync(self, transaction_id: str) -> TimeSeriesTransactionEntry:
+        """Reconcile and sync transaction state, checking on-chain presence before retrying."""
+        entry = self.db.get_transaction(transaction_id)
+        if not entry:
+            raise KeyError(f"Transaction ID {transaction_id} not found.")
+
+        # Compute stable tx hash to check on-chain status
+        stable_hash = self.node.compute_tx_hash(entry)
+        on_chain = self.node.get_on_chain_transaction(stable_hash)
+
+        if on_chain:
+            if on_chain.get("reverted"):
+                return self.db.update_sync_state(
+                    transaction_id=transaction_id,
+                    new_state=SyncState.SYNC_FAILED,
+                    tx_hash=stable_hash,
+                    failure_reason="TERMINAL_REVERT: On-chain transaction reverted.",
+                )
+            return self.db.update_sync_state(
+                transaction_id=transaction_id,
+                new_state=SyncState.CHAIN_CONFIRMED,
+                block_id=int(on_chain["block_id"]),
+                tx_hash=stable_hash,
+            )
+
+        # Transition to PENDING_BLOCKCHAIN state before broadcast
         self.db.update_sync_state(transaction_id, SyncState.PENDING_BLOCKCHAIN)
 
         try:
-            res = self.node.broadcast_transaction(stored_entry)
+            res = self.node.broadcast_transaction(entry)
             tx_hash = res["tx_hash"]
             block_id = int(res["block_id"])
 

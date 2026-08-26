@@ -15,3 +15,4 @@ language: "en-GB"
 - Drafted comprehensive institutional digital custody research documentation across Diátaxis quadrants.
 - Implemented pure Python domain models for key vault tiering, segregated account accounting, policy verification, and immutable auditing.
 - Integrated Percona Server for PostgreSQL and TimescaleDB dual-write pattern architecture, enabling time-series transaction logging prior to blockchain broadcast.
+- Designed Open-Source MPC Wallet System linking Coinbase `cb-mpc` cryptographic library with P2P node transport, policy engine quorums, and database dual-write settlement.
