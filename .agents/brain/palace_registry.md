@@ -39,6 +39,11 @@ language: "en-GB"
 
 - Pytest test suites mirroring core domain & adapter modules.
 
+### Documentation (`docs/`)
+
+- `docs/explanation/open-source-mpc-wallet-architecture.md` -> Coinbase `cb-mpc` open-source wallet architecture.
+- `docs/explanation/percona-timescaledb-blockchain-sync.md` -> Dual-write PostgreSQL / TimescaleDB architecture.
+
 ### Tools & Guardrails (`tools/`)
 
 - `tools/generate_summary.py` -> Documentation summary generator.

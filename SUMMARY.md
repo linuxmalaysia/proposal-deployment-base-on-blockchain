@@ -21,6 +21,7 @@ language: "en-GB"
 
 * [Institutional Digital Asset Custody Architecture](docs/explanation/architecture-overview.md)
 * [Challenges, Caveats, and Market Opportunities in DCA](docs/explanation/challenges-and-opportunities.md)
+* [Open-Source MPC Wallet System Architecture via cb-mpc](docs/explanation/open-source-mpc-wallet-architecture.md)
 * [Percona Server for PostgreSQL & TimescaleDB Dual-Write Blockchain Architecture](docs/explanation/percona-timescaledb-blockchain-sync.md)
 
 ### Reference

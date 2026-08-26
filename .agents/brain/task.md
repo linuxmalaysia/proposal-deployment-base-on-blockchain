@@ -29,6 +29,9 @@ language: "en-GB"
 - [x] Implement test suite (`tests/test_blockchain_sync.py`).
 - [x] Run full test suite verification under `uv run pytest`.
 
+- [x] Design Open-Source MPC Wallet System Architecture using Coinbase `cb-mpc` (`docs/explanation/open-source-mpc-wallet-architecture.md`).
+- [x] Update triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and regenerate `SUMMARY.md`.
+
 ### Pending Tasks
 
 - [ ] Complete pre-commit checks and submit PR.

@@ -23,3 +23,8 @@ language: "en-GB"
 - Implemented TimescaleDB hypertable persistence adapters, chunk archiving policies, and `DualWriteBlockchainSyncService` in `src/dca_service/adapters/timescaledb_adapter.py`.
 - Added comprehensive unit tests in `tests/test_blockchain_sync.py` covering dual-write workflows, broadcast failure state handling, and hypertable chunk compression/archiving strategies.
 - Updated triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and spatial memory anchors.
+
+## Session Log: 2026-08-25 (Open-Source MPC Wallet Architecture via cb-mpc)
+
+- Authored comprehensive architectural specification `docs/explanation/open-source-mpc-wallet-architecture.md` linking Coinbase's open-source `cb-mpc` threshold cryptography library with P2P node transport, policy engine quorums, KMS/HSM share envelope encryption, and TimescaleDB dual-write pipelines.
+- Updated core ledgers (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and regenerated `SUMMARY.md` via `tools/generate_summary.py`.
