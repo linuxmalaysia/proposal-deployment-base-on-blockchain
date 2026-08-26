@@ -26,7 +26,19 @@ class TimescaleDBAdapter:
         self._chunks: List[HypertableChunkInfo] = []
 
     def insert_transaction(self, entry: TimeSeriesTransactionEntry) -> TimeSeriesTransactionEntry:
-        """Insert a transaction into the TimescaleDB hypertable."""
+        """Insert a transaction into the TimescaleDB hypertable idempotently."""
+        if entry.transaction_id in self._records:
+            existing = self._records[entry.transaction_id]
+            # If entry matches existing ID and payload parameters, return existing (idempotent retry)
+            if (
+                existing.account_id == entry.account_id
+                and existing.asset_symbol == entry.asset_symbol
+                and existing.amount == entry.amount
+                and existing.timestamp == entry.timestamp
+            ):
+                return existing
+            raise ValueError(f"Transaction ID '{entry.transaction_id}' already exists with different payload.")
+
         self._records[entry.transaction_id] = entry
         return entry
 
@@ -84,6 +96,11 @@ class TimescaleDBAdapter:
 
     def apply_archiving_policy(self, policy: HypertableArchivingPolicy, now: datetime) -> Dict[str, int]:
         """Apply chunk compression and archiving policies based on age."""
+        if policy.hypertable_name != self.hypertable_name:
+            raise ValueError(
+                f"Policy hypertable name '{policy.hypertable_name}' does not match adapter hypertable '{self.hypertable_name}'."
+            )
+
         compressed_count = 0
         archived_count = 0
 
@@ -116,7 +133,12 @@ class BlockchainNodeAdapter:
         if self.should_fail:
             raise RuntimeError("Blockchain node broadcast network error.")
 
-        raw_payload = f"{entry.transaction_id}:{entry.account_id}:{entry.amount}:{entry.timestamp.isoformat()}"
+        import json
+        serialized_metadata = json.dumps(entry.metadata, sort_keys=True)
+        raw_payload = (
+            f"{entry.transaction_id}:{entry.account_id}:{entry.asset_symbol}:"
+            f"{entry.amount}:{entry.timestamp.isoformat()}:{serialized_metadata}"
+        )
         tx_hash = "0x" + hashlib.sha256(raw_payload.encode("utf-8")).hexdigest()
 
         self.current_block += 1

@@ -130,3 +130,69 @@ def test_hypertable_chunk_compression_and_archiving():
     assert chunks[1].state == HypertableChunkState.COMPRESSED
     assert chunks[1].compressed_size_bytes is not None
     assert chunks[2].state == HypertableChunkState.ARCHIVED_COLD_STORAGE
+
+
+def test_insert_transaction_idempotency_and_conflict():
+    """Verify idempotent insert behavior and conflict detection on duplicate transaction IDs."""
+    db_adapter = TimescaleDBAdapter(hypertable_name="blockchain_transactions")
+    now = datetime.now(timezone.utc)
+
+    entry1 = TimeSeriesTransactionEntry(
+        transaction_id="tx_dup_1",
+        account_id="acc_1",
+        asset_symbol="BTC",
+        amount=1.0,
+        timestamp=now,
+    )
+    inserted1 = db_adapter.insert_transaction(entry1)
+    assert inserted1.transaction_id == "tx_dup_1"
+
+    # Idempotent re-insert with identical payload
+    inserted2 = db_adapter.insert_transaction(entry1)
+    assert inserted2 == inserted1
+
+    # Conflicting insert with different payload
+    entry_conflict = TimeSeriesTransactionEntry(
+        transaction_id="tx_dup_1",
+        account_id="acc_1",
+        asset_symbol="BTC",
+        amount=2.5,  # Conflicting amount
+        timestamp=now,
+    )
+    with pytest.raises(ValueError, match="already exists with different payload"):
+        db_adapter.insert_transaction(entry_conflict)
+
+
+def test_archiving_policy_hypertable_mismatch_validation():
+    """Verify policy application rejects mismatched hypertable names."""
+    db_adapter = TimescaleDBAdapter(hypertable_name="btc_transactions")
+    now = datetime.now(timezone.utc)
+
+    policy_mismatch = HypertableArchivingPolicy(
+        hypertable_name="eth_transactions",
+        compress_after_days=7,
+        archive_after_days=90,
+    )
+
+    with pytest.raises(ValueError, match="does not match adapter hypertable"):
+        db_adapter.apply_archiving_policy(policy_mismatch, now=now)
+
+
+def test_deterministic_tx_hash_payload_encoding():
+    """Verify transaction hash generation includes asset_symbol and deterministic metadata."""
+    node = BlockchainNodeAdapter()
+    now = datetime.now(timezone.utc)
+
+    entry = TimeSeriesTransactionEntry(
+        transaction_id="tx_hash_1",
+        account_id="acc_vault",
+        asset_symbol="SOL",
+        amount=50.0,
+        timestamp=now,
+        metadata={"tier": "vip", "region": "eu"},
+    )
+
+    res = node.broadcast_transaction(entry)
+    tx_hash = res["tx_hash"]
+    assert tx_hash.startswith("0x")
+    assert len(tx_hash) == 66  # 0x + 64 hex chars

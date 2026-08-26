@@ -17,6 +17,7 @@ language: "en-GB"
 ## Current Phase: Percona PostgreSQL & TimescaleDB Blockchain Dual-Write Integration
 
 ### Completed Tasks
+
 - [x] Initialise Python project using `uv init` and install `pytest`.
 - [x] Create project directory layout (`src/`, `tests/`, `tools/`, `docs/`, `.agents/`).
 - [x] Establish DSOM Universal Gateway Matrix (`AGENTS.md`, `.agents/AGENTS.md`).
@@ -29,4 +30,5 @@ language: "en-GB"
 - [x] Run full test suite verification under `uv run pytest`.
 
 ### Pending Tasks
+
 - [ ] Complete pre-commit checks and submit PR.
