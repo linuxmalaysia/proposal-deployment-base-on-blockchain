@@ -19,9 +19,9 @@ This final section outlines international academic precedents, examines Malaysia
 
 ## 8.1 International Institutional Benchmarks
 
-Global research universities have long recognized that commercialisation success requires dedicated financial vehicles paired with structured technology valuation and custody mechanisms:
+Global research universities have long recognised that commercialisation success requires dedicated financial vehicles paired with structured technology valuation and custody mechanisms:
 
-```
+```text
 +-----------------------------------------------------------------------+
 |                 INTERNATIONAL BENCHMARK MODEL COMPARISON              |
 +-----------------------------------------------------------------------+
@@ -35,10 +35,10 @@ Global research universities have long recognized that commercialisation success
 +-----------------------------------------------------------------------+
 ```
 
-1. **Stanford University (Office of Technology Licensing - OTL):** Demonstrates the power of centralized, low-friction IP licensing and clear equity-sharing policies for academic inventors.
-2. **Oxford University (Oxford Science Enterprises - OSE):** Highlights the value of an independent, highly capitalized investment vehicle paired directly with university research pipelines, raising over £1bn for spin-offs.
-3. **University of Pennsylvania (Penn Center for Innovation):** Validates the use of internal proof-of-concept seed funds to advance technologies from TRL 3 to TRL 6 prior to venture exposure.
-4. **University of Minnesota (Discovery Capital):** Illustrates matching fund models where institutional capital co-invests alongside private venture capital partners based on standardized due diligence scorecards.
+1. **Stanford University (Office of Technology Licensing - OTL):** Demonstrates the power of centralised, low-friction IP licensing and clear equity-sharing policies for academic inventors.
+2. **Oxford University (Oxford Science Enterprises - OSE):** Highlights the value of an independent university-linked venture fund. As of 2024, Oxford Science Enterprises (OSE) has raised over £850m in direct capital reserves to seed Oxford spin-offs, attracting over £1bn in third-party co-investment across its portfolio companies [Source: Oxford Science Enterprises Performance Report].
+3. **University of Pennsylvania (Penn Center for Innovation):** Validates the use of internal proof-of-concept seed funds to advance technologies to pre-commercial maturity prior to venture exposure.
+4. **University of Minnesota (Discovery Capital):** Illustrates matching fund models where institutional capital co-invests alongside private venture capital partners based on standardised due diligence scorecards.
 5. **Stellenbosch University (Innovus):** Serves as a benchmark for university-owned corporate holding structures that manage spin-off equities and licensing assets in emerging market ecosystems.
 
 ---
@@ -47,7 +47,7 @@ Global research universities have long recognized that commercialisation success
 
 The RCF/DAC framework is specifically tailored to integrate seamlessly into Malaysia's national innovation ecosystem:
 
-```
+```text
 +-----------------------------------------------------------------------+
 |                    MALAYSIAN ECOSYSTEM INTEGRATION                    |
 +-----------------------------------------------------------------------+
@@ -67,7 +67,7 @@ The RCF/DAC framework is specifically tailored to integrate seamlessly into Mala
 +-----------------------------------------------------------------------+
 ```
 
-- **MRANTI Ecosystem Synergy:** The DAC serves as a qualified pipeline generator for MRANTI’s Strategic Research Fund (SRF) and National Technology & Innovation Sandbox (NTIS), providing verified TRL 6+ evidence packages.
+- **MRANTI Ecosystem Synergy:** The DAC serves as a qualified pipeline generator for MRANTI’s Strategic Research Fund (SRF) and National Technology & Innovation Sandbox (NTIS), providing verified evidence packages.
 - **MOSTI-MyIPO IPR Marketplace:** The platform exposes permissioned API endpoints to sync institutional patent assets with the national IPR Marketplace, increasing corporate licensing discovery.
 - **Co-Investment Mechanisms:** RCF capital acts as a catalyst for private venture capital and institutional funds (such as MTDC and Cradle Fund), de-risking early-stage research investments through transparent digital custody.
 

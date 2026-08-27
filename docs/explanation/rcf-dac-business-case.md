@@ -20,12 +20,13 @@ This proposal introduces a fundamental strategic paradigm shift: **reframing uni
 ## 2.1 Reframing Research as an Investable Asset
 
 ### Portfolio Management vs. Passive Record-Keeping
+
 Managing research as an asset class requires adopting the disciplined practices of institutional investment management. Rather than viewing research outputs as static files:
-- **Active Asset Management:** Each research output is identified, catalogued, assigned a unique digital identity, rated for technology and market readiness, and continuously optimized for commercialisation pathways.
-- **Pipeline Visibility:** Capital providers, venture builders, and industrial partners gain clear visibility into a structured pipeline of investment-ready opportunities categorized by maturity, sector, and risk profile.
+- **Active Asset Management:** Each research output is identified, catalogued, assigned a unique digital identity, rated for technology and market readiness, and continuously optimised for commercialisation pathways.
+- **Pipeline Visibility:** Capital providers, venture builders, and industrial partners gain clear visibility into a structured pipeline of investment-ready opportunities categorised by maturity, sector, and risk profile.
 - **Dynamic Portfolio Optimization:** University management can allocate internal grant resources dynamically toward research outputs demonstrating high Market Readiness Scores and strong intellectual property protection.
 
-```
+```text
 +-----------------------------------------------------------------------+
 |                 TRADITIONAL vs. ASSET CLASS MODEL                     |
 +-----------------------------------------------------------------------+
@@ -43,25 +44,29 @@ Managing research as an asset class requires adopting the disciplined practices 
 ## 2.2 Trusted Digital Research Assets
 
 ### Institutional Characteristics of an Asset Class
+
 For research outputs to function effectively as an investable asset class, they must possess the core characteristics that financial investors demand:
 1. **Provenance & Chain of Title:** Verifiable, immutable records documenting inventorship, laboratory origin, funding source history, and legal assignment.
 2. **Verifiability:** Cryptographically hashed, tamper-evident digital documentation verifying experimental records, test results, and prototype benchmarks.
-3. **Comparability:** Standardized assessment frameworks (such as Technology Readiness Level [TRL 1–9] and composite Market Readiness Scores) that allow investors to compare projects objectively.
+3. **Comparability:** Standardised assessment frameworks (such as Technology Readiness Level [TRL 1–9] and composite Market Readiness Scores) that allow investors to compare projects objectively.
 4. **Information Liquidity:** Permissioned, transparent due diligence portals that allow qualified investors to evaluate asset viability rapidly under strict confidentiality protocols.
 
 ### The Role of Digital Research Certificates
-The Digital Asset Custodian (DAC) operationalizes these requirements by issuing a **Digital Asset Certificate** for every registered research output. Stored securely within Percona Server for PostgreSQL with audit logs tracked in TimescaleDB hypertables, each certificate links the research asset's unique Digital Research ID directly to its verified evidence base and change ledger.
+
+The Digital Asset Custodian (DAC) operationalises these requirements by issuing a **Digital Asset Certificate** for every registered research output. Stored securely within Percona Server for PostgreSQL with audit logs tracked in TimescaleDB hypertables, each certificate links the research asset's unique Digital Research ID directly to its verified evidence base and change ledger.
 
 ---
 
 ## 2.3 Strategic Alignment with National Initiatives
 
+### Policy Framework Alignment
+
 The Research Commercialisation Fund (RCF) and Digital Asset Custodian (DAC) model directly aligns with national innovation policies and institutional mandates in Malaysia:
 
 - **MOSTI National Science, Technology and Innovation Policy (DSTIN):** Supports national targets to elevate commercialisation rates and gross expenditure on R&D (GERD).
-- **10-10 Malaysian Science, Technology, Innovation and Economy (MySTIE) Framework:** Integrates 10 system science and technology drivers with 10 socio-economic sectors to maximize economic yield from local research.
-- **MRANTI Commercialisation Mandate:** Aligns with MRANTI’s Strategic Research Fund (SRF) and National Technology & Innovation Sandbox (NTIS) by establishing a structured feeder pipeline of verified TRL 6+ research assets.
-- **MOSTI-MyIPO IPR Marketplace Portal:** Mirrors national efforts to centralize, standardize, and share intellectual property data across ministries and research universities to facilitate licensing and joint ventures.
+- **10-10 Malaysian Science, Technology, Innovation and Economy (MySTIE) Framework:** Integrates 10 system science and technology drivers with 10 socio-economic sectors to maximise economic yield from local research.
+- **MRANTI Commercialisation Mandate:** Aligns with MRANTI’s Strategic Research Fund (SRF) and National Technology & Innovation Sandbox (NTIS) by establishing a structured feeder pipeline of verified research assets.
+- **MOSTI-MyIPO IPR Marketplace Portal:** Mirrors national efforts to centralise, standardise, and share intellectual property data across ministries and research universities to facilitate licensing and joint ventures.
 
 ---
 
@@ -73,7 +78,7 @@ Implementing the RCF/DAC framework yields measurable returns across five core st
 | :--- | :--- |
 | **Diversified Revenue Streams** | Generates recurring licensing royalties, equity dividends from spin-off ventures, and upfront assignment fees, reducing reliance on tuition revenue and public research grants. |
 | **Shorter Time-to-Market** | Accelerates technology transfer cycles by eliminating manual due diligence delays and matching industry partners with pre-assessed, verified research assets. |
-| **Higher Investor Confidence** | Increases average deal size and valuation equity entries by presenting standardized TRL scores, clean IP ownership chains, and cryptographically verified proof packages. |
+| **Higher Investor Confidence** | Increases average deal size and valuation equity entries by presenting standardised TRL scores, clean IP ownership chains, and cryptographically verified proof packages. |
 | **National Grant Positioning** | Secures higher success rates for major national co-investment funds (e.g., MRANTI SRF, NTIS, Applied Innovation Fund) by providing instant access to auditable evidence packages. |
 | **Auditable Impact Record** | Establishes a verifiable economic and social impact ledger, strengthening university standing in international rankings (QS/THE), accreditation reviews, and government funding allocations. |
 

@@ -21,7 +21,7 @@ In accordance with our dual-write architecture pattern, all transaction data, ev
 
 The technical design of the DAC adheres to five foundational engineering principles:
 
-```
+```text
 +-----------------------------------------------------------------------+
 |                       PLATFORM DESIGN PRINCIPLES                       |
 +-----------------------------------------------------------------------+
@@ -35,7 +35,7 @@ The technical design of the DAC adheres to five foundational engineering princip
 |     - Strict Role-Based Access Control (RBAC) & NDA-gated access      |
 |                                                                       |
 |  4. COMPLIANCE BY DEFAULT                                             |
-|     - Aligned with PDPA 2010, university IP policy & MyIPO standards  |
+|     - Designed to support PDPA 2010, IP policy & MyIPO alignment     |
 |                                                                       |
 |  5. INTEROPERABILITY                                                  |
 |     - REST/GraphQL APIs connecting to MRANTI, MyIPO & grant portals   |
@@ -45,7 +45,12 @@ The technical design of the DAC adheres to five foundational engineering princip
 1. **Single Source of Truth:** One authoritative database record per research asset stored within Percona Server for PostgreSQL, integrating directly with existing institutional research management systems (RADIS/URMS), grant databases, and patent registries.
 2. **Trust by Design:** Every certificate, evidence document, and evaluation score is cryptographically hashed (SHA-256) and timestamped. An optional distributed ledger (blockchain) notarisation layer can be enabled for public tamper-evidence via our dual-write engine.
 3. **Layered Access Control:** Strict Role-Based Access Control (RBAC) separates internal researchers, faculty administrators, RCF investment committee members, and external investors. Sensitive evidence files are NDA-gated and audit-logged.
-4. **Compliance by Default:** Fully compliant with Malaysia's Personal Data Protection Act 2010 (PDPA), institutional IP ownership policies, MyIPO patent filing standards, and institutional records retention requirements.
+4. **Compliance by Default:** The architecture is designed to support compliance with Malaysia's Personal Data Protection Act 2010 (PDPA), institutional IP ownership policies, MyIPO patent filing standards, and institutional records retention obligations. System implementation controls address:
+   - **Data Protection Notices & Data-Subject Rights:** Transparent processing notices and automated data access/rectification request handlers.
+   - **Retention & Disposal Management:** Configurable policy enforcement for record retention schedules and secure erasure.
+   - **Breach Notification Protocols:** Automated security logging and breach notification workflows.
+   - **DPO & Registration Controls:** Administrative role delegation for Data Protection Officer (DPO) oversight and data processor registration tracking.
+   - **Cross-Border Transfer Safeguards:** Encryption and contractual safeguards governing international data transfer under PDPA principles.
 5. **Interoperability:** Modular REST and GraphQL APIs enable seamless automated data exchange with national platforms including MRANTI, MTDC, and the MOSTI-MyIPO IPR Marketplace.
 
 ---
@@ -54,7 +59,7 @@ The technical design of the DAC adheres to five foundational engineering princip
 
 The DAC architecture is organized into five clean, decoupled logical layers:
 
-```
+```text
 +-----------------------------------------------------------------------+
 |                     LOGICAL ARCHITECTURE — 5 LAYERS                   |
 +-----------------------------------------------------------------------+
@@ -81,9 +86,10 @@ The DAC architecture is organized into five clean, decoupled logical layers:
 ```
 
 ### Layer Details
+
 - **Layer 1 — Integration & Ingestion:** Connectors import baseline metadata, grant records, and inventor details from legacy systems into PostgreSQL intake tables.
 - **Layer 2 — Registry & Evidence Repository:** Manages core research metadata schemas and object storage pointers linked permanently to a UUID Digital Research ID.
-- **Layer 3 — Assessment & Scoring Engine:** Computes standardized TRL (1–9) and composite Market Readiness Scores using automated rules and expert analyst inputs.
+- **Layer 3 — Assessment & Scoring Engine:** Computes standardised TRL (1–9) and composite Market Readiness Scores using automated rules and expert analyst inputs.
 - **Layer 4 — Dashboards & Presentation Portals:** Serves permission-controlled web views for internal executives and external investors.
 - **Layer 5 — Impact Measurement Platform:** Tracks time-series financial returns, licensing royalties, and employment metrics in TimescaleDB hypertables.
 
@@ -97,7 +103,7 @@ The core domain model relies on four primary data entities:
 | :--- | :--- | :--- |
 | **Digital Research ID** | Globally unique, permanent identifier assigned to every registered research asset. | Percona PostgreSQL (`uuid` primary key) |
 | **Digital Asset Certificate** | Tamper-evident certificate summarizing inventorship, ownership, TRL, and evidence hashes. | Percona PostgreSQL + TimescaleDB Hash Log |
-| **Technology Readiness Level (TRL)** | Standardized 1–9 technical maturity rating aligned with MRANTI SRF and NTIS standards. | Percona PostgreSQL Core Entity |
+| **Technology Readiness Level (TRL)** | Standardised 1–9 technical maturity rating aligned with national standards. | Percona PostgreSQL Core Entity |
 | **Market Readiness Score (MRS)** | Composite index evaluating market opportunity, competitive moat, and regulatory readiness. | Percona PostgreSQL Analytical Engine |
 
 ---

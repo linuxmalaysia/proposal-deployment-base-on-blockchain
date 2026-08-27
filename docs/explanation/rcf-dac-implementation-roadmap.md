@@ -20,11 +20,12 @@ By delivering platform features incrementally — beginning with the core Percon
 ## 6.1 Rollout & Delivery Strategy
 
 ### Hybrid Execution Model
+
 The implementation methodology balances institutional compliance and risk mitigation with agile software delivery:
 - **Phase-Gated Governance:** Key policy decisions, fund legal structuring, and budget allocations follow formal university board and steering committee approvals.
 - **Iterative Engineering Releases:** The DAC software suite is deployed in modular milestones, ensuring that baseline data structures and evidence storage are verified before launching analytics engines and external investor portals.
 
-```
+```text
 +-----------------------------------------------------------------------+
 |                    HYBRID EXECUTION METHODOLOGY                       |
 +-----------------------------------------------------------------------+
@@ -44,7 +45,7 @@ The implementation methodology balances institutional compliance and risk mitiga
 
 ## 6.2 Indicative 24-Month Roadmap
 
-The multi-year implementation plan is structured into ten key milestones across governance, technical development, business operations, and rollout workstreams:
+The multi-year implementation plan is structured into eleven key milestones across governance, technical development, business operations, and rollout workstreams:
 
 | Timeframe | Milestone | Workstream | Key Deliverable |
 | :--- | :--- | :--- | :--- |
@@ -57,8 +58,8 @@ The multi-year implementation plan is structured into ten key milestones across 
 | **Month 9–12**| Controlled Expansion to All Centres of Excellence | Rollout | University-wide research asset registration enabled across faculties. |
 | **Month 10–16**| Phase 4: Funding & Investment; Investor Portal | Business | Investor Dashboard live; initial RCF seed capital deployed. |
 | **Month 16–20**| Impact Measurement Platform Launch | Technical | TimescaleDB hypertable tracking for royalties and spin-off equity live. |
-| **Month 16–24+**| Phase 5: Revenue Realisation (Ongoing) | Business | First licensing royalties and equity returns recognized by RCF. |
-| **Month 24** | Full Programme Review & Steady State | Governance | Comprehensive Year-1 economic and social impact report submitted. |
+| **Month 16–24+**| Phase 5: Revenue Realisation (Ongoing) | Business | First licensing royalties and equity returns recognised by RCF. |
+| **Month 24** | Full Programme Review & Steady State | Governance | Comprehensive Year-2 economic and social impact report submitted. |
 
 ---
 

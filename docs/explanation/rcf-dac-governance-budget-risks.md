@@ -19,14 +19,14 @@ This document details the indicative capital allocation required for software de
 
 ## 7.1 Indicative Budget Envelope
 
-The capital requirements for establishing the RCF and building the DAC software backend over Year 1 and Year 2 are categorized into six core budget streams:
+The capital requirements for establishing the RCF and building the DAC software backend over Year 1 and Year 2 are categorised into six core budget streams:
 
 | Budget Item | Estimated Envelope (MYR) | Description & Resource Scope |
 | :--- | :--- | :--- |
 | **DAC Platform Development** | RM 1.5m – 3.0m | Custom backend development, Percona PostgreSQL database setup, TimescaleDB hypertable integration, scoring engines, and dashboard APIs. |
 | **Legal & Fund Structuring** | RM 0.3m – 0.6m | Legal fees for corporate SPV/Trust setup, IP policy alignment, NDA templates, and regulatory compliance filings. |
 | **Human Capital (Year 1)** | RM 0.8m – 1.2m | Salaries for technology transfer officers, patent valuation analysts, full-stack software engineers, and fund managers. |
-| **RCF Seed Capital (Year 1)** | RM 5.0m – 15.0m | Ring-fenced seed investment capital allocated to certified investment-ready research assets (TRL 4–6+). |
+| **RCF Seed Capital (Year 1)** | RM 5.0m – 15.0m | Ring-fenced seed investment capital allocated to certified investment-ready research assets (minimum TRL 6). |
 | **Change Management & Training** | RM 0.2m – 0.4m | Faculty onboarding workshops, principal investigator training modules, user documentation, and awareness campaigns. |
 | **Monitoring & Impact Reporting** | RM 0.15m – 0.3m | External auditing, independent valuation reviews, and annual socio-economic impact reporting. |
 
@@ -36,7 +36,7 @@ The capital requirements for establishing the RCF and building the DAC software 
 
 To protect institutional capital and preserve academic integrity, the platform addresses three primary risk vectors:
 
-```
+```text
 +-----------------------------------------------------------------------+
 |                      RISK MITIGATION MATRIX                           |
 +-----------------------------------------------------------------------+
@@ -55,16 +55,19 @@ To protect institutional capital and preserve academic integrity, the platform a
 ```
 
 ### 1. Disputed IP Ownership & Inventorship Claims
+
 - **Risk:** Co-inventors or external research sponsors dispute legal ownership rights after funding allocation.
 - **Mitigation:** Digital Asset Certificates capture inventorship claims, laboratory logs, and grant funding sources at the point of registration. Baseline legal ownership is cross-checked against university IP policy and joint research agreements before issuing an active certificate.
 
-### 2. Data Security & Unauthorized Confidential Exposure
+### 2. Data Security & Unauthorised Confidential Exposure
+
 - **Risk:** Unauthorised access or leakage of pre-patent research data, trade secrets, or experimental code.
 - **Mitigation:** Strict Role-Based Access Control (RBAC) isolates internal researcher, administration, and investor views. All evidence files stored within PostgreSQL object layers are encrypted at rest (AES-256). External investor access to granular evidence packages requires an executed NDA and is logged permanently in TimescaleDB hypertable audit records.
 
 ### 3. Overvaluation & Inconsistent Project Scoring
+
 - **Risk:** Subjective self-reporting by faculty leads to overvalued research assets and misallocated seed capital.
-- **Mitigation:** The DAC Scoring Engine enforces standardized, rules-based algorithms for calculating TRL (1–9) and Market Readiness Scores (MRS). High-value allocations require dual verification by internal technology transfer officers and independent external valuation experts.
+- **Mitigation:** The DAC Scoring Engine enforces standardised, rules-based algorithms for calculating TRL (1–9) and Market Readiness Scores (MRS). High-value allocations require dual verification by internal technology transfer officers and independent external valuation experts.
 
 ---
 
