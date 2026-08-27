@@ -2,8 +2,15 @@
 okf_version: "0.2"
 type: "explanation"
 title: "RCF & DAC Proposal: 6. Implementation Methodology & Timeline"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics: ["rcf", "dac", "roadmap", "timeline", "agile", "governance"]
+description: "Hybrid agile-waterfall implementation strategy, phase-gated governance, and 24-month roadmap with eleven major milestones."
+resource: "file:///docs/explanation/rcf-dac-implementation-roadmap.md"
+sources: ["docs/explanation/research-commercialisation-fund-dac-proposal.md", ".agents/AGENTS.md"]
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

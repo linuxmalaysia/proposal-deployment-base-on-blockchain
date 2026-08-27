@@ -2,8 +2,15 @@
 okf_version: "0.2"
 type: "explanation"
 title: "RCF & DAC Proposal: 3. Proposed Solution Architecture"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics: ["rcf", "dac", "solution-architecture", "registry", "investor-dashboard"]
+description: "Dual-pillar solution architecture introducing the Research Commercialisation Fund (RCF) and the five core functions of the Digital Asset Custodian (DAC)."
+resource: "file:///docs/explanation/rcf-dac-solution-architecture.md"
+sources: ["docs/explanation/research-commercialisation-fund-dac-proposal.md", ".agents/AGENTS.md"]
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

@@ -2,8 +2,15 @@
 okf_version: "0.2"
 type: "explanation"
 title: "RCF & DAC Proposal: 1. Background and Problem Statement"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics: ["rcf", "dac", "commercialisation", "valley-of-death", "research-asset"]
+description: "Analysis of the institutional commercialisation gap, isolated research records, the technology Valley of Death, and why capital funds require integrated digital evidence infrastructure."
+resource: "file:///docs/explanation/rcf-dac-background-problem.md"
+sources: ["docs/explanation/research-commercialisation-fund-dac-proposal.md", ".agents/AGENTS.md"]
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

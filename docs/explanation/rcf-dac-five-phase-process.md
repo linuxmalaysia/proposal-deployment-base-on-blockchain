@@ -2,8 +2,15 @@
 okf_version: "0.2"
 type: "explanation"
 title: "RCF & DAC Proposal: 5. Proposed DAC Process — Five Phases"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics: ["rcf", "dac", "phases", "inventory", "registration", "assessment", "investment", "realisation"]
+description: "End-to-end operational lifecycle across Phase 1 Inventory, Phase 2 Registration, Phase 3 Assessment, Phase 4 Investment, and Phase 5 Revenue Realisation."
+resource: "file:///docs/explanation/rcf-dac-five-phase-process.md"
+sources: ["docs/explanation/research-commercialisation-fund-dac-proposal.md", ".agents/AGENTS.md"]
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

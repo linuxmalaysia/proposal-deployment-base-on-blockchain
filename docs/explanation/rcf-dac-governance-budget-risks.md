@@ -2,8 +2,15 @@
 okf_version: "0.2"
 type: "explanation"
 title: "RCF & DAC Proposal: 7. Governance, Risk Management & Budget"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics: ["rcf", "dac", "governance", "budget", "risk-management", "pdpa"]
+description: "Capital budgeting breakdown, institutional risk matrix, IP dispute handling, security protocols, and risk mitigation strategies."
+resource: "file:///docs/explanation/rcf-dac-governance-budget-risks.md"
+sources: ["docs/explanation/research-commercialisation-fund-dac-proposal.md", ".agents/AGENTS.md"]
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

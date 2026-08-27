@@ -2,8 +2,15 @@
 okf_version: "0.2"
 type: "explanation"
 title: "RCF & DAC Proposal: 2. Business Case — Research as an Asset Class"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics: ["rcf", "dac", "asset-class", "value-creation", "mystie", "mranti"]
+description: "Business case for treating university research outputs as an investable institutional asset class and aligning with national Malaysian innovation frameworks."
+resource: "file:///docs/explanation/rcf-dac-business-case.md"
+sources: ["docs/explanation/research-commercialisation-fund-dac-proposal.md", ".agents/AGENTS.md"]
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

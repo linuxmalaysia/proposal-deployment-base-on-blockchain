@@ -2,8 +2,15 @@
 okf_version: "0.2"
 type: "explanation"
 title: "RCF & DAC Proposal: 4. Technical Architecture & Data Layer"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics: ["rcf", "dac", "postgresql", "timescaledb", "dual-write", "pdpa"]
+description: "Technical architecture, five logical layers, core data objects, and Percona PostgreSQL / TimescaleDB dual-write database design."
+resource: "file:///docs/explanation/rcf-dac-technical-data-layer.md"
+sources: ["docs/explanation/research-commercialisation-fund-dac-proposal.md", ".agents/AGENTS.md"]
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

@@ -2,8 +2,15 @@
 okf_version: "0.2"
 type: "explanation"
 title: "RCF & DAC Proposal: 8. Conclusion & Ecosystem Precedents"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics: ["rcf", "dac", "benchmarks", "stanford", "oxford", "mranti", "myipo"]
+description: "International academic benchmarks (Stanford, Oxford, Penn, Minnesota, Stellenbosch), Malaysian national innovation ecosystem integration, and strategic conclusions."
+resource: "file:///docs/explanation/rcf-dac-ecosystem-precedents.md"
+sources: ["docs/explanation/research-commercialisation-fund-dac-proposal.md", ".agents/AGENTS.md"]
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

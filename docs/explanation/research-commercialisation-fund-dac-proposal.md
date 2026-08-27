@@ -2,8 +2,25 @@
 okf_version: "0.2"
 type: "explanation"
 title: "Research Commercialisation Fund (RCF) & Digital Asset Custodian (DAC) Architecture Proposal"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics: ["rcf", "dac", "proposal", "research-as-an-asset-class", "percona", "timescaledb"]
+description: "Master proposal and navigation hub for establishing a Research Commercialisation Fund (RCF) and Digital Asset Custodian (DAC) platform."
+resource: "file:///docs/explanation/research-commercialisation-fund-dac-proposal.md"
+sources: [
+  "docs/explanation/rcf-dac-background-problem.md",
+  "docs/explanation/rcf-dac-business-case.md",
+  "docs/explanation/rcf-dac-solution-architecture.md",
+  "docs/explanation/rcf-dac-technical-data-layer.md",
+  "docs/explanation/rcf-dac-five-phase-process.md",
+  "docs/explanation/rcf-dac-implementation-roadmap.md",
+  "docs/explanation/rcf-dac-governance-budget-risks.md",
+  "docs/explanation/rcf-dac-ecosystem-precedents.md",
+  ".agents/AGENTS.md"
+]
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 
@@ -25,6 +42,7 @@ This proposal recommends the establishment of a **Research Commercialisation Fun
 The operational engine that makes this possible is the **Digital Asset Custodian (DAC)**: a single digital platform that functions simultaneously as a Digital Research Asset Registry, a Digital Evidence Repository, a Commercialisation Dashboard, an Investor Dashboard, and an Impact Measurement Platform.
 
 ### Core Architecture & Database Backend Sovereignty
+
 To ensure enterprise durability, transactional reliability, and strict audit compliance, **Percona Server for PostgreSQL** with the **TimescaleDB** time-series hypertable extension serves as the foundational, mandatory primary backend database for the entire DAC platform. All DAC transaction data, evidence metadata, asset registry states, and rating evaluations are written to PostgreSQL first in accordance with our dual-write pattern before broadcasting to any optional distributed ledger or blockchain settlement layer.
 
 ---
