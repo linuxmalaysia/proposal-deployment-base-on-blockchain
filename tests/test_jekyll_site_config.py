@@ -159,7 +159,7 @@ class TestIndexMarkdown:
         content = _read(INDEX_MD)
         frontmatter_match = re.match(r"^---\n(.*?)\n---\n", content, re.DOTALL)
         assert frontmatter_match, "index.md must start with YAML frontmatter"
-        assert 'layout: "default"' in frontmatter_match.group(1)
+        assert "layout: default" in frontmatter_match.group(1) or 'layout: "default"' in frontmatter_match.group(1)
 
 
 class TestFaviconAssets:
@@ -215,4 +215,4 @@ class TestGithubPagesSetupDoc:
         content = _read(GITHUB_PAGES_DOC)
         frontmatter_match = re.match(r"^---\n(.*?)\n---\n", content, re.DOTALL)
         assert frontmatter_match, "docs/github-pages-setup.md must start with YAML frontmatter"
-        assert 'type: "howto"' in frontmatter_match.group(1)
+        assert "type: howto" in frontmatter_match.group(1) or 'type: "howto"' in frontmatter_match.group(1)

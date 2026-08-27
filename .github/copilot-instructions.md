@@ -1,12 +1,25 @@
 ---
-okf_version: "0.2"
-type: "gateway"
-title: "GitHub Copilot Custom Instructions"
-created: "2026-08-25"
-status: "verified"
-language: "en-GB"
+okf_version: '0.2'
+type: agent_instructions
+title: GitHub Copilot Workspace Directives & Clean Architecture Guardrails
+timestamp: '2026-08-25T00:00:00Z'
+topics:
+- copilot
+- directives
+- clean-architecture
+- okf
+- dsom
+description: Custom system prompt and engineering instructions for GitHub Copilot
+  in the DCA platform repository.
+resource: file:///.github/copilot-instructions.md
+sources:
+- AGENTS.md
+generated: jules
+verified: true
+status: approved
+stale_after: '2027-08-25T00:00:00Z'
+language: en-GB
 ---
-
 # GitHub Copilot Custom Instructions
 
 - Adhere strictly to the Deep State of Mind (DSOM) Protocol.
