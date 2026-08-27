@@ -49,9 +49,10 @@ Interfaces with open-source MPC threshold quorums (Coinbase `cb-mpc`) and HSM va
 ---
 
 ### 1.4 `AncillaryAuditLogger` (`src/dca_service/core/ancillary_audit.py`)
-Generates SOC 1 / SOC 2 compliant structured audit logs.
+Generates structured audit event records suitable for supporting SOC 1 / SOC 2 evaluation frameworks.
 
 #### Classes & Methods:
+
 - **`AncillaryAuditLogger()`**: Initialises audit logger.
 - **`log_event(event_type: str, account_id: str, details: dict) -> AuditRecord`**: Persists immutable event record with timestamp, sequence ID, and SHA-256 payload hash.
 
@@ -71,7 +72,7 @@ Primary database driver connecting to **Percona Server for PostgreSQL** with Tim
 | `account_id` | `VARCHAR(64)` | Segregated sub-account ledger reference |
 | `asset_symbol` | `VARCHAR(16)` | Token or currency code |
 | `amount` | `NUMERIC(36, 18)` | Transaction amount represented as `Decimal` to preserve exact precision |
-| `sync_state` | `SyncState` | Enum: `DB_RECORDED`, `PENDING_BLOCKCHAIN`, `CHAIN_CONFIRMED`, `SYNC_FAILED` |
+| `sync_state` | `SyncState` | Application-level `SyncState` enum (`DB_RECORDED`, `PENDING_BLOCKCHAIN`, `CHAIN_CONFIRMED`, `SYNC_FAILED`) stored as `VARCHAR(32)` |
 | `block_id` | `BIGINT` | Optional on-chain block identifier |
 | `tx_hash` | `VARCHAR(66)` | Optional on-chain transaction hash |
 | `retry_count` | `INTEGER` | Sync retry count |

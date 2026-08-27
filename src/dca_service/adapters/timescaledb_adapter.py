@@ -173,7 +173,6 @@ class BlockchainNodeAdapter:
         payload_dict = {
             "account_id": entry.account_id,
             "amount": str(entry.amount) if isinstance(entry.amount, Decimal) else entry.amount,
-            "amount": str(entry.amount) if isinstance(entry.amount, Decimal) else entry.amount,
             "asset_symbol": entry.asset_symbol,
             "metadata": normalized_meta,
             "timestamp": entry.timestamp.isoformat(),
@@ -193,7 +192,7 @@ class BlockchainNodeAdapter:
         normalized_meta = normalize_metadata(entry.metadata)
         payload_dict = {
             "account_id": entry.account_id,
-            "amount": entry.amount,
+            "amount": str(entry.amount) if isinstance(entry.amount, Decimal) else entry.amount,
             "asset_symbol": entry.asset_symbol,
             "metadata": normalized_meta,
             "timestamp": entry.timestamp.isoformat(),
