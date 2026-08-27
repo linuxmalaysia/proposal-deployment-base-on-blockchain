@@ -23,6 +23,14 @@ language: "en-GB"
 * [Challenges, Caveats, and Market Opportunities in DCA](docs/explanation/challenges-and-opportunities.md)
 * [Open-Source MPC Wallet System Architecture via cb-mpc](docs/explanation/open-source-mpc-wallet-architecture.md)
 * [Percona Server for PostgreSQL & TimescaleDB Dual-Write Blockchain Architecture](docs/explanation/percona-timescaledb-blockchain-sync.md)
+* [RCF & DAC Proposal: 1. Background and Problem Statement](docs/explanation/rcf-dac-background-problem.md)
+* [RCF & DAC Proposal: 2. Business Case — Research as an Asset Class](docs/explanation/rcf-dac-business-case.md)
+* [RCF & DAC Proposal: 8. Conclusion & Ecosystem Precedents](docs/explanation/rcf-dac-ecosystem-precedents.md)
+* [RCF & DAC Proposal: 5. Proposed DAC Process — Five Phases](docs/explanation/rcf-dac-five-phase-process.md)
+* [RCF & DAC Proposal: 7. Governance, Risk Management & Budget](docs/explanation/rcf-dac-governance-budget-risks.md)
+* [RCF & DAC Proposal: 6. Implementation Methodology & Timeline](docs/explanation/rcf-dac-implementation-roadmap.md)
+* [RCF & DAC Proposal: 3. Proposed Solution Architecture](docs/explanation/rcf-dac-solution-architecture.md)
+* [RCF & DAC Proposal: 4. Technical Architecture & Data Layer](docs/explanation/rcf-dac-technical-data-layer.md)
 * [Research Commercialisation Fund (RCF) & Digital Asset Custodian (DAC) Architecture Proposal](docs/explanation/research-commercialisation-fund-dac-proposal.md)
 
 ### How To
