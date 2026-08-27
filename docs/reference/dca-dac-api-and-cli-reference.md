@@ -62,17 +62,20 @@ Generates SOC 1 / SOC 2 compliant structured audit logs.
 ### 2.1 `TimescaleDBAdapter` (`src/dca_service/adapters/timescaledb_adapter.py`)
 Primary database driver connecting to **Percona Server for PostgreSQL** with TimescaleDB time-series hypertable support.
 
-#### Primary Table Schema (`custody_transactions`):
+#### Primary Table Schema (`blockchain_transactions`):
 
 | Column Name | Type | Description |
 | :--- | :--- | :--- |
-| `transaction_id` | `UUID` | Primary key identifier |
+| `transaction_id` | `VARCHAR(64)` | String transaction primary key identifier |
 | `timestamp` | `TIMESTAMPTZ` | Hypertable partition time |
 | `account_id` | `VARCHAR(64)` | Segregated sub-account ledger reference |
 | `asset_symbol` | `VARCHAR(16)` | Token or currency code |
 | `amount` | `NUMERIC(36, 18)` | Transaction amount represented as `Decimal` to preserve exact precision |
-| `status` | `VARCHAR(32)` | `DB_RECORDED`, `PENDING_BLOCKCHAIN`, `CHAIN_CONFIRMED` |
-| `payload_hash` | `CHAR(64)` | SHA-256 state payload hash |
+| `sync_state` | `SyncState` | Enum: `DB_RECORDED`, `PENDING_BLOCKCHAIN`, `CHAIN_CONFIRMED`, `SYNC_FAILED` |
+| `block_id` | `BIGINT` | Optional on-chain block identifier |
+| `tx_hash` | `VARCHAR(66)` | Optional on-chain transaction hash |
+| `retry_count` | `INTEGER` | Sync retry count |
+| `failure_reason` | `TEXT` | Optional sync failure description |
 
 ---
 

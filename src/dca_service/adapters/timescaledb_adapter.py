@@ -5,10 +5,11 @@ chunk archiving managers, and dual-write blockchain synchroniser service.
 """
 
 from datetime import date, datetime, timezone
+from decimal import Decimal
 import hashlib
 import json
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from dca_service.core.blockchain_sync import (
     HypertableArchivingPolicy,
@@ -22,8 +23,8 @@ from dca_service.core.blockchain_sync import (
 def normalize_metadata(val: Any) -> Any:
     """Recursively validate and normalise metadata into a JSON-compatible value tree.
 
-    Supports primitive JSON types, datetime and date objects (converted to ISO-formatted strings),
-    and nested dictionaries, lists, tuples, and sets.
+    Supports primitive JSON types, Decimal (converted to str), datetime and date objects
+    (converted to ISO-formatted strings), and nested dictionaries, lists, tuples, and sets.
     """
     if val is None or isinstance(val, (bool, int, str)):
         return val
@@ -31,6 +32,8 @@ def normalize_metadata(val: Any) -> Any:
         if not math.isfinite(val):
             raise ValueError(f"Non-finite float value '{val}' is not allowed in metadata.")
         return val
+    elif isinstance(val, Decimal):
+        return str(val)
     elif isinstance(val, (datetime, date)):
         return val.isoformat()
     elif isinstance(val, dict):
@@ -169,7 +172,8 @@ class BlockchainNodeAdapter:
         normalized_meta = normalize_metadata(entry.metadata)
         payload_dict = {
             "account_id": entry.account_id,
-            "amount": entry.amount,
+            "amount": str(entry.amount) if isinstance(entry.amount, Decimal) else entry.amount,
+            "amount": str(entry.amount) if isinstance(entry.amount, Decimal) else entry.amount,
             "asset_symbol": entry.asset_symbol,
             "metadata": normalized_meta,
             "timestamp": entry.timestamp.isoformat(),
@@ -226,7 +230,7 @@ class DualWriteBlockchainSyncService:
         transaction_id: str,
         account_id: str,
         asset_symbol: str,
-        amount: Any,
+        amount: Union[Decimal, float],
         timestamp: datetime,
         metadata: Optional[Dict] = None,
     ) -> TimeSeriesTransactionEntry:

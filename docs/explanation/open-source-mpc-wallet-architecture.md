@@ -151,6 +151,6 @@ All MPC rounds, DKG invocations, policy evaluations, and state transitions gener
 
 ## 6. Summary of System Integration Benefits
 
-- **100% Open-Source Cryptography:** Target utilization of transparent C++/Go implementations from Coinbase (`cb-mpc`), eliminating proprietary vendor lock-in.
+- **100% Open-Source Cryptography:** Target utilisation of transparent C++/Go implementations from Coinbase (`cb-mpc`), eliminating proprietary vendor lock-in.
 - **Clean Architecture Integration:** Pure mathematical constructs interface cleanly with core key management primitives (`src/dca_service/core/key_management.py`), preserving zero-dependency domain boundaries.
 - **Enterprise Performance:** High-speed off-chain interactive signing linked directly to Percona Server for PostgreSQL and TimescaleDB dual-write pipelines.
