@@ -22,7 +22,7 @@ This guide outlines step-by-step instructions for installing, configuring, and e
 
 ## 1. Running Pre-Commit Guardrails Manually
 
-The repository provides `tools/install_git_guardrails.py` to enforce OKF v0.2 frontmatter validation, verify Markdown formatting, auto-regenerate `SUMMARY.md`, and execute the full pytest suite.
+The repository provides `tools/install_git_guardrails.py` to enforce OKF v0.2 frontmatter validation, auto-regenerate `SUMMARY.md`, and execute the full pytest suite.
 
 To run pre-commit guardrails manually:
 
@@ -51,8 +51,9 @@ uv run python tools/generate_summary.py
 ```
 
 `SUMMARY.md` dynamically groups documents into:
+
 - **Core Ledgers** (`README.md`, `CHANGELOG.md`, `HISTORY.md`)
-- **Documentation Sections** categorized by subdirectories (`docs/explanation/`, `docs/how-to/`, `docs/reference/`, `docs/tutorials/`)
+- **Documentation Sections** categorised by subdirectories (`docs/explanation/`, `docs/how-to/`, `docs/reference/`, `docs/tutorials/`)
 - **General Documentation** for root-level files in `docs/`
 
 ---
@@ -62,6 +63,7 @@ uv run python tools/generate_summary.py
 To install guardrails as an automated `.git/hooks/pre-commit` script so checks run automatically on every `git commit`:
 
 1. Open or create `.git/hooks/pre-commit`:
+
    ```bash
    cat << 'EOF' > .git/hooks/pre-commit
    #!/bin/bash
@@ -70,13 +72,15 @@ To install guardrails as an automated `.git/hooks/pre-commit` script so checks r
    ```
 
 2. Make the hook script executable:
+
    ```bash
    chmod +x .git/hooks/pre-commit
    ```
 
 3. Test the git hook:
+
    ```bash
-   git status
+   .git/hooks/pre-commit
    ```
 
 ---

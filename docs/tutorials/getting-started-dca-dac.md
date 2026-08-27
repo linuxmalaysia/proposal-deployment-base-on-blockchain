@@ -51,11 +51,8 @@ Verify the adapter configuration in `src/dca_service/adapters/timescaledb_adapte
 ```python
 from dca_service.adapters.timescaledb_adapter import TimescaleDBAdapter
 
-# Initialise connection pool to Percona PostgreSQL / TimescaleDB
-db_adapter = TimescaleDBAdapter(
-    dsn="postgresql://dca_user:secret@localhost:5432/dca_custody_db"
-)
-db_adapter.initialise_schema()
+# Initialise TimescaleDB adapter specifying target hypertable name
+db_adapter = TimescaleDBAdapter(hypertable_name="blockchain_transactions")
 ```
 
 ---
@@ -67,37 +64,44 @@ All business entities are pure Python classes in `src/dca_service/core/` with ze
 Create a simple script `tutorial_demo.py`:
 
 ```python
+from datetime import datetime, timezone
 from decimal import Decimal
-from dca_service.core.account_ledger import AccountLedger, AssetBalance
-from dca_service.core.policy_engine import PolicyEngine, PolicyRule, TransactionProposal
+from dca_service.core.account_ledger import AccountLedger
+from dca_service.core.policy_engine import PolicyRule, TransactionProposal
+from dca_service.adapters.timescaledb_adapter import (
+    BlockchainNodeAdapter,
+    DualWriteBlockchainSyncService,
+    TimescaleDBAdapter,
+)
 
 # 1. Initialise Segregated Client Sub-Account Ledger
 ledger = AccountLedger(account_id="ACC-RESEARCH-CHAIR-001")
 ledger.deposit("MYR", Decimal("500000.00"))
 
-# 2. Configure Policy Engine Quorum Rule
-policy = PolicyEngine()
-policy.add_rule(
-    PolicyRule(
-        rule_id="RULE-MAX-SINGLE-TRANSFER",
-        max_amount=Decimal("100000.00"),
-        required_approvals=2,
-        authorized_signers=["signer_admin", "signer_custodian"],
-    )
+# 2. Configure Policy Engine Quorum Rule & Evaluate Proposal
+policy_rule = PolicyRule(
+    rule_id="RULE-MAX-SINGLE-TRANSFER",
+    max_amount_per_tx=Decimal("100000.00"),
+    daily_velocity_limit=Decimal("500000.00"),
+    required_approvers_count=2,
+    authorized_signers={"signer_admin", "signer_custodian"},
 )
 
-# 3. Submit Transaction Proposal
 proposal = TransactionProposal(
     proposal_id="PROP-001",
-    account_id="ACC-RESEARCH-CHAIR-001",
+    client_id="ACC-RESEARCH-CHAIR-001",
     amount=Decimal("25000.00"),
     asset_symbol="MYR",
     destination_address="0xRecipientAddress",
     signers=["signer_admin", "signer_custodian"],
 )
 
-is_approved = policy.evaluate(proposal, verified_authenticated_signers=["signer_admin", "signer_custodian"])
-print(f"Policy Approval Result: {is_approved}")
+# Throws PolicyViolationError on failure; returns None on success
+policy_rule.evaluate(
+    proposal,
+    verified_authenticated_signers={"signer_admin", "signer_custodian"}
+)
+print("Policy Evaluation Succeeded.")
 ```
 
 Run the demo script:
@@ -127,14 +131,29 @@ audit_logger.log_event(
     account_id="ACC-RESEARCH-CHAIR-001",
     details={
         "digital_research_id": "DRI-2026-CHAIR-0941",
-        "title": "Quantum Cryptography Key Distributer",
+        "title": "Quantum Cryptography Key Distributor",
         "trl_level": 4,
         "market_readiness_score": 78.5,
         "primary_backend": "Percona Server for PostgreSQL",
     },
 )
-
 print("Research Asset Registered Successfully.")
+
+# 4. Invoke Dual-Write Blockchain Sync Adapter to record settlement transaction
+db_adapter = TimescaleDBAdapter(hypertable_name="blockchain_transactions")
+node_adapter = BlockchainNodeAdapter()
+sync_service = DualWriteBlockchainSyncService(db_adapter, node_adapter)
+
+entry = sync_service.process_new_transaction(
+    transaction_id="TX-SETTLE-001",
+    account_id="ACC-RESEARCH-CHAIR-001",
+    asset_symbol="MYR",
+    amount=Decimal("25000.00"),
+    timestamp=datetime.now(timezone.utc),
+    metadata={"digital_research_id": "DRI-2026-CHAIR-0941"},
+)
+
+print(f"Settlement Transaction State: {entry.sync_state.name}, Tx Hash: {entry.tx_hash}")
 ```
 
 ---

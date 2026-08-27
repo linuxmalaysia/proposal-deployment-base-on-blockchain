@@ -32,9 +32,9 @@ Manages client sub-account ledgers enforcing non-commingling of digital assets.
 Evaluates transaction proposals against institutional policy rules.
 
 #### Classes & Methods:
-- **`PolicyEngine()`**: Constructs policy engine instance.
-- **`add_rule(rule: PolicyRule) -> None`**: Registers a validation policy rule.
-- **`evaluate(proposal: TransactionProposal, verified_authenticated_signers: List[str]) -> bool`**: Evaluates proposal against active rules. Enforces velocity limits, required signer thresholds, and allowlist destinations.
+
+- **`PolicyRule(rule_id: str, max_amount_per_tx: Decimal, daily_velocity_limit: Decimal, required_approvers_count: int, allowlisted_addresses: Set[str], authorized_signers: Set[str], authenticated_signers: Set[str])`**: Data class encapsulating policy verification parameters.
+- **`evaluate(proposal: TransactionProposal, verified_authenticated_signers: Set[str] | None = None) -> None`**: Evaluates proposal against active rule parameters. Enforces velocity limits, required signer thresholds, and allowlist destinations. Raises `PolicyViolationError` on policy validation failure and returns `None` on successful validation.
 
 ---
 
@@ -63,13 +63,14 @@ Generates SOC 1 / SOC 2 compliant structured audit logs.
 Primary database driver connecting to **Percona Server for PostgreSQL** with TimescaleDB time-series hypertable support.
 
 #### Primary Table Schema (`custody_transactions`):
+
 | Column Name | Type | Description |
 | :--- | :--- | :--- |
 | `transaction_id` | `UUID` | Primary key identifier |
 | `timestamp` | `TIMESTAMPTZ` | Hypertable partition time |
 | `account_id` | `VARCHAR(64)` | Segregated sub-account ledger reference |
 | `asset_symbol` | `VARCHAR(16)` | Token or currency code |
-| `amount` | `NUMERIC(36, 18)` | Transaction amount |
+| `amount` | `NUMERIC(36, 18)` | Transaction amount represented as `Decimal` to preserve exact precision |
 | `status` | `VARCHAR(32)` | `DB_RECORDED`, `PENDING_BLOCKCHAIN`, `CHAIN_CONFIRMED` |
 | `payload_hash` | `CHAR(64)` | SHA-256 state payload hash |
 

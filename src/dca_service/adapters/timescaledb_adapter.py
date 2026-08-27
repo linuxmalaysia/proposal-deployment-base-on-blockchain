@@ -226,7 +226,7 @@ class DualWriteBlockchainSyncService:
         transaction_id: str,
         account_id: str,
         asset_symbol: str,
-        amount: float,
+        amount: Any,
         timestamp: datetime,
         metadata: Optional[Dict] = None,
     ) -> TimeSeriesTransactionEntry:

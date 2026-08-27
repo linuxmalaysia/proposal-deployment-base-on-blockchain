@@ -129,13 +129,13 @@ To establish an open-source MPC wallet infrastructure, the system orchestrates t
 
 ## 5. Security Architecture, Key Share Protection & Auditing
 
-### 5.1 Envelope Encryption for Key Shares
+### 5.1 Envelope Encryption for Key Shares (Planned Infrastructure Contract)
 
-Secret key shares $SK_i$ persisted in the `KeyVault` store use an application-managed AEAD envelope encryption contract compatible with `cb-mpc`:
-- **AEAD Cipher & Nonce Storage:** AES-256-GCM symmetric encryption with a unique cryptographically random 96-bit nonce generated for every write operation. The generated GCM nonce is stored alongside versioned fields for nonce, AAD, ciphertext, and authentication tag so decryption can reconstruct all required inputs after restart.
-- **Tag Storage & Associated Data Binding:** The 128-bit authentication tag is stored alongside the ciphertext. Additional Associated Data (AAD) binds protocol type, curve identifier, blob version, vault ID, and party identity context.
-- **Context Validation:** Before decryption, the application validates versioned AAD context parameters, nonces, and AEAD tags to prevent ciphertext transposition or cross-party substitution attacks.
-- **DEK & KEK Responsibilities:** Data Encryption Key (DEK) encrypts raw shares, while Key Encryption Key (KEK) hosted in KMS/HSM wraps DEK.
+Secret key shares $SK_i$ persisted in the `KeyVault` store are planned to use an application-managed AEAD envelope encryption contract compatible with `cb-mpc`:
+- **AEAD Cipher & Nonce Storage:** AES-256-GCM symmetric encryption with a unique cryptographically random 96-bit nonce generated for every write operation. The generated GCM nonce will be stored alongside versioned fields for nonce, AAD, ciphertext, and authentication tag so decryption can reconstruct all required inputs after restart.
+- **Tag Storage & Associated Data Binding:** The 128-bit authentication tag will be stored alongside the ciphertext. Additional Associated Data (AAD) binds protocol type, curve identifier, blob version, vault ID, and party identity context.
+- **Context Validation:** Before decryption, the application will validate versioned AAD context parameters, nonces, and AEAD tags to prevent ciphertext transposition or cross-party substitution attacks.
+- **DEK & KEK Responsibilities:** Data Encryption Key (DEK) encrypts raw shares, while Key Encryption Key (KEK) hosted in KMS/HSM wraps DEK. Note: These specific encryption, DEK/KEK handling, and nonce/tag persistence guarantees represent planned infrastructure specifications for future storage layer integration and are not currently enforced inside core in-memory `KeyVault.add_key_share`.
 
 ### 5.2 Proactive Secret Sharing & Key Refresh
 
