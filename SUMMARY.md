@@ -23,10 +23,20 @@ language: "en-GB"
 * [Challenges, Caveats, and Market Opportunities in DCA](docs/explanation/challenges-and-opportunities.md)
 * [Open-Source MPC Wallet System Architecture via cb-mpc](docs/explanation/open-source-mpc-wallet-architecture.md)
 * [Percona Server for PostgreSQL & TimescaleDB Dual-Write Blockchain Architecture](docs/explanation/percona-timescaledb-blockchain-sync.md)
+* [Research Commercialisation Fund (RCF) & Digital Asset Custodian (DAC) Architecture Proposal](docs/explanation/research-commercialisation-fund-dac-proposal.md)
+
+### How To
+
+* [How-To: Install and Configure Repository Guardrails and Documentation Tools](docs/how-to/install-and-configure-guardrails.md)
 
 ### Reference
 
+* [DCA & DAC Core API, CLI, and Data Objects Reference](docs/reference/dca-dac-api-and-cli-reference.md)
 * [Industry Implementation Patterns for Custody Platforms](docs/reference/implementation-patterns.md)
+
+### Tutorials
+
+* [Getting Started with the DCA & DAC Platform on Percona PostgreSQL](docs/tutorials/getting-started-dca-dac.md)
 
 ### General Documentation
 

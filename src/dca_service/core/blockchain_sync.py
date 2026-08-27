@@ -6,8 +6,9 @@ This module contains pure domain entities and business logic with zero external 
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum, auto
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 
 class SyncState(Enum):
@@ -31,7 +32,7 @@ class TimeSeriesTransactionEntry:
     transaction_id: str
     account_id: str
     asset_symbol: str
-    amount: float
+    amount: Union[Decimal, float]
     timestamp: datetime
     metadata: Dict[str, Any] = field(default_factory=dict)
     sync_state: SyncState = SyncState.DB_RECORDED
