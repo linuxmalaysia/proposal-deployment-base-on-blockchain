@@ -1,12 +1,25 @@
 ---
-okf_version: "0.2"
-type: "changelog"
-title: "DCA Service Changelog"
-created: "2026-08-25"
-status: "verified"
-language: "en-GB"
+okf_version: '0.2'
+type: changelog
+title: DCA Service Platform Changelog & Release History
+timestamp: '2026-08-25T00:00:00Z'
+topics:
+- changelog
+- releases
+- dca-service
+- versioning
+description: Chronological ledger of user-facing changes, features, security updates,
+  and documentation additions.
+resource: file:///CHANGELOG.md
+sources:
+- HISTORY.md
+- README.md
+generated: jules
+verified: true
+status: approved
+stale_after: '2027-08-25T00:00:00Z'
+language: en-GB
 ---
-
 # Changelog
 
 All notable changes to this project will be documented in this file.

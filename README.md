@@ -1,12 +1,27 @@
 ---
-okf_version: "0.2"
-type: "overview"
-title: "Digital Custody Asset (DCA) as a Service Platform"
-created: "2026-08-25"
-status: "verified"
-language: "en-GB"
+okf_version: '0.2'
+type: overview
+title: Digital Custody Asset (DCA) as a Service Platform
+timestamp: '2026-08-25T00:00:00Z'
+topics:
+- dca
+- custody
+- mpc
+- postgresql
+- timescaledb
+- clean-architecture
+description: Institutional-grade white-label & API-based Digital Asset Custody Platform
+  built following Clean Architecture principles.
+resource: file:///README.md
+sources:
+- SUMMARY.md
+- AGENTS.md
+generated: jules
+verified: true
+status: approved
+stale_after: '2027-08-25T00:00:00Z'
+language: en-GB
 ---
-
 # Digital Custody Asset (DCA) as a Service Platform
 
 Institutional-grade white-label & API-based Digital Asset Custody Platform built following Clean Architecture principles and governed by the Deep State of Mind (DSOM) Protocol.
