@@ -92,7 +92,9 @@ class TestMpcWalletDocFrontmatter:
 
     def test_frontmatter_title(self):
         frontmatter = _frontmatter_block(_read(MPC_DOC))
-        assert "Open-Source MPC Wallet System Architecture via cb-mpc" in frontmatter
+        title_match = re.search(r'(?m)^title:\s*["\']?(.*?)["\']?$', frontmatter)
+        assert title_match, "title field missing in frontmatter"
+        assert title_match.group(1) == "Open-Source MPC Wallet System Architecture via cb-mpc"
 
     def test_frontmatter_status_verified(self):
         frontmatter = _frontmatter_block(_read(MPC_DOC))

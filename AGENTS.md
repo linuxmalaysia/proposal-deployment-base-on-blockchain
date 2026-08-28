@@ -1,7 +1,7 @@
 ---
 okf_version: "0.2"
 type: "gateway"
-title: "Root AI Gateway: DSOM Protocol"
+title: "Root AI Gateway: Deep State of Mind (DSOM) Protocol"
 created: "2026-08-25"
 status: "verified"
 language: "en-GB"
