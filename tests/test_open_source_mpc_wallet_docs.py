@@ -417,3 +417,79 @@ class TestCrossFileConsistency:
         # verify they both actually exist on disk in docs/explanation/.
         assert MPC_DOC.is_file()
         assert PERCONA_DOC.is_file()
+
+
+class TestMpcWalletDocOkfV02FrontmatterFields:
+    """Regression coverage for a later PR that migrated this document's
+    frontmatter from the original OKF v0.1-style 6-field schema
+    (``okf_version``, ``type``, ``title``, ``created``, ``status``,
+    ``language``) to the expanded OKF v0.2 13-field schema (adding
+    ``timestamp``, ``topics``, ``description``, ``resource``, ``sources``,
+    ``generated``, ``verified``, and ``stale_after``). See
+    ``tests/test_okf_v02_frontmatter_migration.py`` for the repository-wide
+    version of these checks.
+    """
+
+    def test_timestamp_matches_expected(self):
+        frontmatter = _frontmatter_block(_read(MPC_DOC))
+        assert "timestamp: '2026-08-25T00:00:00Z'" in frontmatter or 'timestamp: "2026-08-25T00:00:00Z"' in frontmatter
+
+    @pytest.mark.parametrize(
+        "topic",
+        ["mpc", "cb-mpc", "threshold-signatures", "dkg", "key-management", "cryptography"],
+    )
+    def test_topics_list_contains_expected_topic(self, topic):
+        frontmatter = _frontmatter_block(_read(MPC_DOC))
+        assert topic in frontmatter
+
+    def test_description_mentions_cb_mpc_integration(self):
+        frontmatter = _frontmatter_block(_read(MPC_DOC))
+        normalized = re.sub(r"\s+", " ", frontmatter)
+        assert "Technical explanation of Coinbase cb-mpc integration" in normalized
+
+    def test_resource_matches_file_path(self):
+        frontmatter = _frontmatter_block(_read(MPC_DOC))
+        assert "resource: file:///docs/explanation/open-source-mpc-wallet-architecture.md" in frontmatter
+
+    @pytest.mark.parametrize("source", ["README.md", "src/dca_service/core/key_management.py"])
+    def test_sources_list_contains_expected_source(self, source):
+        frontmatter = _frontmatter_block(_read(MPC_DOC))
+        assert source in frontmatter
+
+    def test_generated_is_jules(self):
+        frontmatter = _frontmatter_block(_read(MPC_DOC))
+        assert "generated: jules" in frontmatter
+
+    def test_verified_is_true(self):
+        frontmatter = _frontmatter_block(_read(MPC_DOC))
+        assert "verified: true" in frontmatter
+
+    def test_stale_after_matches_expected(self):
+        frontmatter = _frontmatter_block(_read(MPC_DOC))
+        assert "stale_after: '2027-08-25T00:00:00Z'" in frontmatter or 'stale_after: "2027-08-25T00:00:00Z"' in frontmatter
+
+    def test_legacy_created_field_removed(self):
+        # Regression guard: OKF v0.1's `created` field was renamed to
+        # `timestamp` in v0.2; the migrated document must not retain both.
+        frontmatter = _frontmatter_block(_read(MPC_DOC))
+        assert not re.search(r"(?m)^created:", frontmatter)
+
+
+class TestSummaryExplanationSectionIncludesLaterOkfGuideDoc:
+    """Regression guard: a later PR inserted a new document,
+    ``docs/explanation/open-knowledge-format-v02-guide.md``, alphabetically
+    between ``challenges-and-opportunities.md`` and this document. This must
+    not break the ordering relationship already asserted by
+    ``TestSummaryIndexEntry.test_mpc_doc_ordered_alphabetically_within_explanation_section``
+    above.
+    """
+
+    def test_okf_guide_doc_sits_between_challenges_and_mpc_doc(self):
+        content = _read(SUMMARY)
+        okf_guide_rel_path = "docs/explanation/open-knowledge-format-v02-guide.md"
+        if okf_guide_rel_path not in content:
+            pytest.skip("open-knowledge-format-v02-guide.md not present in this SUMMARY.md revision")
+        challenges_idx = content.index("docs/explanation/challenges-and-opportunities.md")
+        okf_guide_idx = content.index(okf_guide_rel_path)
+        mpc_idx = content.index(MPC_DOC_REL_PATH)
+        assert challenges_idx < okf_guide_idx < mpc_idx
