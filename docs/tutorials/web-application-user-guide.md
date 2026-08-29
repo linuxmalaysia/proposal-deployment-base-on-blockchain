@@ -45,14 +45,14 @@ The platform supports four primary user personas across the university innovatio
 1. Open the [Interactive Web Application Portal](../../index.html).
 2. Enter your full name, institutional role, faculty/centre of excellence, and institutional email.
 3. Click **Mint Identity & Register User**.
-4. The system issues a W3C Decentralised Identifier (e.g., `did:univ:a8f9e12c4b...`) written to PostgreSQL 16 `users` table.
+4. The system issues a W3C Decentralised Identifier (e.g., `did:univ:a8f9e12c4b...`) saved locally in browser storage (simulating PostgreSQL 16 persistence).
 
 ### Step 2: Research Asset Registration & Cryptographic Evidence Vault (Module 2)
 
 1. Navigate to Module 2 under the **Researcher** view.
-2. Enter your research title, select the current **Technology Readiness Level (TRL 1–9)**, and upload an evidentiary file reference (lab notebook, patent draft, CAD file).
+2. Enter your research title, select the current **Technology Readiness Level (TRL 1–9)**, and upload an evidentiary file reference or document.
 3. Click **Register Asset & Generate SHA-256 Evidence Hash**.
-4. The system calculates an AES-256 payload digest and writes an outbox record (`outbox_tx_...`) to PostgreSQL for optional Merkle root notarisation.
+4. The system computes a genuine SHA-256 cryptographic digest via `crypto.subtle.digest` over the evidence file bytes, labeled clearly as `sha256:...`.
 
 ### Step 3: Commercialisation Assessment & Cloverleaf MRS Scoring (Module 3)
 
@@ -61,8 +61,8 @@ The platform supports four primary user personas across the university innovatio
    - **Market Attractiveness** (Max 80 Pts, Target ≥ 55)
    - **Commercialisation Avenues** (Max 60 Pts, Target ≥ 42)
    - **Management Support** (Max 60 Pts, Target ≥ 41)
-2. Verify if the composite score exceeds **180 / 260 points**.
-3. Assets scoring >180 are automatically marked as **Investment-Ready** and cleared for RCF Tier 1 Kickstarter Grant allocation or Tier 2 VC co-investment.
+2. Verify if the composite score strictly exceeds **180 / 260 points** (scores > 180).
+3. Assets scoring > 180 are automatically marked as **Investment-Ready** and cleared for RCF Tier 1 Kickstarter Grant allocation or Tier 2 VC co-investment.
 
 ### Step 4: Investor Data Room & Capital Matchmaking (Module 4)
 
@@ -73,7 +73,7 @@ The platform supports four primary user personas across the university innovatio
 
 ### Step 5: Impact Measurement & Revenue Split Calculation (Module 5)
 
-1. In Module 5, input the ingested revenue amount (e.g., RM 500,000).
+1. In Module 5, input the ingested revenue amount (e.g., RM 500,000, accepting 0 or positive values).
 2. Select the revenue stream type (Running Royalties, Licensing Milestone Fees, Spin-off Equity IPO Exit, or Dividends).
 3. The platform automatically displays exact cash flow allocations across:
    - Central University Treasury

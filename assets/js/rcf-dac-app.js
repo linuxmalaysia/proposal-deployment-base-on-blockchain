@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initAssetForm();
   initCloverleafCalculator();
   initRevenueCalculator();
+  loadSavedRegistration();
+  loadSavedAsset();
 });
 
 /* -------------------------------------------------------------------------
@@ -58,29 +60,52 @@ function initRegistrationForm() {
     const hashSeed = `${name}-${role}-${dept}-${Date.now()}`;
     const did = `did:univ:${simpleHash(hashSeed).substring(0, 16)}`;
 
-    const outputBox = document.getElementById('user-reg-output');
-    if (outputBox) {
-      outputBox.innerHTML = `
-        <div class="result-card success">
-          <h4>✅ Identity Registered & W3C DID Minted</h4>
-          <div class="badge-grid">
-            <p><strong>Name:</strong> ${escapeHtml(name)}</p>
-            <p><strong>Institutional Role:</strong> ${escapeHtml(role)}</p>
-            <p><strong>Faculty / Centre:</strong> ${escapeHtml(dept)}</p>
-            <p><strong>Email:</strong> ${escapeHtml(email)}</p>
-          </div>
-          <div class="did-code-box">
-            <span class="did-label">W3C Decentralized Identifier (DID):</span>
-            <code>${did}</code>
-          </div>
-          <div class="audit-badge">
-            <span>DATABASE WRITE: Percona PostgreSQL 16 <code>users</code> table (ACID Verified)</span>
-          </div>
-        </div>
-      `;
-      outputBox.style.display = 'block';
+    const userRecord = { name, role, dept, email, did, timestamp: new Date().toISOString() };
+    try {
+      localStorage.setItem('rcf_dac_user_registration', JSON.stringify(userRecord));
+    } catch (err) {
+      console.warn('LocalStorage unavailable:', err);
     }
+
+    renderRegistrationResult(userRecord);
   });
+}
+
+function renderRegistrationResult(userRecord) {
+  const outputBox = document.getElementById('user-reg-output');
+  if (outputBox) {
+    outputBox.innerHTML = `
+      <div class="result-card success">
+        <h4>✅ Identity Registered & W3C DID Minted</h4>
+        <div class="badge-grid">
+          <p><strong>Name:</strong> ${escapeHtml(userRecord.name)}</p>
+          <p><strong>Institutional Role:</strong> ${escapeHtml(userRecord.role)}</p>
+          <p><strong>Faculty / Centre:</strong> ${escapeHtml(userRecord.dept)}</p>
+          <p><strong>Email:</strong> ${escapeHtml(userRecord.email)}</p>
+        </div>
+        <div class="did-code-box">
+          <span class="did-label">W3C Decentralized Identifier (DID):</span>
+          <code>${escapeHtml(userRecord.did)}</code>
+        </div>
+        <div class="audit-badge">
+          <span>BROWSER STORAGE PERSISTENCE: Simulated PostgreSQL 16 <code>users</code> table record (Persisted locally)</span>
+        </div>
+      </div>
+    `;
+    outputBox.style.display = 'block';
+  }
+}
+
+function loadSavedRegistration() {
+  try {
+    const saved = localStorage.getItem('rcf_dac_user_registration');
+    if (saved) {
+      const userRecord = JSON.parse(saved);
+      renderRegistrationResult(userRecord);
+    }
+  } catch (err) {
+    console.warn('Could not load saved user registration:', err);
+  }
 }
 
 /* -------------------------------------------------------------------------
@@ -90,43 +115,84 @@ function initAssetForm() {
   const form = document.getElementById('asset-reg-form');
   if (!form) return;
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const title = document.getElementById('asset-title').value.trim() || 'High-Efficiency Graphene Supercapacitor Cell';
     const trl = document.getElementById('asset-trl').value;
     const abstract = document.getElementById('asset-abstract').value.trim() || 'Scalable energy storage prototype with 92% retention rate.';
-    const fileRef = document.getElementById('asset-file').value || 'prototype_cad_v2.1.iso';
+    const fileInput = document.getElementById('asset-file');
+
+    let fileRef = 'lab_notebook_vol4_patent_draft.pdf';
+    let bytesBuffer;
+
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      fileRef = file.name;
+      bytesBuffer = await file.arrayBuffer();
+    } else if (fileInput && fileInput.value) {
+      fileRef = fileInput.value.trim();
+      bytesBuffer = new TextEncoder().encode(fileRef);
+    } else {
+      bytesBuffer = new TextEncoder().encode(fileRef);
+    }
+
+    const hashBuffer = await crypto.subtle.digest('SHA-256', bytesBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hexDigest = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const sha256Digest = `sha256:${hexDigest}`;
 
     const assetHashSeed = `${title}-${abstract}-${trl}-${Date.now()}`;
     const assetId = `did:univ:asset-${simpleHash(assetHashSeed).substring(0, 12)}`;
-    const sha256Digest = `sha256:${simpleHash(assetHashSeed + 'payload')}${simpleHash(assetHashSeed + 'vault')}`;
     const txOutboxId = `outbox_tx_${Math.floor(100000 + Math.random() * 900000)}`;
 
-    const outputBox = document.getElementById('asset-reg-output');
-    if (outputBox) {
-      outputBox.innerHTML = `
-        <div class="result-card success">
-          <h4>📜 Digital Research Asset Registered</h4>
-          <div class="badge-grid">
-            <p><strong>Digital Asset ID:</strong> <code>${assetId}</code></p>
-            <p><strong>Technical Maturity:</strong> <span class="badge badge-primary">TRL ${trl}</span></p>
-            <p><strong>Title:</strong> ${escapeHtml(title)}</p>
-            <p><strong>Evidence File:</strong> ${escapeHtml(fileRef)}</p>
-          </div>
-          <div class="did-code-box">
-            <span class="did-label">AES-256 Vault Hash Digest:</span>
-            <code>${sha256Digest}</code>
-          </div>
-          <div class="outbox-status">
-            <span class="status-dot green"></span>
-            <strong>Transactional Outbox Status:</strong> Queued in PostgreSQL (Batch ID: <code>${txOutboxId}</code>) ready for Merkle notarisation.
-          </div>
-        </div>
-      `;
-      outputBox.style.display = 'block';
+    const assetRecord = { title, trl, abstract, fileRef, assetId, sha256Digest, txOutboxId, timestamp: new Date().toISOString() };
+    try {
+      localStorage.setItem('rcf_dac_asset_registration', JSON.stringify(assetRecord));
+    } catch (err) {
+      console.warn('LocalStorage unavailable:', err);
     }
+
+    renderAssetResult(assetRecord);
   });
+}
+
+function renderAssetResult(assetRecord) {
+  const outputBox = document.getElementById('asset-reg-output');
+  if (outputBox) {
+    outputBox.innerHTML = `
+      <div class="result-card success">
+        <h4>📜 Digital Research Asset Registered</h4>
+        <div class="badge-grid">
+          <p><strong>Digital Asset ID:</strong> <code>${escapeHtml(assetRecord.assetId)}</code></p>
+          <p><strong>Technical Maturity:</strong> <span class="badge badge-primary">TRL ${escapeHtml(assetRecord.trl)}</span></p>
+          <p><strong>Title:</strong> ${escapeHtml(assetRecord.title)}</p>
+          <p><strong>Evidence File:</strong> ${escapeHtml(assetRecord.fileRef)}</p>
+        </div>
+        <div class="did-code-box">
+          <span class="did-label">SHA-256 Digest:</span>
+          <code>${escapeHtml(assetRecord.sha256Digest)}</code>
+        </div>
+        <div class="outbox-status">
+          <span class="status-dot green"></span>
+          <strong>Simulated Transactional Outbox Status:</strong> Queued locally (Batch ID: <code>${escapeHtml(assetRecord.txOutboxId)}</code>) ready for Merkle notarisation.
+        </div>
+      </div>
+    `;
+    outputBox.style.display = 'block';
+  }
+}
+
+function loadSavedAsset() {
+  try {
+    const saved = localStorage.getItem('rcf_dac_asset_registration');
+    if (saved) {
+      const assetRecord = JSON.parse(saved);
+      renderAssetResult(assetRecord);
+    }
+  } catch (err) {
+    console.warn('Could not load saved asset registration:', err);
+  }
 }
 
 /* -------------------------------------------------------------------------
@@ -158,7 +224,7 @@ function initCloverleafCalculator() {
     if (totalDisplay) totalDisplay.innerText = `${total} / 260`;
 
     if (statusDisplay) {
-      if (total >= 180) {
+      if (total > 180) {
         statusDisplay.className = 'status-badge pass';
         statusDisplay.innerHTML = `
           <strong>✅ INVESTMENT-READY (Score > 180)</strong>
@@ -167,7 +233,7 @@ function initCloverleafCalculator() {
       } else {
         statusDisplay.className = 'status-badge hold';
         statusDisplay.innerHTML = `
-          <strong>⚠️ DEVELOPMENT REQUIRED (Score ${total} < 180 Target)</strong>
+          <strong>⚠️ DEVELOPMENT REQUIRED (Score ${total} <= 180 Target)</strong>
           <p>Requires additional laboratory validation (TRL escalation) or market sizing refinement before RCF clearing.</p>
         `;
       }
@@ -194,7 +260,11 @@ function initRevenueCalculator() {
   if (!amountInput || !typeSelect) return;
 
   function calculateRevenue() {
-    const rawAmount = parseFloat(amountInput.value) || 500000;
+    let rawAmount = parseFloat(amountInput.value);
+    if (!Number.isFinite(rawAmount) || rawAmount < 0) {
+      rawAmount = 500000;
+    }
+
     const revType = typeSelect.value;
 
     let treasuryPct = 0.333;
