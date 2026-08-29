@@ -1,25 +1,12 @@
 ---
-okf_version: '0.2'
-type: agent_instructions
-title: DSOM Digital Twin Agent System Directives & Spatial Protocols
-timestamp: '2026-08-25T00:00:00Z'
-topics:
-- dsom
-- agents
-- spatial-memory
-- okf
-- protocol
-description: Operational system directives and spatial protocols for AI agents working
-  in the DCA Platform codebase.
-resource: file:///.agents/AGENTS.md
-sources:
-- AGENTS.md
-generated: jules
-verified: true
-status: approved
-stale_after: '2027-08-25T00:00:00Z'
-language: en-GB
+okf_version: "0.2"
+type: "constitution"
+title: "DSOM Sovereign AI Master Constitution"
+created: "2026-08-25"
+status: "verified"
+language: "en-GB"
 ---
+
 # Sovereign AI Master Constitution (DSOM Protocol)
 
 You are operating as a Senior Systems Architect & Cognitive Digital Twin under the Deep State of Mind (DSOM) Protocol.

@@ -1,28 +1,13 @@
 ---
-okf_version: '0.2'
-type: overview
-title: Digital Custody Asset (DCA) as a Service Platform
-timestamp: '2026-08-25T00:00:00Z'
-topics:
-- dca
-- custody
-- mpc
-- postgresql
-- timescaledb
-- overview
-description: Web documentation homepage for the Digital Custody Asset (DCA) as a Service
-  Platform.
-resource: file:///index.md
-sources:
-- README.md
-- SUMMARY.md
-generated: jules
-verified: true
-status: approved
-stale_after: '2027-08-25T00:00:00Z'
-language: en-GB
-layout: default
+okf_version: "0.2"
+type: "overview"
+title: "Digital Custody Asset (DCA) as a Service Platform"
+created: "2026-08-25"
+status: "verified"
+language: "en-GB"
+layout: "default"
 ---
+
 # 🛡️ Digital Custody Asset (DCA) as a Service Platform
 
 Welcome to the official documentation portal for the **Digital Custody Asset (DCA) as a Service Platform**.

@@ -1,25 +1,12 @@
 ---
-okf_version: '0.2'
-type: spatial_memory
-title: Active Task Tracking & Objective Backlog
-timestamp: '2026-08-25T00:00:00Z'
-topics:
-- dsom
-- task-tracking
-- memory-palace
-- okf
-description: Chronological task ledger tracking current objectives, active milestones,
-  and completed work.
-resource: file:///.agents/brain/task.md
-sources:
-- .agents/AGENTS.md
-- README.md
-generated: jules
-verified: true
-status: approved
-stale_after: '2027-08-25T00:00:00Z'
-language: en-GB
+okf_version: "0.2"
+type: "spatial_memory"
+title: "Present Active Task State"
+created: "2026-08-25"
+status: "active"
+language: "en-GB"
 ---
+
 # Active State Memory (`task.md`)
 
 ## Project Identity

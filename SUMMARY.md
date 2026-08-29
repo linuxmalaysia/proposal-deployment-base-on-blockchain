@@ -12,7 +12,7 @@ language: "en-GB"
 ## Core Ledgers
 
 * [Digital Custody Asset (DCA) as a Service Platform](README.md)
-* [DCA Service Platform Changelog & Release History](CHANGELOG.md)
+* [DCA Service Changelog](CHANGELOG.md)
 * [DCA Service Project History Ledger](HISTORY.md)
 
 ## Documentation Sections
@@ -21,7 +21,6 @@ language: "en-GB"
 
 * [Institutional Digital Asset Custody Architecture](docs/explanation/architecture-overview.md)
 * [Challenges, Caveats, and Market Opportunities in DCA](docs/explanation/challenges-and-opportunities.md)
-* [Open Knowledge Format (OKF v0.2) Architectural Specification & Adoption Guide](docs/explanation/open-knowledge-format-v02-guide.md)
 * [Open-Source MPC Wallet System Architecture via cb-mpc](docs/explanation/open-source-mpc-wallet-architecture.md)
 * [Percona Server for PostgreSQL & TimescaleDB Dual-Write Blockchain Architecture](docs/explanation/percona-timescaledb-blockchain-sync.md)
 * [RCF & DAC Proposal: 1. Background and Problem Statement](docs/explanation/rcf-dac-background-problem.md)

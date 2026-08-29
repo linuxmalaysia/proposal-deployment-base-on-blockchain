@@ -1,26 +1,12 @@
 ---
-okf_version: '0.2'
-type: howto
-title: 'How-To: Install and Configure Repository Guardrails and Documentation Tools'
-timestamp: '2026-08-25T00:00:00Z'
-topics:
-- guardrails
-- git-hooks
-- generate-summary
-- pyyaml
-- automation
-description: Instructions for setting up pre-commit Git guardrail hooks and automated
-  documentation indexing tools.
-resource: file:///docs/how-to/install-and-configure-guardrails.md
-sources:
-- tools/install_git_guardrails.py
-- tools/generate_summary.py
-generated: jules
-verified: true
-status: approved
-stale_after: '2027-08-25T00:00:00Z'
-language: en-GB
+okf_version: "0.2"
+type: "howto"
+title: "How-To: Install and Configure Repository Guardrails and Documentation Tools"
+created: "2026-08-25"
+status: "verified"
+language: "en-GB"
 ---
+
 # How-To: Install and Configure Repository Guardrails and Documentation Tools
 
 This guide outlines step-by-step instructions for installing, configuring, and executing automated code guardrails and documentation index tools within the DCA/DAC repository.
