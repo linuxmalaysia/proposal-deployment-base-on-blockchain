@@ -11,7 +11,6 @@ from dca_service.core.key_management import (
 
 
 def test_threshold_policy_validation():
-    """Verify threshold policy validates signature requirements against share counts."""
     policy = ThresholdPolicy(required_signatures=2, total_shares=3)
     assert policy.required_signatures == 2
 
@@ -23,7 +22,6 @@ def test_threshold_policy_validation():
 
 
 def test_vault_quorum_evaluation():
-    """Verify vault correctly evaluates quorum threshold against provided signatures."""
     policy = ThresholdPolicy(required_signatures=2, total_shares=3)
     vault = KeyVault(vault_id="vault-warm-1", tier=VaultTier.WARM, policy=policy)
 
@@ -44,7 +42,6 @@ def test_vault_quorum_evaluation():
 
 
 def test_vault_duplicate_share_and_capacity_rejection():
-    """Verify vault rejects duplicate shares and enforces capacity limits."""
     policy = ThresholdPolicy(required_signatures=1, total_shares=2)
     vault = KeyVault(vault_id="v1", tier=VaultTier.HOT, policy=policy)
 
@@ -64,7 +61,6 @@ def test_vault_duplicate_share_and_capacity_rejection():
 
 
 def test_vault_tier_mismatch_rejection():
-    """Verify vault rejects key shares with mismatched security tier."""
     policy = ThresholdPolicy(required_signatures=1, total_shares=1)
     vault = KeyVault(vault_id="vault-cold-1", tier=VaultTier.COLD, policy=policy)
     hot_share = KeyShare(share_id="s-hot", holder_id="h1", encrypted_payload="p", tier=VaultTier.HOT)

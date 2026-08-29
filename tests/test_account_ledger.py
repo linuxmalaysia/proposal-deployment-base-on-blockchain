@@ -12,7 +12,6 @@ from dca_service.core.account_ledger import (
 
 
 def test_sub_account_deposit_withdrawal():
-    """Verify sub-account deposit and withdrawal operations with balance validation."""
     sub_acc = SubAccount(sub_account_id="sub-1", client_id="client-a", asset_symbol="BTC")
     sub_acc.deposit(Decimal("2.5"))
     assert sub_acc.balance == Decimal("2.5")
@@ -25,7 +24,6 @@ def test_sub_account_deposit_withdrawal():
 
 
 def test_segregated_ledger_commingling_prevention():
-    """Verify segregated ledger prevents cross-client account commingling."""
     ledger_a = SegregatedLedger(ledger_id="led-a", client_id="client-a")
     ledger_a.get_or_create_sub_account("sub-a1", "ETH")
 
@@ -37,7 +35,6 @@ def test_segregated_ledger_commingling_prevention():
 
 
 def test_sub_account_asset_mismatch_prevention():
-    """Verify sub-account rejects asset symbol mismatch on duplicate retrieval."""
     ledger = SegregatedLedger(ledger_id="led-1", client_id="client-a")
     ledger.get_or_create_sub_account("sub-1", "BTC")
 
@@ -46,7 +43,6 @@ def test_sub_account_asset_mismatch_prevention():
 
 
 def test_internal_transfer_same_client():
-    """Verify internal transfer successfully moves funds between same-client sub-accounts."""
     ledger = SegregatedLedger(ledger_id="led-1", client_id="client-x")
     acc1 = ledger.get_or_create_sub_account("acc-1", "USDC")
     acc2 = ledger.get_or_create_sub_account("acc-2", "USDC")

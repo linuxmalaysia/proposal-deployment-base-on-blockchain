@@ -7,12 +7,14 @@ Governed by DSOM Protocol // OKF v0.2 Standard // Concentric Clean Architecture.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import time
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field
@@ -35,6 +37,8 @@ if ASSETS_DIR.exists():
 # In-memory storage for demonstration / web service operation
 USER_REGISTRY: Dict[str, Dict[str, Any]] = {}
 ASSET_REGISTRY: Dict[str, Dict[str, Any]] = {}
+
+RevenueType = Literal["royalties", "licensing", "equity", "dividend"]
 
 
 # --- Pydantic Request Models ---
@@ -62,8 +66,12 @@ class CloverleafScoreRequest(BaseModel):
 
 
 class RevenueSplitRequest(BaseModel):
-    amount: float = Field(500000.0, ge=0.0, description="Total Ingested Revenue (MYR)")
-    revenue_type: str = Field(
+    amount: Decimal = Field(
+        Decimal("500000.00"),
+        ge=Decimal("0.00"),
+        description="Total Ingested Revenue (MYR)",
+    )
+    revenue_type: RevenueType = Field(
         "licensing",
         description="Type of revenue stream: royalties, licensing, equity, or dividend",
     )
@@ -103,7 +111,15 @@ def register_user(req: UserRegistrationRequest) -> Dict[str, Any]:
 @app.post("/api/register-asset", status_code=status.HTTP_201_CREATED)
 def register_asset(req: AssetRegistrationRequest) -> Dict[str, Any]:
     """Register research asset and generate SHA-256 evidence vault hash."""
-    file_bytes = (req.file_content or req.file_name or req.title).encode("utf-8")
+    if req.file_content is not None:
+        try:
+            file_bytes = base64.b64decode(req.file_content, validate=True)
+        except Exception:
+            file_bytes = req.file_content.encode("utf-8")
+    else:
+        fallback_str = req.file_name if req.file_name else req.title
+        file_bytes = fallback_str.encode("utf-8")
+
     sha256_digest = f"sha256:{hashlib.sha256(file_bytes).hexdigest()}"
 
     asset_seed = f"{req.title}-{req.abstract}-{req.trl}-{time.time()}"
@@ -161,52 +177,78 @@ def calculate_cloverleaf(req: CloverleafScoreRequest) -> Dict[str, Any]:
 @app.post("/api/calculate-revenue")
 def calculate_revenue(req: RevenueSplitRequest) -> Dict[str, Any]:
     """Calculate IP policy revenue-split matrix across institutional stakeholders."""
-    amount = max(0.0, req.amount)
+    amount = max(Decimal("0.00"), req.amount)
     rev_type = req.revenue_type.lower()
 
     if rev_type == "royalties":
-        treasury_pct, dept_pct, inventor_pct, rcf_pct = 0.333, 0.333, 0.334, 0.0
+        percentages = [Decimal("0.333"), Decimal("0.333"), Decimal("0.334"), Decimal("0.000")]
     elif rev_type == "equity":
-        treasury_pct, dept_pct, inventor_pct, rcf_pct = 0.35, 0.10, 0.25, 0.30
+        percentages = [Decimal("0.35"), Decimal("0.10"), Decimal("0.25"), Decimal("0.30")]
     elif rev_type == "dividend":
-        treasury_pct, dept_pct, inventor_pct, rcf_pct = 0.25, 0.15, 0.30, 0.30
-    else:  # default 'licensing'
-        rev_type = "licensing"
-        treasury_pct, dept_pct, inventor_pct, rcf_pct = 0.30, 0.20, 0.30, 0.20
+        percentages = [Decimal("0.25"), Decimal("0.15"), Decimal("0.30"), Decimal("0.30")]
+    elif rev_type == "licensing":
+        percentages = [Decimal("0.30"), Decimal("0.20"), Decimal("0.30"), Decimal("0.20")]
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unsupported revenue type: {req.revenue_type}",
+        )
+
+    stakeholders = [
+        ("🏛️ Central University Treasury", percentages[0]),
+        ("🔬 Originating Dept / Lab", percentages[1]),
+        ("👩‍🔬 Lead Inventors & Team", percentages[2]),
+        ("🚀 RCF Re-investment Fund", percentages[3]),
+    ]
+
+    allocations = []
+    total_allocated = Decimal("0.00")
+
+    for name, pct in stakeholders:
+        alloc = (amount * pct).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        allocations.append(alloc)
+        total_allocated += alloc
+
+    remainder = amount - total_allocated
+    if remainder != Decimal("0.00"):
+        target_idx = 3 if percentages[3] > Decimal("0") else 0
+        allocations[target_idx] += remainder
 
     splits = [
         {
-            "stakeholder": "🏛️ Central University Treasury",
-            "percentage": round(treasury_pct * 100, 1),
-            "amount_myr": round(amount * treasury_pct, 2),
-        },
-        {
-            "stakeholder": "🔬 Originating Dept / Lab",
-            "percentage": round(dept_pct * 100, 1),
-            "amount_myr": round(amount * dept_pct, 2),
-        },
-        {
-            "stakeholder": "👩‍🔬 Lead Inventors & Team",
-            "percentage": round(inventor_pct * 100, 1),
-            "amount_myr": round(amount * inventor_pct, 2),
-        },
-        {
-            "stakeholder": "🚀 RCF Re-investment Fund",
-            "percentage": round(rcf_pct * 100, 1),
-            "amount_myr": round(amount * rcf_pct, 2),
-        },
+            "stakeholder": name,
+            "percentage": float(pct * Decimal("100")),
+            "amount_myr": float(alloc),
+        }
+        for (name, pct), alloc in zip(stakeholders, allocations)
     ]
 
     return {
         "revenue_type": rev_type,
-        "total_ingested_myr": amount,
+        "total_ingested_myr": float(amount),
         "distribution_splits": splits,
     }
 
 
 @app.get("/api/investor-assets")
-def get_investor_assets() -> Dict[str, Any]:
+def get_investor_assets(
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+) -> Dict[str, Any]:
     """Retrieve NDA-gated data room listings for accredited investors."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Missing or invalid Bearer token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = authorization.split("Bearer ", 1)[1].strip()
+    if not token or token.lower() in ("unauthorized", "invalid"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Accredited investor identity required.",
+        )
+
     default_listings = [
         {
             "asset_id": "did:univ:asset-9f82a1",
@@ -241,7 +283,6 @@ def serve_index() -> HTMLResponse:
     index_file = BASE_DIR / "index.md"
     if index_file.exists():
         content = index_file.read_text(encoding="utf-8")
-        # Strip frontmatter if present for basic HTML rendering wrapper
         if content.startswith("---"):
             parts = content.split("---", 2)
             if len(parts) >= 3:

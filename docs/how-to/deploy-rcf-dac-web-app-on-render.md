@@ -29,9 +29,9 @@ This guide provides a comprehensive step-by-step walkthrough for deploying the *
 
 To operationalise the interactive web components demonstrated on the [RCF & DAC Portal](https://linuxmalaysia.github.io/proposal-deployment-base-on-blockchain/), **FastAPI** is selected as the recommended Python framework:
 
-1. **High Performance & Asynchronous:** Built on Starlette and Pydantic, providing sub-millisecond response latency.
-2. **Built-in Data Validation:** Enforces strict types for DID user registration, file hashing payloads, Cloverleaf MRS score calculations, and revenue-split calculations.
-3. **Automatic OpenAPI/Swagger Documentation:** Interactive test suite available natively at `/docs`.
+1. **High Performance & Asynchronous:** Built on Starlette and Pydantic, providing low-latency response performance.
+2. **Built-in Data Validation:** Enforces typed validation for DID user registration, file hashing payloads, Cloverleaf MRS score calculations, and revenue-split calculations.
+3. **Automatic OpenAPI/Swagger Documentation:** Interactive API documentation available natively at `/docs`.
 4. **Seamless Render Integration:** Operates directly with Uvicorn or Gunicorn on Render's native Python 3 runtime using `uv`.
 
 ---
@@ -40,7 +40,7 @@ To operationalise the interactive web components demonstrated on the [RCF & DAC 
 
 Ensure the repository contains the following deployment artifacts:
 
-```
+```text
 .
 ├── render.yaml                             # Render Blueprint specification
 ├── pyproject.toml                          # Dependency manifest (fastapi, uvicorn, pydantic)
@@ -87,20 +87,25 @@ If creating the web service manually in the Render Dashboard:
 Based on [Render's Official Troubleshooting Guide](https://render.com/docs/troubleshooting-python-deploys), common deployment issues and resolutions include:
 
 ### 1. Incorrect Runtime
+
 - **Symptom:** Build fails with `command not found: uv` or missing Python tools.
 - **Resolution:** Verify in service Settings that the runtime is set to **Python 3** (or Docker if deploying via container).
 
 ### 2. Incompatible Python Version
+
 - **Symptom:** Deploy logs show `Current Python version (3.11.10) is not allowed by the project (^3.12)` or `SyntaxError: invalid syntax`.
 - **Resolution:** Set the `PYTHON_VERSION` environment variable in the Render Dashboard to `3.12.13` matching `pyproject.toml`.
 
 ### 3. Missing Dependencies or Missing UV Lockfile
+
 - **Symptom:** Deploy logs show `ModuleNotFoundError: No module named 'fastapi'` or `uv.lock file missing`.
-- **Resolution:** Ensure both `pyproject.toml` and `uv.lock` are committed in the repository root. When `uv.lock` is present, Render natively runs `uv sync`.
+- **Resolution:** Ensure both `pyproject.toml` and `uv.lock` are committed in the repository root. Render provides `uv` when `uv.lock` exists, but does not automatically execute `uv sync`; users must include `uv sync` explicitly in the configured build command.
 
 ### 4. Port Binding Errors
+
 - **Symptom:** Service fails health checks or times out during deployment startup.
 - **Resolution:** Ensure the start command binds to `0.0.0.0` and uses the `$PORT` environment variable supplied by Render:
+
   ```bash
   uvicorn src.dca_service.web_app:app --host 0.0.0.0 --port $PORT
   ```
