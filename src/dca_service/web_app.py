@@ -11,8 +11,10 @@ import base64
 import hashlib
 import hmac
 import json
+import math
 import os
 import time
+import uuid
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
@@ -125,7 +127,8 @@ def health_check() -> Dict[str, str]:
 @app.post("/api/register-user", status_code=status.HTTP_201_CREATED)
 def register_user(req: UserRegistrationRequest) -> Dict[str, Any]:
     """Mint W3C Decentralised Identifier (DID) and register institutional user."""
-    seed_str = f"{req.name}-{req.role}-{req.dept}-{time.time()}"
+    unique_nonce = uuid.uuid4()
+    seed_str = f"{req.name}-{req.role}-{req.dept}-{time.time()}-{unique_nonce}"
     did_hash = hashlib.sha256(seed_str.encode()).hexdigest()[:16]
     did = f"did:univ:{did_hash}"
 
@@ -165,7 +168,7 @@ def register_asset(req: AssetRegistrationRequest) -> Dict[str, Any]:
 
     sha256_digest = f"sha256:{hashlib.sha256(file_bytes).hexdigest()}"
 
-    asset_seed = f"{req.title}-{req.abstract}-{req.trl}-{time.time()}"
+    asset_seed = f"{req.title}-{req.abstract}-{req.trl}-{time.time()}-{uuid.uuid4()}"
     asset_id_hash = hashlib.sha256(asset_seed.encode()).hexdigest()[:12]
     asset_id = f"did:univ:asset-{asset_id_hash}"
     tx_outbox_id = f"outbox_tx_{int(time.time() * 1000) % 1000000}"
@@ -280,7 +283,7 @@ def verify_investor_bearer_token(
 ) -> Dict[str, Any]:
     """
     Perform cryptographic HMAC-SHA256 verification and claims check on investor Bearer tokens.
-    Rejects opaque, malformed, unsigned, forged, expired, or missing claim tokens.
+    Rejects opaque, malformed, unsigned, forged, expired, non-dict, or missing claim tokens.
     """
     if not token or not isinstance(token, str):
         raise HTTPException(
@@ -317,6 +320,12 @@ def verify_investor_bearer_token(
             detail="Authorisation failed. Unparseable or malformed JWT payload.",
         ) from None
 
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. JWT payload must be a JSON object.",
+        )
+
     # Validate required claims
     if "exp" not in payload:
         raise HTTPException(
@@ -324,7 +333,14 @@ def verify_investor_bearer_token(
             detail="Authorisation failed. Missing required 'exp' expiration claim.",
         )
 
-    if payload["exp"] < time.time():
+    exp_val = payload["exp"]
+    if not isinstance(exp_val, (int, float)) or isinstance(exp_val, bool) or not math.isfinite(exp_val):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. 'exp' claim must be a finite numeric value.",
+        )
+
+    if exp_val < time.time():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Authorisation failed. Token has expired.",

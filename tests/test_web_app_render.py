@@ -19,7 +19,7 @@ TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
 os.environ["INVESTOR_JWT_SECRET"] = TEST_JWT_SECRET.decode()
 
 from fastapi.testclient import TestClient
-from dca_service.web_app import app, base64url_encode
+from dca_service.web_app import app, USER_REGISTRY, base64url_encode
 
 client = TestClient(app)
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -32,19 +32,27 @@ def create_investor_jwt(
     aud: str = "rcf-dac-data-room",
     *,
     accredited_investor: bool = True,
+    custom_exp: Any = None,
+    raw_payload: Any = None,
     secret: bytes = TEST_JWT_SECRET,
 ) -> str:
     """Create a signed HMAC-SHA256 JWT for testing accredited investor authentication."""
     header = {"alg": "HS256", "typ": "JWT"}
-    payload = {
-        "sub": sub,
-        "iss": iss,
-        "aud": aud,
-        "exp": int(time.time() + exp_delta),
-        "accredited_investor": accredited_investor,
-    }
+    if raw_payload is not None:
+        payload_bytes = json.dumps(raw_payload, separators=(",", ":")).encode()
+    else:
+        exp_val = custom_exp if custom_exp is not None else int(time.time() + exp_delta)
+        payload = {
+            "sub": sub,
+            "iss": iss,
+            "aud": aud,
+            "exp": exp_val,
+            "accredited_investor": accredited_investor,
+        }
+        payload_bytes = json.dumps(payload, separators=(",", ":")).encode()
+
     header_b64 = base64url_encode(json.dumps(header, separators=(",", ":")).encode())
-    payload_b64 = base64url_encode(json.dumps(payload, separators=(",", ":")).encode())
+    payload_b64 = base64url_encode(payload_bytes)
     signing_input = f"{header_b64}.{payload_b64}".encode()
     signature = hmac.new(secret, signing_input, hashlib.sha256).digest()
     sig_b64 = base64url_encode(signature)
@@ -59,19 +67,27 @@ def test_health_check_endpoint():
     assert data["service"] == "rcf-dac-web-app"
 
 
-def test_user_registration_endpoint():
+def test_user_registration_endpoint_and_unique_did_generation():
     payload = {
         "name": "Prof. Dr. Harisfazillah Jamel",
         "role": "Lead Principal Investigator (PI)",
         "dept": "Centre of Excellence in DeepTech & Nanotechnology",
         "email": "harisfazillah@university.edu.my",
     }
-    response = client.post("/api/register-user", json=payload)
-    assert response.status_code == 201
-    data = response.json()
-    assert "user" in data
-    assert data["user"]["did"].startswith("did:univ:")
-    assert data["user"]["name"] == payload["name"]
+    # First registration
+    res1 = client.post("/api/register-user", json=payload)
+    assert res1.status_code == 201
+    did1 = res1.json()["user"]["did"]
+
+    # Second registration with identical payload
+    res2 = client.post("/api/register-user", json=payload)
+    assert res2.status_code == 201
+    did2 = res2.json()["user"]["did"]
+
+    # Verify unique DIDs and non-overwriting of USER_REGISTRY
+    assert did1 != did2
+    assert did1 in USER_REGISTRY
+    assert did2 in USER_REGISTRY
 
 
 def test_asset_registration_base64_explicit_encoding():
@@ -185,6 +201,32 @@ def test_investor_data_room_opaque_and_forged_token_rejection():
         "/api/investor-assets", headers={"Authorization": f"Bearer {forged_jwt}"}
     )
     assert res_forged.status_code == 403
+
+
+def test_investor_data_room_non_object_and_non_finite_exp_payload_rejection():
+    # Non-object payload (JSON array) -> 403
+    array_payload_jwt = create_investor_jwt(raw_payload=["invalid", "array", "payload"])
+    res_array = client.get(
+        "/api/investor-assets", headers={"Authorization": f"Bearer {array_payload_jwt}"}
+    )
+    assert res_array.status_code == 403
+    assert "object" in res_array.json()["detail"].lower()
+
+    # Non-numeric string exp claim -> 403
+    str_exp_jwt = create_investor_jwt(custom_exp="2026-12-31T23:59:59Z")
+    res_str_exp = client.get(
+        "/api/investor-assets", headers={"Authorization": f"Bearer {str_exp_jwt}"}
+    )
+    assert res_str_exp.status_code == 403
+    assert "finite numeric" in res_str_exp.json()["detail"].lower()
+
+    # Boolean exp claim -> 403
+    bool_exp_jwt = create_investor_jwt(custom_exp=True)
+    res_bool_exp = client.get(
+        "/api/investor-assets", headers={"Authorization": f"Bearer {bool_exp_jwt}"}
+    )
+    assert res_bool_exp.status_code == 403
+    assert "finite numeric" in res_bool_exp.json()["detail"].lower()
 
 
 def test_investor_data_room_valid_cryptographic_jwt():
