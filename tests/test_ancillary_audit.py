@@ -8,6 +8,7 @@ from dca_service.core.ancillary_audit import (
 
 
 def test_audit_logger_event_immutability():
+    """Verify audit logger protects event records from external mutation."""
     logger = AuditLogger()
     details = {"amount": "100.0", "asset": "USDC"}
 
@@ -33,6 +34,7 @@ def test_audit_logger_event_immutability():
 
 
 def test_tokenized_collateral_valuation():
+    """Verify tokenised collateral asset correctly validates full backing requirement."""
     asset = TokenizedCollateralAsset(
         asset_id="rwa-1",
         client_id="client-corp",

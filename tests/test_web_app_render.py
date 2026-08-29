@@ -15,6 +15,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 
 
 def test_health_check_endpoint():
+    """Verify health check endpoint returns correct status and service metadata."""
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
@@ -23,6 +24,7 @@ def test_health_check_endpoint():
 
 
 def test_user_registration_endpoint():
+    """Verify user registration endpoint mints W3C DID and stores user record."""
     payload = {
         "name": "Prof. Dr. Harisfazillah Jamel",
         "role": "Lead Principal Investigator (PI)",
@@ -38,6 +40,7 @@ def test_user_registration_endpoint():
 
 
 def test_asset_registration_endpoint():
+    """Verify asset registration endpoint generates SHA-256 digest and asset DID."""
     payload = {
         "title": "Graphene-Enhanced Solid State Lithium-Air Battery Cell",
         "trl": 3,
@@ -54,6 +57,7 @@ def test_asset_registration_endpoint():
 
 
 def test_cloverleaf_score_calculator_qualified():
+    """Verify Cloverleaf calculator identifies investment-ready projects above threshold."""
     payload = {"tech": 48, "market": 65, "comm": 46, "mgmt": 44}
     response = client.post("/api/calculate-cloverleaf", json=payload)
     assert response.status_code == 200
@@ -64,6 +68,7 @@ def test_cloverleaf_score_calculator_qualified():
 
 
 def test_cloverleaf_score_calculator_under_qualified():
+    """Verify Cloverleaf calculator flags projects requiring development below threshold."""
     payload = {"tech": 20, "market": 30, "comm": 20, "mgmt": 20}
     response = client.post("/api/calculate-cloverleaf", json=payload)
     assert response.status_code == 200
@@ -74,6 +79,7 @@ def test_cloverleaf_score_calculator_under_qualified():
 
 
 def test_revenue_split_calculator():
+    """Verify revenue split calculator applies correct policy-based distribution percentages."""
     payload = {"amount": 500000.0, "revenue_type": "licensing"}
     response = client.post("/api/calculate-revenue", json=payload)
     assert response.status_code == 200
@@ -87,6 +93,7 @@ def test_revenue_split_calculator():
 
 
 def test_investor_data_room_endpoint():
+    """Verify investor data room endpoint returns NDA-gated asset listings."""
     response = client.get("/api/investor-assets")
     assert response.status_code == 200
     data = response.json()
@@ -95,6 +102,7 @@ def test_investor_data_room_endpoint():
 
 
 def test_render_yaml_validity():
+    """Verify Render deployment configuration contains required runtime and build settings."""
     render_yaml = ROOT_DIR / "render.yaml"
     assert render_yaml.exists()
     text = render_yaml.read_text(encoding="utf-8")
@@ -105,6 +113,7 @@ def test_render_yaml_validity():
 
 
 def test_how_to_render_deployment_doc_okf_frontmatter():
+    """Verify Render deployment documentation contains valid OKF v0.2 frontmatter metadata."""
     doc_path = ROOT_DIR / "docs" / "how-to" / "deploy-rcf-dac-web-app-on-render.md"
     assert doc_path.exists()
     text = doc_path.read_text(encoding="utf-8")

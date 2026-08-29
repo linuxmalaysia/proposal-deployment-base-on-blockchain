@@ -10,6 +10,7 @@ from dca_service.core.policy_engine import (
 
 
 def test_transaction_proposal_positive_amount():
+    """Verify transaction proposal rejects zero or negative amounts."""
     with pytest.raises(ValueError, match="strictly greater than zero"):
         TransactionProposal(
             proposal_id="p0",
@@ -21,6 +22,7 @@ def test_transaction_proposal_positive_amount():
 
 
 def test_transaction_proposal_non_list_signers_rejected():
+    """Verify transaction proposal requires signers as list type not set."""
     with pytest.raises(ValueError, match="Signers must be provided as a list"):
         TransactionProposal(
             proposal_id="p_non_list",
@@ -33,6 +35,7 @@ def test_transaction_proposal_non_list_signers_rejected():
 
 
 def test_transaction_proposal_duplicate_signers_rejected():
+    """Verify transaction proposal rejects duplicate signer identities."""
     with pytest.raises(ValueError, match="Duplicate signers detected"):
         TransactionProposal(
             proposal_id="p_dup",
@@ -45,6 +48,7 @@ def test_transaction_proposal_duplicate_signers_rejected():
 
 
 def test_transaction_proposal_empty_signer_identity_rejected():
+    """Verify transaction proposal rejects empty or whitespace-only signer identities."""
     with pytest.raises(ValueError, match="non-empty string"):
         TransactionProposal(
             proposal_id="p_empty",
@@ -57,6 +61,7 @@ def test_transaction_proposal_empty_signer_identity_rejected():
 
 
 def test_policy_allowlist_enforcement():
+    """Verify policy rule enforces destination address allowlist restrictions."""
     rule = PolicyRule(
         rule_id="rule-1",
         max_amount_per_tx=Decimal("100.0"),
@@ -88,6 +93,7 @@ def test_policy_allowlist_enforcement():
 
 
 def test_policy_velocity_limit_enforcement():
+    """Verify policy rule enforces daily velocity limit across multiple transactions."""
     rule = PolicyRule(
         rule_id="rule-2",
         max_amount_per_tx=Decimal("100.0"),
@@ -119,6 +125,7 @@ def test_policy_velocity_limit_enforcement():
 
 
 def test_policy_unauthenticated_signer_rejected():
+    """Verify policy rule rejects transactions from unauthenticated signers."""
     rule = PolicyRule(
         rule_id="rule-auth",
         max_amount_per_tx=Decimal("100.0"),
@@ -141,6 +148,7 @@ def test_policy_unauthenticated_signer_rejected():
 
 
 def test_policy_unauthorized_signer_rejected():
+    """Verify policy rule rejects transactions from unauthorised signers."""
     rule = PolicyRule(
         rule_id="rule-authz",
         max_amount_per_tx=Decimal("100.0"),
@@ -162,6 +170,7 @@ def test_policy_unauthorized_signer_rejected():
 
 
 def test_policy_record_execution_positive_amount():
+    """Verify policy rule execution recording rejects negative amounts."""
     rule = PolicyRule(
         rule_id="rule-x",
         max_amount_per_tx=Decimal("100.0"),
