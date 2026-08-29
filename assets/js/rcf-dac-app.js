@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initCloverleafCalculator();
   initRevenueCalculator();
   loadSavedRegistration();
-  loadSavedAsset();
+  loadSavedAssets();
 });
 
 /* -------------------------------------------------------------------------
@@ -136,6 +136,21 @@ function loadSavedRegistration() {
 /* -------------------------------------------------------------------------
    3. Asset Registration & Cryptographic Evidence Vault
    ------------------------------------------------------------------------- */
+function getSavedAssetCollection() {
+  try {
+    const saved = localStorage.getItem('rcf_dac_asset_collection');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not read asset collection:', err);
+  }
+  return {};
+}
+
 function initAssetForm() {
   const form = document.getElementById('asset-reg-form');
   if (!form) return;
@@ -167,77 +182,67 @@ function initAssetForm() {
     const txOutboxId = `outbox_tx_${Math.floor(100000 + Math.random() * 900000)}`;
 
     const assetRecord = { title, trl, abstract, fileRef, assetId, sha256Digest, txOutboxId, timestamp: new Date().toISOString() };
-    let savedSuccessfully = false;
+    const collection = getSavedAssetCollection();
+    collection[assetId] = assetRecord;
 
+    let savedSuccessfully = false;
     try {
-      localStorage.setItem('rcf_dac_asset_registration', JSON.stringify(assetRecord));
+      localStorage.setItem('rcf_dac_asset_collection', JSON.stringify(collection));
       savedSuccessfully = true;
     } catch (err) {
       console.warn('LocalStorage unavailable:', err);
       savedSuccessfully = false;
     }
 
-    renderAssetResult(assetRecord, savedSuccessfully);
+    renderAssetCollection(collection, assetId, savedSuccessfully);
   });
 }
 
-function renderAssetResult(assetRecord, savedSuccessfully = true) {
+function renderAssetCollection(collection, latestAssetId = null, savedSuccessfully = true) {
   const outputBox = document.getElementById('asset-reg-output');
-  if (outputBox) {
-    if (savedSuccessfully) {
-      outputBox.innerHTML = `
-        <div class="result-card success">
-          <h4>📜 Digital Research Asset Registered</h4>
-          <div class="badge-grid">
-            <p><strong>Digital Asset ID:</strong> <code>${escapeHtml(assetRecord.assetId)}</code></p>
-            <p><strong>Technical Maturity:</strong> <span class="badge badge-primary">TRL ${escapeHtml(assetRecord.trl)}</span></p>
-            <p><strong>Title:</strong> ${escapeHtml(assetRecord.title)}</p>
-            <p><strong>Evidence File:</strong> ${escapeHtml(assetRecord.fileRef)}</p>
-          </div>
-          <div class="did-code-box">
-            <span class="did-label">SHA-256 Digest:</span>
-            <code>${escapeHtml(assetRecord.sha256Digest)}</code>
-          </div>
-          <div class="outbox-status">
-            <span class="status-dot green"></span>
-            <strong>Simulated Transactional Outbox Status:</strong> Queued locally (Batch ID: <code>${escapeHtml(assetRecord.txOutboxId)}</code>) ready for Merkle notarisation.
-          </div>
-        </div>
-      `;
-    } else {
-      outputBox.innerHTML = `
-        <div class="result-card hold">
-          <h4>⚠️ Digital Research Asset Computed (Persistence Unavailable)</h4>
-          <div class="badge-grid">
-            <p><strong>Digital Asset ID:</strong> <code>${escapeHtml(assetRecord.assetId)}</code></p>
-            <p><strong>Technical Maturity:</strong> <span class="badge badge-primary">TRL ${escapeHtml(assetRecord.trl)}</span></p>
-            <p><strong>Title:</strong> ${escapeHtml(assetRecord.title)}</p>
-            <p><strong>Evidence File:</strong> ${escapeHtml(assetRecord.fileRef)}</p>
-          </div>
-          <div class="did-code-box">
-            <span class="did-label">SHA-256 Digest:</span>
-            <code>${escapeHtml(assetRecord.sha256Digest)}</code>
-          </div>
-          <div class="outbox-status">
-            <span class="status-dot orange"></span>
-            <strong>Simulated Transactional Outbox Status:</strong> Local storage write failed or unavailable; record not queued.
-          </div>
-        </div>
-      `;
-    }
-    outputBox.style.display = 'block';
+  if (!outputBox) return;
+
+  const assets = Object.values(collection);
+  if (!assets.length) return;
+
+  let html = `<div class="result-card ${savedSuccessfully ? 'success' : 'hold'}">`;
+  html += `<h4>📜 Digital Research Asset Registry (${assets.length} Asset${assets.length > 1 ? 's' : ''})</h4>`;
+
+  if (!savedSuccessfully) {
+    html += `<p style="font-size:0.8rem; color:#f59e0b;">⚠️ LocalStorage unavailable: newly generated asset was not saved.</p>`;
   }
+
+  assets.reverse().forEach((asset, idx) => {
+    const isNew = latestAssetId && asset.assetId === latestAssetId;
+    html += `
+      <div style="margin-bottom: ${idx < assets.length - 1 ? '1rem' : '0'}; border-bottom: ${idx < assets.length - 1 ? '1px solid var(--border-color)' : 'none'}; padding-bottom: ${idx < assets.length - 1 ? '0.75rem' : '0'};">
+        <div class="badge-grid">
+          <p><strong>Digital Asset ID:</strong> <code>${escapeHtml(asset.assetId)}</code> ${isNew ? '<span class="badge badge-primary">NEW</span>' : ''}</p>
+          <p><strong>Technical Maturity:</strong> <span class="badge badge-primary">TRL ${escapeHtml(asset.trl)}</span></p>
+          <p><strong>Title:</strong> ${escapeHtml(asset.title)}</p>
+          <p><strong>Evidence File:</strong> ${escapeHtml(asset.fileRef)}</p>
+        </div>
+        <div class="did-code-box">
+          <span class="did-label">SHA-256 Digest:</span>
+          <code>${escapeHtml(asset.sha256Digest)}</code>
+        </div>
+        <div class="outbox-status">
+          <span class="status-dot green"></span>
+          <strong>Simulated Outbox Batch ID:</strong> <code>${escapeHtml(asset.txOutboxId)}</code>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  outputBox.innerHTML = html;
+  outputBox.style.display = 'block';
 }
 
-function loadSavedAsset() {
-  try {
-    const saved = localStorage.getItem('rcf_dac_asset_registration');
-    if (saved) {
-      const assetRecord = JSON.parse(saved);
-      renderAssetResult(assetRecord, true);
-    }
-  } catch (err) {
-    console.warn('Could not load saved asset registration:', err);
+function loadSavedAssets() {
+  const collection = getSavedAssetCollection();
+  if (Object.keys(collection).length > 0) {
+    renderAssetCollection(collection, null, true);
   }
 }
 
