@@ -8,14 +8,47 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import json
+import os
 import time
 from pathlib import Path
+
+# Configure environment secret before importing web_app module
+TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
+os.environ["INVESTOR_JWT_SECRET"] = TEST_JWT_SECRET.decode()
+
 from fastapi.testclient import TestClient
-from dca_service.web_app import app, create_investor_jwt, base64url_encode
+from dca_service.web_app import app, base64url_encode
 
 client = TestClient(app)
 ROOT_DIR = Path(__file__).resolve().parent.parent
+
+
+def create_investor_jwt(
+    sub: str = "investor_01",
+    exp_delta: float = 3600.0,
+    iss: str = "https://auth.rcf-dac.univ.edu.my",
+    aud: str = "rcf-dac-data-room",
+    *,
+    accredited_investor: bool = True,
+    secret: bytes = TEST_JWT_SECRET,
+) -> str:
+    """Create a signed HMAC-SHA256 JWT for testing accredited investor authentication."""
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {
+        "sub": sub,
+        "iss": iss,
+        "aud": aud,
+        "exp": int(time.time() + exp_delta),
+        "accredited_investor": accredited_investor,
+    }
+    header_b64 = base64url_encode(json.dumps(header, separators=(",", ":")).encode())
+    payload_b64 = base64url_encode(json.dumps(payload, separators=(",", ":")).encode())
+    signing_input = f"{header_b64}.{payload_b64}".encode()
+    signature = hmac.new(secret, signing_input, hashlib.sha256).digest()
+    sig_b64 = base64url_encode(signature)
+    return f"{header_b64}.{payload_b64}.{sig_b64}"
 
 
 def test_health_check_endpoint():
@@ -166,13 +199,31 @@ def test_investor_data_room_valid_cryptographic_jwt():
     assert len(data["data_room_assets"]) >= 2
 
 
-def test_investor_data_room_expired_or_missing_claims_token():
+def test_investor_data_room_untrusted_issuer_and_invalid_audience_rejected():
+    # Untrusted issuer -> 403
+    untrusted_iss_jwt = create_investor_jwt(iss="https://untrusted.attacker.com")
+    res_iss = client.get(
+        "/api/investor-assets", headers={"Authorization": f"Bearer {untrusted_iss_jwt}"}
+    )
+    assert res_iss.status_code == 403
+    assert "issuer" in res_iss.json()["detail"].lower()
+
+    # Invalid audience -> 403
+    invalid_aud_jwt = create_investor_jwt(aud="wrong-data-room")
+    res_aud = client.get(
+        "/api/investor-assets", headers={"Authorization": f"Bearer {invalid_aud_jwt}"}
+    )
+    assert res_aud.status_code == 403
+    assert "audience" in res_aud.json()["detail"].lower()
+
+
+def test_investor_data_room_expired_or_unaccredited_token():
     # Expired token -> 403
     expired_jwt = create_investor_jwt(exp_delta=-3600.0)
     res_exp = client.get("/api/investor-assets", headers={"Authorization": f"Bearer {expired_jwt}"})
     assert res_exp.status_code == 403
 
-    # Missing accredited_investor claim -> 403
+    # accredited_investor claim is false -> 403
     unaccredited_jwt = create_investor_jwt(accredited_investor=False)
     res_unacc = client.get(
         "/api/investor-assets", headers={"Authorization": f"Bearer {unaccredited_jwt}"}
@@ -188,6 +239,8 @@ def test_render_yaml_validity():
     assert 'buildCommand: "uv sync"' in text
     assert "uvicorn src.dca_service.web_app:app" in text
     assert "PYTHON_VERSION" in text
+    assert "INVESTOR_JWT_SECRET" in text
+    assert "generateValue: true" in text
 
 
 def test_how_to_render_deployment_doc_okf_frontmatter():

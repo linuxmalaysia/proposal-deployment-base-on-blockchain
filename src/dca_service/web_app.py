@@ -11,6 +11,7 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 import time
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from pathlib import Path
@@ -36,8 +37,15 @@ DOCS_DIR = BASE_DIR / "docs"
 if ASSETS_DIR.exists():
     app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
-# Secret key used for signing and verifying accredited investor JWT tokens
-INVESTOR_JWT_SECRET = b"rcf_dac_accredited_investor_secret_key_2026"
+# Mandatory JWT secret lookup (fails closed if environment variable is missing)
+_jwt_secret_env = os.environ.get("INVESTOR_JWT_SECRET")
+if not _jwt_secret_env:
+    raise RuntimeError("FATAL: Missing required environment variable 'INVESTOR_JWT_SECRET'")
+INVESTOR_JWT_SECRET = _jwt_secret_env.encode()
+
+# Module-level expected claims constants
+EXPECTED_ISSUER = "https://auth.rcf-dac.univ.edu.my"
+EXPECTED_AUDIENCE = "rcf-dac-data-room"
 
 # In-memory storage for demonstration / web service operation
 USER_REGISTRY: Dict[str, Dict[str, Any]] = {}
@@ -51,38 +59,13 @@ ContentEncoding = Literal["base64", "raw", "text"]
 
 def base64url_encode(data: bytes) -> str:
     """Encode bytes to URL-safe Base64 without trailing '=' padding."""
-    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("utf-8")
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
 
 def base64url_decode(encoded_str: str) -> bytes:
     """Decode URL-safe Base64 string with optional missing padding restored."""
     padded = encoded_str + "=" * (-len(encoded_str) % 4)
-    return base64.urlsafe_b64decode(padded.encode("utf-8"))
-
-
-def create_investor_jwt(
-    sub: str = "investor_01",
-    exp_delta: float = 3600.0,
-    iss: str = "https://auth.rcf-dac.univ.edu.my",
-    aud: str = "rcf-dac-data-room",
-    accredited_investor: bool = True,
-    secret: bytes = INVESTOR_JWT_SECRET,
-) -> str:
-    """Create a signed HMAC-SHA256 JWT for accredited investor authentication."""
-    header = {"alg": "HS256", "typ": "JWT"}
-    payload = {
-        "sub": sub,
-        "iss": iss,
-        "aud": aud,
-        "exp": int(time.time() + exp_delta),
-        "accredited_investor": accredited_investor,
-    }
-    header_b64 = base64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
-    payload_b64 = base64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
-    signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
-    signature = hmac.new(secret, signing_input, hashlib.sha256).digest()
-    sig_b64 = base64url_encode(signature)
-    return f"{header_b64}.{payload_b64}.{sig_b64}"
+    return base64.urlsafe_b64decode(padded.encode())
 
 
 # --- Pydantic Request Models ---
@@ -143,7 +126,7 @@ def health_check() -> Dict[str, str]:
 def register_user(req: UserRegistrationRequest) -> Dict[str, Any]:
     """Mint W3C Decentralised Identifier (DID) and register institutional user."""
     seed_str = f"{req.name}-{req.role}-{req.dept}-{time.time()}"
-    did_hash = hashlib.sha256(seed_str.encode("utf-8")).hexdigest()[:16]
+    did_hash = hashlib.sha256(seed_str.encode()).hexdigest()[:16]
     did = f"did:univ:{did_hash}"
 
     record = {
@@ -175,15 +158,15 @@ def register_asset(req: AssetRegistrationRequest) -> Dict[str, Any]:
                     detail=f"Invalid Base64 file_content payload: {err}",
                 )
         else:
-            file_bytes = req.file_content.encode("utf-8")
+            file_bytes = req.file_content.encode()
     else:
         fallback_str = req.file_name if req.file_name else req.title
-        file_bytes = fallback_str.encode("utf-8")
+        file_bytes = fallback_str.encode()
 
     sha256_digest = f"sha256:{hashlib.sha256(file_bytes).hexdigest()}"
 
     asset_seed = f"{req.title}-{req.abstract}-{req.trl}-{time.time()}"
-    asset_id_hash = hashlib.sha256(asset_seed.encode("utf-8")).hexdigest()[:12]
+    asset_id_hash = hashlib.sha256(asset_seed.encode()).hexdigest()[:12]
     asset_id = f"did:univ:asset-{asset_id_hash}"
     tx_outbox_id = f"outbox_tx_{int(time.time() * 1000) % 1000000}"
 
@@ -315,7 +298,7 @@ def verify_investor_bearer_token(
     header_b64, payload_b64, sig_b64 = parts
 
     # Verify HMAC-SHA256 signature
-    signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
+    signing_input = f"{header_b64}.{payload_b64}".encode()
     expected_sig = base64url_encode(hmac.new(secret, signing_input, hashlib.sha256).digest())
 
     if not hmac.compare_digest(sig_b64, expected_sig):
@@ -327,12 +310,12 @@ def verify_investor_bearer_token(
     # Decode and parse payload claims
     try:
         payload_bytes = base64url_decode(payload_b64)
-        payload = json.loads(payload_bytes.decode("utf-8"))
+        payload = json.loads(payload_bytes.decode())
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Authorisation failed. Unparseable or malformed JWT payload.",
-        )
+        ) from None
 
     # Validate required claims
     if "exp" not in payload:
@@ -347,13 +330,13 @@ def verify_investor_bearer_token(
             detail="Authorisation failed. Token has expired.",
         )
 
-    if payload.get("iss") != "https://auth.rcf-dac.univ.edu.my":
+    if payload.get("iss") != EXPECTED_ISSUER:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Authorisation failed. Missing or untrusted token issuer ('iss').",
         )
 
-    if payload.get("aud") != "rcf-dac-data-room":
+    if payload.get("aud") != EXPECTED_AUDIENCE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Authorisation failed. Missing or invalid token audience ('aud').",
