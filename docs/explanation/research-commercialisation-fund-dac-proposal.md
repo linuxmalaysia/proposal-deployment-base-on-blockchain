@@ -15,6 +15,7 @@ sources: [
   "docs/explanation/rcf-dac-implementation-roadmap.md",
   "docs/explanation/rcf-dac-governance-budget-risks.md",
   "docs/explanation/rcf-dac-ecosystem-precedents.md",
+  "docs/tutorials/web-application-user-guide.md",
   ".agents/AGENTS.md"
 ]
 generated: "jules"
@@ -44,6 +45,14 @@ The operational engine that makes this possible is the **Digital Asset Custodian
 ### Core Architecture & Database Backend Sovereignty
 
 To ensure enterprise durability, transactional reliability, and strict audit compliance, **Percona Server for PostgreSQL** with the **TimescaleDB** time-series hypertable extension serves as the foundational, mandatory primary backend database for the entire DAC platform. All DAC transaction data, evidence metadata, asset registry states, and rating evaluations are written to PostgreSQL first in accordance with our dual-write pattern before broadcasting to any optional distributed ledger or blockchain settlement layer.
+
+---
+
+## Interactive Web Application Demonstration
+
+Experience the live interactive application portal and step-by-step user guide:
+- 🎮 **[Live Interactive Web Application Portal](../../index.html)**
+- 📖 **[Web Application User Guide](../tutorials/web-application-user-guide.html)**
 
 ---
 
