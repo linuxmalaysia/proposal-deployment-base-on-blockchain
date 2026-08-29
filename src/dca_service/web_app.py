@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
+import json
 import time
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from pathlib import Path
@@ -34,12 +36,53 @@ DOCS_DIR = BASE_DIR / "docs"
 if ASSETS_DIR.exists():
     app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
+# Secret key used for signing and verifying accredited investor JWT tokens
+INVESTOR_JWT_SECRET = b"rcf_dac_accredited_investor_secret_key_2026"
+
 # In-memory storage for demonstration / web service operation
 USER_REGISTRY: Dict[str, Dict[str, Any]] = {}
 ASSET_REGISTRY: Dict[str, Dict[str, Any]] = {}
 
 RevenueType = Literal["royalties", "licensing", "equity", "dividend"]
 ContentEncoding = Literal["base64", "raw", "text"]
+
+
+# --- Helper Cryptographic Utilities ---
+
+def base64url_encode(data: bytes) -> str:
+    """Encode bytes to URL-safe Base64 without trailing '=' padding."""
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("utf-8")
+
+
+def base64url_decode(encoded_str: str) -> bytes:
+    """Decode URL-safe Base64 string with optional missing padding restored."""
+    padded = encoded_str + "=" * (-len(encoded_str) % 4)
+    return base64.urlsafe_b64decode(padded.encode("utf-8"))
+
+
+def create_investor_jwt(
+    sub: str = "investor_01",
+    exp_delta: float = 3600.0,
+    iss: str = "https://auth.rcf-dac.univ.edu.my",
+    aud: str = "rcf-dac-data-room",
+    accredited_investor: bool = True,
+    secret: bytes = INVESTOR_JWT_SECRET,
+) -> str:
+    """Create a signed HMAC-SHA256 JWT for accredited investor authentication."""
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {
+        "sub": sub,
+        "iss": iss,
+        "aud": aud,
+        "exp": int(time.time() + exp_delta),
+        "accredited_investor": accredited_investor,
+    }
+    header_b64 = base64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
+    payload_b64 = base64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
+    signature = hmac.new(secret, signing_input, hashlib.sha256).digest()
+    sig_b64 = base64url_encode(signature)
+    return f"{header_b64}.{payload_b64}.{sig_b64}"
 
 
 # --- Pydantic Request Models ---
@@ -249,58 +292,80 @@ def calculate_revenue(req: RevenueSplitRequest) -> Dict[str, Any]:
     }
 
 
-def verify_investor_bearer_token(token: str) -> Dict[str, Any]:
-    """Validate Bearer token signature, expiration, issuer, audience, and accredited investor claim."""
-    if not token or token.lower() in ("unauthorized", "unauthorised", "invalid"):
+def verify_investor_bearer_token(
+    token: str, secret: bytes = INVESTOR_JWT_SECRET
+) -> Dict[str, Any]:
+    """
+    Perform cryptographic HMAC-SHA256 verification and claims check on investor Bearer tokens.
+    Rejects opaque, malformed, unsigned, forged, expired, or missing claim tokens.
+    """
+    if not token or not isinstance(token, str):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authorisation failed. Invalid or revoked token.",
+            detail="Authorisation failed. Invalid or missing token string.",
         )
 
     parts = token.split(".")
-    if len(parts) == 3:
-        header_b64, payload_b64, sig_b64 = parts
-        if not sig_b64 or sig_b64 == "invalid_signature":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Authorisation failed. Invalid token signature.",
-            )
-        try:
-            import json
-            padded = payload_b64 + "=" * (-len(payload_b64) % 4)
-            payload_bytes = base64.b64decode(padded)
-            payload = json.loads(payload_bytes)
+    if len(parts) != 3:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Token is opaque or malformed non-JWT structure.",
+        )
 
-            if payload.get("exp") and payload["exp"] < time.time():
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Authorisation failed. Token has expired.",
-                )
-            if payload.get("iss") and payload["iss"] != "https://auth.rcf-dac.univ.edu.my":
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Authorisation failed. Invalid token issuer.",
-                )
-            if payload.get("aud") and payload["aud"] != "rcf-dac-data-room":
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Authorisation failed. Invalid token audience.",
-                )
-            if not payload.get("accredited_investor"):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Authorisation failed. Missing required accredited-investor entitlement claim.",
-                )
-            return payload
-        except HTTPException:
-            raise
-        except Exception:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Authorisation failed. Malformed token payload.",
-            )
+    header_b64, payload_b64, sig_b64 = parts
 
-    return {"sub": "accredited_investor", "accredited_investor": True}
+    # Verify HMAC-SHA256 signature
+    signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
+    expected_sig = base64url_encode(hmac.new(secret, signing_input, hashlib.sha256).digest())
+
+    if not hmac.compare_digest(sig_b64, expected_sig):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Invalid or forged token signature.",
+        )
+
+    # Decode and parse payload claims
+    try:
+        payload_bytes = base64url_decode(payload_b64)
+        payload = json.loads(payload_bytes.decode("utf-8"))
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Unparseable or malformed JWT payload.",
+        )
+
+    # Validate required claims
+    if "exp" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Missing required 'exp' expiration claim.",
+        )
+
+    if payload["exp"] < time.time():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Token has expired.",
+        )
+
+    if payload.get("iss") != "https://auth.rcf-dac.univ.edu.my":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Missing or untrusted token issuer ('iss').",
+        )
+
+    if payload.get("aud") != "rcf-dac-data-room":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Missing or invalid token audience ('aud').",
+        )
+
+    if not payload.get("accredited_investor"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Missing required 'accredited_investor' claim.",
+        )
+
+    return payload
 
 
 @app.get("/api/investor-assets")

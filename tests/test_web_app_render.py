@@ -12,7 +12,7 @@ import json
 import time
 from pathlib import Path
 from fastapi.testclient import TestClient
-from dca_service.web_app import app
+from dca_service.web_app import app, create_investor_jwt, base64url_encode
 
 client = TestClient(app)
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -133,30 +133,32 @@ def test_revenue_split_calculator_invalid_type_rejected():
     assert response.status_code == 422
 
 
-def test_investor_data_room_authentication_and_claims():
+def test_investor_data_room_opaque_and_forged_token_rejection():
     # Unauthenticated request (no auth header) -> 401
     res_unauth = client.get("/api/investor-assets")
     assert res_unauth.status_code == 401
 
-    # Unauthorised token request -> 403
-    res_unauthorised = client.get(
-        "/api/investor-assets", headers={"Authorization": "Bearer unauthorised"}
+    # Opaque non-JWT token -> 403
+    res_opaque = client.get(
+        "/api/investor-assets", headers={"Authorization": "Bearer opaque_random_token_12345"}
     )
-    assert res_unauthorised.status_code == 403
+    assert res_opaque.status_code == 403
 
-    # Construct valid mock JWT payload
-    jwt_payload = {
-        "sub": "investor_99",
-        "iss": "https://auth.rcf-dac.univ.edu.my",
-        "aud": "rcf-dac-data-room",
-        "exp": time.time() + 3600,
-        "accredited_investor": True,
-    }
-    jwt_b64 = base64.b64encode(json.dumps(jwt_payload).encode()).decode().strip("=")
-    mock_jwt = f"eyJhbGciOiJIUzI1NiJ9.{jwt_b64}.valid_signature_123"
+    # Forged 3-part token (invalid signature) -> 403
+    jwt = create_investor_jwt()
+    parts = jwt.split(".")
+    forged_jwt = f"{parts[0]}.{parts[1]}.forged_invalid_signature"
+    res_forged = client.get(
+        "/api/investor-assets", headers={"Authorization": f"Bearer {forged_jwt}"}
+    )
+    assert res_forged.status_code == 403
 
+
+def test_investor_data_room_valid_cryptographic_jwt():
+    # Valid signed JWT -> 200
+    valid_jwt = create_investor_jwt(sub="accredited_vc_01")
     res_ok = client.get(
-        "/api/investor-assets", headers={"Authorization": f"Bearer {mock_jwt}"}
+        "/api/investor-assets", headers={"Authorization": f"Bearer {valid_jwt}"}
     )
     assert res_ok.status_code == 200
     data = res_ok.json()
@@ -164,20 +166,18 @@ def test_investor_data_room_authentication_and_claims():
     assert len(data["data_room_assets"]) >= 2
 
 
-def test_investor_data_room_expired_token():
-    jwt_payload = {
-        "sub": "investor_99",
-        "iss": "https://auth.rcf-dac.univ.edu.my",
-        "aud": "rcf-dac-data-room",
-        "exp": time.time() - 3600,
-        "accredited_investor": True,
-    }
-    jwt_b64 = base64.b64encode(json.dumps(jwt_payload).encode()).decode().strip("=")
-    mock_jwt = f"eyJhbGciOiJIUzI1NiJ9.{jwt_b64}.valid_sig"
+def test_investor_data_room_expired_or_missing_claims_token():
+    # Expired token -> 403
+    expired_jwt = create_investor_jwt(exp_delta=-3600.0)
+    res_exp = client.get("/api/investor-assets", headers={"Authorization": f"Bearer {expired_jwt}"})
+    assert res_exp.status_code == 403
 
-    res = client.get("/api/investor-assets", headers={"Authorization": f"Bearer {mock_jwt}"})
-    assert res.status_code == 403
-    assert "expired" in res.json()["detail"].lower()
+    # Missing accredited_investor claim -> 403
+    unaccredited_jwt = create_investor_jwt(accredited_investor=False)
+    res_unacc = client.get(
+        "/api/investor-assets", headers={"Authorization": f"Bearer {unaccredited_jwt}"}
+    )
+    assert res_unacc.status_code == 403
 
 
 def test_render_yaml_validity():
