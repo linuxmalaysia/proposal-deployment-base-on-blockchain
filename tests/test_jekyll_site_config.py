@@ -224,102 +224,19 @@ def _frontmatter_block(content: str) -> str:
     return match.group(1)
 
 
-class TestIndexMarkdownOkfV02FrontmatterFields:
-    """Regression coverage for the Open Knowledge Format (OKF) v0.2
-    frontmatter migration of ``index.md`` (see
-    ``tests/test_okf_v02_frontmatter_migration.py`` for the repository-wide
-    version of these checks). These are scoped here because ``index.md`` is
-    also the subject of the Jekyll subpath-deployment ``layout``/relative-url
-    tests above, and the new OKF fields must coexist with that Jekyll-specific
-    frontmatter key without regressing it.
-    """
+class TestCompactOkfFrontmatterKeepsJekyllMetadata:
+    @pytest.mark.parametrize("path", [INDEX_MD, GITHUB_PAGES_DOC])
+    def test_documents_use_created_instead_of_expanded_timestamp(self, path):
+        frontmatter = _frontmatter_block(_read(path))
+        assert 'created: "2026-08-25"' in frontmatter
+        assert not re.search(r"(?m)^timestamp:", frontmatter)
 
-    def test_okf_version_is_0_2(self):
+    def test_index_retains_quoted_default_layout(self):
+        # The compact OKF migration must not remove Jekyll's extra rendering key.
         frontmatter = _frontmatter_block(_read(INDEX_MD))
-        assert "okf_version: '0.2'" in frontmatter or 'okf_version: "0.2"' in frontmatter
+        assert re.search(r'(?m)^layout: "default"$', frontmatter)
 
-    def test_timestamp_field_present(self):
-        frontmatter = _frontmatter_block(_read(INDEX_MD))
-        assert "timestamp: '2026-08-25T00:00:00Z'" in frontmatter or 'timestamp: "2026-08-25T00:00:00Z"' in frontmatter
-
-    def test_topics_field_lists_dca_related_tags(self):
-        frontmatter = _frontmatter_block(_read(INDEX_MD))
-        assert "topics:" in frontmatter
-        for topic in ("dca", "custody", "mpc", "postgresql", "timescaledb", "overview"):
-            assert topic in frontmatter
-
-    def test_description_field_mentions_homepage(self):
-        frontmatter = _frontmatter_block(_read(INDEX_MD))
-        normalized = re.sub(r"\s+", " ", frontmatter)
-        assert "Web documentation homepage for the Digital Custody Asset (DCA) as a Service Platform." in normalized
-
-    def test_resource_field_matches_file_path(self):
-        frontmatter = _frontmatter_block(_read(INDEX_MD))
-        assert "resource: file:///index.md" in frontmatter
-
-    def test_sources_field_references_readme_and_summary(self):
-        frontmatter = _frontmatter_block(_read(INDEX_MD))
-        assert "README.md" in frontmatter
-        assert "SUMMARY.md" in frontmatter
-
-    def test_generated_verified_status_language_fields(self):
-        frontmatter = _frontmatter_block(_read(INDEX_MD))
-        assert "generated: jules" in frontmatter
-        assert "verified: true" in frontmatter
-        assert "status: approved" in frontmatter
-        assert "language: en-GB" in frontmatter
-
-    def test_stale_after_field_one_year_after_timestamp(self):
-        frontmatter = _frontmatter_block(_read(INDEX_MD))
-        assert "stale_after: '2027-08-25T00:00:00Z'" in frontmatter or 'stale_after: "2027-08-25T00:00:00Z"' in frontmatter
-
-    def test_layout_field_still_present_after_okf_migration(self):
-        # Regression guard: the new OKF v0.2 fields were inserted above the
-        # pre-existing Jekyll `layout` key; migrating the frontmatter schema
-        # must not have dropped it, or GitHub Pages will stop applying the
-        # site's default template to this page.
-        frontmatter = _frontmatter_block(_read(INDEX_MD))
-        assert re.search(r"(?m)^layout:\s*default\s*$", frontmatter)
-
-    def test_legacy_created_field_removed(self):
-        frontmatter = _frontmatter_block(_read(INDEX_MD))
-        assert not re.search(r"(?m)^created:", frontmatter)
-
-
-class TestGithubPagesSetupDocOkfV02FrontmatterFields:
-    """Regression coverage for the OKF v0.2 frontmatter migration of
-    ``docs/github-pages-setup.md``.
-    """
-
-    def test_okf_version_is_0_2(self):
+    def test_github_pages_document_has_no_non_okf_extra_fields(self):
         frontmatter = _frontmatter_block(_read(GITHUB_PAGES_DOC))
-        assert "okf_version: '0.2'" in frontmatter or 'okf_version: "0.2"' in frontmatter
-
-    def test_timestamp_field_present(self):
-        frontmatter = _frontmatter_block(_read(GITHUB_PAGES_DOC))
-        assert "timestamp: '2026-08-25T00:00:00Z'" in frontmatter or 'timestamp: "2026-08-25T00:00:00Z"' in frontmatter
-
-    def test_topics_field_lists_deployment_related_tags(self):
-        frontmatter = _frontmatter_block(_read(GITHUB_PAGES_DOC))
-        for topic in ("github-pages", "jekyll", "deployment", "troubleshooting", "ci-cd"):
-            assert topic in frontmatter
-
-    def test_sources_field_references_config_and_workflow_files(self):
-        frontmatter = _frontmatter_block(_read(GITHUB_PAGES_DOC))
-        assert "_config.yml" in frontmatter
-        assert ".github/workflows/jekyll-gh-pages.yml" in frontmatter
-
-    def test_resource_field_matches_file_path(self):
-        frontmatter = _frontmatter_block(_read(GITHUB_PAGES_DOC))
-        assert "resource: file:///docs/github-pages-setup.md" in frontmatter
-
-    def test_generated_verified_status_language_fields(self):
-        frontmatter = _frontmatter_block(_read(GITHUB_PAGES_DOC))
-        assert "generated: jules" in frontmatter
-        assert "verified: true" in frontmatter
-        assert "status: approved" in frontmatter
-        assert "language: en-GB" in frontmatter
-
-    def test_legacy_created_field_removed(self):
-        frontmatter = _frontmatter_block(_read(GITHUB_PAGES_DOC))
-        assert not re.search(r"(?m)^created:", frontmatter)
+        keys = re.findall(r"(?m)^([a-z_]+):", frontmatter)
+        assert keys == ["okf_version", "type", "title", "created", "status", "language"]
