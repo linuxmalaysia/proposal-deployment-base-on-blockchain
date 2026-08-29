@@ -18,3 +18,5 @@ language: "en-GB"
 - Designed Open-Source MPC Wallet System linking Coinbase `cb-mpc` cryptographic library with P2P node transport, policy engine quorums, and database dual-write settlement.
 - Integrated Research Commercialisation Fund (RCF) and Digital Asset Custodian (DAC) proposal into Diátaxis documentation, maintaining Percona Server for PostgreSQL & TimescaleDB as primary backend.
 - Expanded full Diátaxis documentation suite across Tutorials, How-To Guides, and Reference manuals.
+- Created interactive FastAPI backend service (`src/dca_service/web_app.py`) providing REST API endpoints and web routes for W3C DID registration, evidence vault hashing, Cloverleaf quantitative scoring, investor data room, and revenue distribution split.
+- Configured Render.com Blueprint deployment specification (`render.yaml`) and authored comprehensive deployment & troubleshooting guide (`docs/how-to/deploy-rcf-dac-web-app-on-render.md`).

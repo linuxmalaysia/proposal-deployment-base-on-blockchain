@@ -35,6 +35,7 @@ language: "en-GB"
 
 ### How To
 
+* [Deploying the RCF & DAC Interactive Web Application on Render.com](docs/how-to/deploy-rcf-dac-web-app-on-render.md)
 * [How-To: Install and Configure Repository Guardrails and Documentation Tools](docs/how-to/install-and-configure-guardrails.md)
 
 ### Reference
