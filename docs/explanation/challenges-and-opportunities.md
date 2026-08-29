@@ -1,25 +1,12 @@
 ---
-okf_version: '0.2'
-type: explanation
-title: Challenges, Caveats, and Market Opportunities in DCA
-timestamp: '2026-08-25T00:00:00Z'
-topics:
-- market-analysis
-- custody
-- challenges
-- opportunities
-- institutional
-description: Strategic exploration of industry challenges, regulatory hurdles, and
-  emerging market opportunities in institutional digital asset custody.
-resource: file:///docs/explanation/challenges-and-opportunities.md
-sources:
-- docs/explanation/architecture-overview.md
-generated: jules
-verified: true
-status: approved
-stale_after: '2027-08-25T00:00:00Z'
-language: en-GB
+okf_version: "0.2"
+type: "explanation"
+title: "Challenges, Caveats, and Market Opportunities in DCA"
+created: "2026-08-25"
+status: "verified"
+language: "en-GB"
 ---
+
 # Market Dynamics: Challenges and Strategic Opportunities
 
 ## Key Challenges & Operational Caveats

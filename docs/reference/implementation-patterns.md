@@ -1,25 +1,12 @@
 ---
-okf_version: '0.2'
-type: reference
-title: Industry Implementation Patterns for Custody Platforms
-timestamp: '2026-08-25T00:00:00Z'
-topics:
-- patterns
-- custody
-- implementation
-- security
-- architecture
-description: Reference guide detailing industry implementation patterns for institutional
-  digital asset custody solutions.
-resource: file:///docs/reference/implementation-patterns.md
-sources:
-- docs/explanation/architecture-overview.md
-generated: jules
-verified: true
-status: approved
-stale_after: '2027-08-25T00:00:00Z'
-language: en-GB
+okf_version: "0.2"
+type: "reference"
+title: "Industry Implementation Patterns for Custody Platforms"
+created: "2026-08-25"
+status: "verified"
+language: "en-GB"
 ---
+
 # Custody Implementation Benchmark & Patterns
 
 ## Benchmark Analysis of Major Custodians

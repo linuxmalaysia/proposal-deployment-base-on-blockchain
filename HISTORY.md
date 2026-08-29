@@ -1,25 +1,12 @@
 ---
-okf_version: '0.2'
-type: history
-title: DCA Service Project History Ledger
-timestamp: '2026-08-25T00:00:00Z'
-topics:
-- history
-- ledger
-- dca-service
-- milestones
-description: Historical repository milestone ledger recording significant architectural
-  decisions and evolution.
-resource: file:///HISTORY.md
-sources:
-- CHANGELOG.md
-- README.md
-generated: jules
-verified: true
-status: approved
-stale_after: '2027-08-25T00:00:00Z'
-language: en-GB
+okf_version: "0.2"
+type: "history"
+title: "DCA Service Project History Ledger"
+created: "2026-08-25"
+status: "verified"
+language: "en-GB"
 ---
+
 # Project History Ledger
 
 ## Phase 1: Greenfield Bootstrapping & Architectural Design (2026-08-25)
