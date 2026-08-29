@@ -61,37 +61,62 @@ function initRegistrationForm() {
     const did = `did:univ:${simpleHash(hashSeed).substring(0, 16)}`;
 
     const userRecord = { name, role, dept, email, did, timestamp: new Date().toISOString() };
+    let savedSuccessfully = false;
+
     try {
       localStorage.setItem('rcf_dac_user_registration', JSON.stringify(userRecord));
+      savedSuccessfully = true;
     } catch (err) {
       console.warn('LocalStorage unavailable:', err);
+      savedSuccessfully = false;
     }
 
-    renderRegistrationResult(userRecord);
+    renderRegistrationResult(userRecord, savedSuccessfully);
   });
 }
 
-function renderRegistrationResult(userRecord) {
+function renderRegistrationResult(userRecord, savedSuccessfully = true) {
   const outputBox = document.getElementById('user-reg-output');
   if (outputBox) {
-    outputBox.innerHTML = `
-      <div class="result-card success">
-        <h4>✅ Identity Registered & W3C DID Minted</h4>
-        <div class="badge-grid">
-          <p><strong>Name:</strong> ${escapeHtml(userRecord.name)}</p>
-          <p><strong>Institutional Role:</strong> ${escapeHtml(userRecord.role)}</p>
-          <p><strong>Faculty / Centre:</strong> ${escapeHtml(userRecord.dept)}</p>
-          <p><strong>Email:</strong> ${escapeHtml(userRecord.email)}</p>
+    if (savedSuccessfully) {
+      outputBox.innerHTML = `
+        <div class="result-card success">
+          <h4>✅ Identity Registered & W3C DID Minted</h4>
+          <div class="badge-grid">
+            <p><strong>Name:</strong> ${escapeHtml(userRecord.name)}</p>
+            <p><strong>Institutional Role:</strong> ${escapeHtml(userRecord.role)}</p>
+            <p><strong>Faculty / Centre:</strong> ${escapeHtml(userRecord.dept)}</p>
+            <p><strong>Email:</strong> ${escapeHtml(userRecord.email)}</p>
+          </div>
+          <div class="did-code-box">
+            <span class="did-label">W3C Decentralized Identifier (DID):</span>
+            <code>${escapeHtml(userRecord.did)}</code>
+          </div>
+          <div class="audit-badge">
+            <span>BROWSER STORAGE PERSISTENCE: Simulated PostgreSQL 16 <code>users</code> table record (Persisted locally)</span>
+          </div>
         </div>
-        <div class="did-code-box">
-          <span class="did-label">W3C Decentralized Identifier (DID):</span>
-          <code>${escapeHtml(userRecord.did)}</code>
+      `;
+    } else {
+      outputBox.innerHTML = `
+        <div class="result-card hold">
+          <h4>⚠️ Identity Generated (Persistence Unavailable)</h4>
+          <div class="badge-grid">
+            <p><strong>Name:</strong> ${escapeHtml(userRecord.name)}</p>
+            <p><strong>Institutional Role:</strong> ${escapeHtml(userRecord.role)}</p>
+            <p><strong>Faculty / Centre:</strong> ${escapeHtml(userRecord.dept)}</p>
+            <p><strong>Email:</strong> ${escapeHtml(userRecord.email)}</p>
+          </div>
+          <div class="did-code-box">
+            <span class="did-label">W3C Decentralized Identifier (DID):</span>
+            <code>${escapeHtml(userRecord.did)}</code>
+          </div>
+          <div class="audit-badge">
+            <span>BROWSER STORAGE PERSISTENCE: Local storage write failed or unavailable; record not persisted.</span>
+          </div>
         </div>
-        <div class="audit-badge">
-          <span>BROWSER STORAGE PERSISTENCE: Simulated PostgreSQL 16 <code>users</code> table record (Persisted locally)</span>
-        </div>
-      </div>
-    `;
+      `;
+    }
     outputBox.style.display = 'block';
   }
 }
@@ -101,7 +126,7 @@ function loadSavedRegistration() {
     const saved = localStorage.getItem('rcf_dac_user_registration');
     if (saved) {
       const userRecord = JSON.parse(saved);
-      renderRegistrationResult(userRecord);
+      renderRegistrationResult(userRecord, true);
     }
   } catch (err) {
     console.warn('Could not load saved user registration:', err);
@@ -123,19 +148,14 @@ function initAssetForm() {
     const abstract = document.getElementById('asset-abstract').value.trim() || 'Scalable energy storage prototype with 92% retention rate.';
     const fileInput = document.getElementById('asset-file');
 
-    let fileRef = 'lab_notebook_vol4_patent_draft.pdf';
-    let bytesBuffer;
-
-    if (fileInput && fileInput.files && fileInput.files.length > 0) {
-      const file = fileInput.files[0];
-      fileRef = file.name;
-      bytesBuffer = await file.arrayBuffer();
-    } else if (fileInput && fileInput.value) {
-      fileRef = fileInput.value.trim();
-      bytesBuffer = new TextEncoder().encode(fileRef);
-    } else {
-      bytesBuffer = new TextEncoder().encode(fileRef);
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+      alert('Please select a valid evidence file to register.');
+      return;
     }
+
+    const file = fileInput.files[0];
+    const fileRef = file.name;
+    const bytesBuffer = await file.arrayBuffer();
 
     const hashBuffer = await crypto.subtle.digest('SHA-256', bytesBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -147,38 +167,64 @@ function initAssetForm() {
     const txOutboxId = `outbox_tx_${Math.floor(100000 + Math.random() * 900000)}`;
 
     const assetRecord = { title, trl, abstract, fileRef, assetId, sha256Digest, txOutboxId, timestamp: new Date().toISOString() };
+    let savedSuccessfully = false;
+
     try {
       localStorage.setItem('rcf_dac_asset_registration', JSON.stringify(assetRecord));
+      savedSuccessfully = true;
     } catch (err) {
       console.warn('LocalStorage unavailable:', err);
+      savedSuccessfully = false;
     }
 
-    renderAssetResult(assetRecord);
+    renderAssetResult(assetRecord, savedSuccessfully);
   });
 }
 
-function renderAssetResult(assetRecord) {
+function renderAssetResult(assetRecord, savedSuccessfully = true) {
   const outputBox = document.getElementById('asset-reg-output');
   if (outputBox) {
-    outputBox.innerHTML = `
-      <div class="result-card success">
-        <h4>📜 Digital Research Asset Registered</h4>
-        <div class="badge-grid">
-          <p><strong>Digital Asset ID:</strong> <code>${escapeHtml(assetRecord.assetId)}</code></p>
-          <p><strong>Technical Maturity:</strong> <span class="badge badge-primary">TRL ${escapeHtml(assetRecord.trl)}</span></p>
-          <p><strong>Title:</strong> ${escapeHtml(assetRecord.title)}</p>
-          <p><strong>Evidence File:</strong> ${escapeHtml(assetRecord.fileRef)}</p>
+    if (savedSuccessfully) {
+      outputBox.innerHTML = `
+        <div class="result-card success">
+          <h4>📜 Digital Research Asset Registered</h4>
+          <div class="badge-grid">
+            <p><strong>Digital Asset ID:</strong> <code>${escapeHtml(assetRecord.assetId)}</code></p>
+            <p><strong>Technical Maturity:</strong> <span class="badge badge-primary">TRL ${escapeHtml(assetRecord.trl)}</span></p>
+            <p><strong>Title:</strong> ${escapeHtml(assetRecord.title)}</p>
+            <p><strong>Evidence File:</strong> ${escapeHtml(assetRecord.fileRef)}</p>
+          </div>
+          <div class="did-code-box">
+            <span class="did-label">SHA-256 Digest:</span>
+            <code>${escapeHtml(assetRecord.sha256Digest)}</code>
+          </div>
+          <div class="outbox-status">
+            <span class="status-dot green"></span>
+            <strong>Simulated Transactional Outbox Status:</strong> Queued locally (Batch ID: <code>${escapeHtml(assetRecord.txOutboxId)}</code>) ready for Merkle notarisation.
+          </div>
         </div>
-        <div class="did-code-box">
-          <span class="did-label">SHA-256 Digest:</span>
-          <code>${escapeHtml(assetRecord.sha256Digest)}</code>
+      `;
+    } else {
+      outputBox.innerHTML = `
+        <div class="result-card hold">
+          <h4>⚠️ Digital Research Asset Computed (Persistence Unavailable)</h4>
+          <div class="badge-grid">
+            <p><strong>Digital Asset ID:</strong> <code>${escapeHtml(assetRecord.assetId)}</code></p>
+            <p><strong>Technical Maturity:</strong> <span class="badge badge-primary">TRL ${escapeHtml(assetRecord.trl)}</span></p>
+            <p><strong>Title:</strong> ${escapeHtml(assetRecord.title)}</p>
+            <p><strong>Evidence File:</strong> ${escapeHtml(assetRecord.fileRef)}</p>
+          </div>
+          <div class="did-code-box">
+            <span class="did-label">SHA-256 Digest:</span>
+            <code>${escapeHtml(assetRecord.sha256Digest)}</code>
+          </div>
+          <div class="outbox-status">
+            <span class="status-dot orange"></span>
+            <strong>Simulated Transactional Outbox Status:</strong> Local storage write failed or unavailable; record not queued.
+          </div>
         </div>
-        <div class="outbox-status">
-          <span class="status-dot green"></span>
-          <strong>Simulated Transactional Outbox Status:</strong> Queued locally (Batch ID: <code>${escapeHtml(assetRecord.txOutboxId)}</code>) ready for Merkle notarisation.
-        </div>
-      </div>
-    `;
+      `;
+    }
     outputBox.style.display = 'block';
   }
 }
@@ -188,7 +234,7 @@ function loadSavedAsset() {
     const saved = localStorage.getItem('rcf_dac_asset_registration');
     if (saved) {
       const assetRecord = JSON.parse(saved);
-      renderAssetResult(assetRecord);
+      renderAssetResult(assetRecord, true);
     }
   } catch (err) {
     console.warn('Could not load saved asset registration:', err);

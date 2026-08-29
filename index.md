@@ -110,8 +110,8 @@ Select an institutional stakeholder view below to test registration, asset prove
           </select>
         </div>
         <div class="form-group">
-          <label for="asset-file">Evidentiary File Reference</label>
-          <input type="text" id="asset-file" value="lab_notebook_vol4_patent_draft.pdf">
+          <label for="asset-file">Evidentiary File Upload</label>
+          <input type="file" id="asset-file" required>
         </div>
       </div>
       <div class="form-group" style="margin-bottom: 1rem;">
