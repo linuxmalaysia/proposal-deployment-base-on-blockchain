@@ -7,6 +7,7 @@
   <meta name="description" content="{{ site.description }}">
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
   <script src="{{ '/assets/js/theme-toggle.js' | relative_url }}" defer></script>
+  <script src="{{ '/assets/js/rcf-dac-app.js' | relative_url }}" defer></script>
   <link rel="icon" type="image/x-icon" href="{{ '/favicon.ico' | relative_url }}">
   <link rel="shortcut icon" type="image/x-icon" href="{{ '/favicon.ico' | relative_url }}">
 </head>
@@ -34,13 +35,14 @@
   <!-- Top Navigation Bar -->
   <nav class="top-nav">
     <div class="top-nav-inner">
-      <a href="{{ '/' | relative_url }}" {% if page.url == "/" %}class="active"{% endif %}>[1] Home</a>
-      <a href="{{ '/README.html' | relative_url }}" {% if page.url == "/README.html" %}class="active"{% endif %}>[2] Overview</a>
-      <a href="{{ '/CHANGELOG.html' | relative_url }}" {% if page.url == "/CHANGELOG.html" %}class="active"{% endif %}>[3] Changelog</a>
-      <a href="{{ '/HISTORY.html' | relative_url }}" {% if page.url == "/HISTORY.html" %}class="active"{% endif %}>[4] History</a>
-      <a href="{{ '/SUMMARY.html' | relative_url }}" {% if page.url == "/SUMMARY.html" %}class="active"{% endif %}>[5] Docs Index</a>
-      <a href="{{ '/docs/explanation/architecture-overview.html' | relative_url }}">[6] Architecture</a>
-      <a href="{{ '/docs/reference/implementation-patterns.html' | relative_url }}">[7] Benchmarks</a>
+      <a href="{{ '/' | relative_url }}" {% if page.url == "/" %}class="active"{% endif %}>[1] Web App Portal</a>
+      <a href="{{ '/docs/explanation/research-commercialisation-fund-dac-proposal.html' | relative_url }}">[2] RCF Proposal</a>
+      <a href="{{ '/README.html' | relative_url }}" {% if page.url == "/README.html" %}class="active"{% endif %}>[3] Overview</a>
+      <a href="{{ '/CHANGELOG.html' | relative_url }}" {% if page.url == "/CHANGELOG.html" %}class="active"{% endif %}>[4] Changelog</a>
+      <a href="{{ '/HISTORY.html' | relative_url }}" {% if page.url == "/HISTORY.html" %}class="active"{% endif %}>[5] History</a>
+      <a href="{{ '/SUMMARY.html' | relative_url }}" {% if page.url == "/SUMMARY.html" %}class="active"{% endif %}>[6] Docs Index</a>
+      <a href="{{ '/docs/explanation/architecture-overview.html' | relative_url }}">[7] Architecture</a>
+      <a href="{{ '/docs/reference/implementation-patterns.html' | relative_url }}">[8] Benchmarks</a>
     </div>
   </nav>
 
@@ -48,22 +50,22 @@
   <div class="page-container">
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
-      <h2>📌 Core Navigation</h2>
+      <h2>📌 Web App Navigation</h2>
       <ul class="sidebar-nav">
-        <li><a href="{{ '/' | relative_url }}">🏠 Portal Landing</a></li>
-        <li><a href="{{ '/README.html' | relative_url }}">📘 System Overview</a></li>
-        <li><a href="{{ '/CHANGELOG.html' | relative_url }}">📜 Changelog</a></li>
-        <li><a href="{{ '/HISTORY.html' | relative_url }}">🕒 Project History</a></li>
-        <li><a href="{{ '/SUMMARY.html' | relative_url }}">🧭 Documentation Summary</a></li>
+        <li><a href="{{ '/' | relative_url }}">🏠 Interactive Web App</a></li>
+        <li><a href="{{ '/docs/tutorials/web-application-user-guide.html' | relative_url }}">📖 Web App User Guide</a></li>
+        <li><a href="{{ '/docs/explanation/research-commercialisation-fund-dac-proposal.html' | relative_url }}">📄 RCF & DAC Master Proposal</a></li>
+        <li><a href="{{ '/README.html' | relative_url }}">📘 System Architecture</a></li>
+        <li><a href="{{ '/SUMMARY.html' | relative_url }}">🧭 Full Docs Summary</a></li>
       </ul>
 
-      <h2 style="margin-top: 1.5rem;">📚 Documentation Quadrants</h2>
+      <h2 style="margin-top: 1.5rem;">📚 Strategic Proposals</h2>
       <ul class="sidebar-nav">
-        <li><a href="{{ '/docs/explanation/architecture-overview.html' | relative_url }}">🏛️ Custody Architecture</a></li>
-        <li><a href="{{ '/docs/explanation/challenges-and-opportunities.html' | relative_url }}">📊 Market Dynamics</a></li>
-        <li><a href="{{ '/docs/reference/implementation-patterns.html' | relative_url }}">⚙️ Benchmark Patterns</a></li>
-        <li><a href="{{ '/docs/github-pages-setup.html' | relative_url }}">🚀 GitHub Pages Setup</a></li>
-        <li><a href="{{ '/docs/multi-platform-hosting.html' | relative_url }}">🌐 Multi-Platform Hosting</a></li>
+        <li><a href="{{ '/docs/explanation/rcf-dac-business-case.html' | relative_url }}">💼 Business Case & Asset Class</a></li>
+        <li><a href="{{ '/docs/explanation/rcf-dac-technical-data-layer.html' | relative_url }}">⚡ PostgreSQL 16 Data Layer</a></li>
+        <li><a href="{{ '/docs/explanation/rcf-dac-five-phase-process.html' | relative_url }}">🔄 5-Phase DAC Lifecycle</a></li>
+        <li><a href="{{ '/docs/explanation/rcf-dac-governance-budget-risks.html' | relative_url }}">📊 Governance & RM 7.9M Budget</a></li>
+        <li><a href="{{ '/docs/explanation/rcf-dac-ecosystem-precedents.html' | relative_url }}">🌐 International Precedents</a></li>
       </ul>
     </aside>
 
@@ -75,8 +77,8 @@
 
   <!-- Laboratory Footer -->
   <footer class="lab-footer">
-    <p>Digital Custody Asset (DCA) as a Service Platform &copy; 2026. Governed by DSOM Protocol.</p>
-    <p style="margin-top: 0.5rem; font-size: 0.75rem;">[ REL: 0.1.0 ] | [ ARCH: CONCENTRIC CLEAN ] | [ OKF: v0.2 ] | [ ENV: UV PYTHON 3.12 ]</p>
+    <p>Digital Custody Asset (DCA) & Research Commercialisation Fund (RCF) Platform &copy; 2026. Governed by DSOM Protocol.</p>
+    <p style="margin-top: 0.5rem; font-size: 0.75rem;">[ REL: 0.1.0 ] | [ DB: PERCONA POSTGRESQL 16 + TIMESCALEDB ] | [ OKF: v0.2 ] | [ ENV: UV PYTHON 3.12 ]</p>
   </footer>
 
 </body>

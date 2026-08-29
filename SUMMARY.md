@@ -45,6 +45,7 @@ language: "en-GB"
 ### Tutorials
 
 * [Getting Started with the DCA & DAC Platform on Percona PostgreSQL](docs/tutorials/getting-started-dca-dac.md)
+* [University RCF & DAC Web Application User Guide](docs/tutorials/web-application-user-guide.md)
 
 ### General Documentation
 
