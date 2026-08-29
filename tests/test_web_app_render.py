@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
+import time
 from pathlib import Path
 from fastapi.testclient import TestClient
 from dca_service.web_app import app
@@ -39,7 +41,7 @@ def test_user_registration_endpoint():
     assert data["user"]["name"] == payload["name"]
 
 
-def test_asset_registration_base64_decoding():
+def test_asset_registration_base64_explicit_encoding():
     raw_content = b"raw_laboratory_binary_data_stream_content_12345"
     b64_content = base64.b64encode(raw_content).decode("utf-8")
     expected_digest = f"sha256:{hashlib.sha256(raw_content).hexdigest()}"
@@ -50,11 +52,25 @@ def test_asset_registration_base64_decoding():
         "abstract": "Energy density exceeding 650 Wh/kg with 1,500 cycle life.",
         "file_name": "battery_lab_test_report.pdf",
         "file_content": b64_content,
+        "content_encoding": "base64",
     }
     response = client.post("/api/register-asset", json=payload)
     assert response.status_code == 201
     data = response.json()
     assert data["asset"]["sha256_digest"] == expected_digest
+
+
+def test_asset_registration_invalid_base64_rejected():
+    payload = {
+        "title": "Graphene Battery Cell",
+        "trl": 3,
+        "abstract": "Energy density exceeding 650 Wh/kg.",
+        "file_name": "report.pdf",
+        "file_content": "invalid_base64_content_!!!",
+        "content_encoding": "base64",
+    }
+    response = client.post("/api/register-asset", json=payload)
+    assert response.status_code == 422
 
 
 def test_asset_registration_fallback_when_content_none():
@@ -92,17 +108,23 @@ def test_cloverleaf_score_calculator_under_qualified():
     assert "DEVELOPMENT REQUIRED" in data["status_label"]
 
 
-def test_revenue_split_calculator_decimal_exactness():
+def test_revenue_split_calculator_decimal_fixed_point_format():
     payload = {"amount": "500000.00", "revenue_type": "licensing"}
     response = client.post("/api/calculate-revenue", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert data["total_ingested_myr"] == 500000.0
+    assert data["total_ingested_myr"] == "500000.00"
+    assert data["total_ingested_minor_units"] == 50000000
     splits = data["distribution_splits"]
     assert len(splits) == 4
     amounts = [s["amount_myr"] for s in splits]
-    assert amounts == [150000.0, 100000.0, 150000.0, 100000.0]
-    assert sum(amounts) == 500000.0
+    assert amounts == ["150000.00", "100000.00", "150000.00", "100000.00"]
+
+
+def test_revenue_split_calculator_rejects_more_than_two_decimals():
+    payload = {"amount": "500000.123", "revenue_type": "licensing"}
+    response = client.post("/api/calculate-revenue", json=payload)
+    assert response.status_code == 422
 
 
 def test_revenue_split_calculator_invalid_type_rejected():
@@ -111,25 +133,51 @@ def test_revenue_split_calculator_invalid_type_rejected():
     assert response.status_code == 422
 
 
-def test_investor_data_room_authentication():
+def test_investor_data_room_authentication_and_claims():
     # Unauthenticated request (no auth header) -> 401
     res_unauth = client.get("/api/investor-assets")
     assert res_unauth.status_code == 401
 
-    # Unauthorized token request -> 403
-    res_forbidden = client.get(
-        "/api/investor-assets", headers={"Authorization": "Bearer unauthorized"}
+    # Unauthorised token request -> 403
+    res_unauthorised = client.get(
+        "/api/investor-assets", headers={"Authorization": "Bearer unauthorised"}
     )
-    assert res_forbidden.status_code == 403
+    assert res_unauthorised.status_code == 403
 
-    # Valid accredited investor token -> 200
+    # Construct valid mock JWT payload
+    jwt_payload = {
+        "sub": "investor_99",
+        "iss": "https://auth.rcf-dac.univ.edu.my",
+        "aud": "rcf-dac-data-room",
+        "exp": time.time() + 3600,
+        "accredited_investor": True,
+    }
+    jwt_b64 = base64.b64encode(json.dumps(jwt_payload).encode()).decode().strip("=")
+    mock_jwt = f"eyJhbGciOiJIUzI1NiJ9.{jwt_b64}.valid_signature_123"
+
     res_ok = client.get(
-        "/api/investor-assets", headers={"Authorization": "Bearer valid_investor_token_123"}
+        "/api/investor-assets", headers={"Authorization": f"Bearer {mock_jwt}"}
     )
     assert res_ok.status_code == 200
     data = res_ok.json()
     assert "data_room_assets" in data
     assert len(data["data_room_assets"]) >= 2
+
+
+def test_investor_data_room_expired_token():
+    jwt_payload = {
+        "sub": "investor_99",
+        "iss": "https://auth.rcf-dac.univ.edu.my",
+        "aud": "rcf-dac-data-room",
+        "exp": time.time() - 3600,
+        "accredited_investor": True,
+    }
+    jwt_b64 = base64.b64encode(json.dumps(jwt_payload).encode()).decode().strip("=")
+    mock_jwt = f"eyJhbGciOiJIUzI1NiJ9.{jwt_b64}.valid_sig"
+
+    res = client.get("/api/investor-assets", headers={"Authorization": f"Bearer {mock_jwt}"})
+    assert res.status_code == 403
+    assert "expired" in res.json()["detail"].lower()
 
 
 def test_render_yaml_validity():
@@ -155,4 +203,5 @@ def test_how_to_render_deployment_doc_okf_frontmatter():
     assert "low-latency" in text
     assert "typed validation" in text
     assert "Interactive API documentation" in text
+    assert "(>=3.12)" in text
     assert "users must include `uv sync` explicitly" in text

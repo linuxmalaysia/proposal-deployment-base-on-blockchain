@@ -93,7 +93,7 @@ Based on [Render's Official Troubleshooting Guide](https://render.com/docs/troub
 
 ### 2. Incompatible Python Version
 
-- **Symptom:** Deploy logs show `Current Python version (3.11.10) is not allowed by the project (^3.12)` or `SyntaxError: invalid syntax`.
+- **Symptom:** Deploy logs show `Current Python version (3.11.10) is not allowed by the project (>=3.12)` or `SyntaxError: invalid syntax`.
 - **Resolution:** Set the `PYTHON_VERSION` environment variable in the Render Dashboard to `3.12.13` matching `pyproject.toml`.
 
 ### 3. Missing Dependencies or Missing UV Lockfile

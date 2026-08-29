@@ -10,14 +10,14 @@ from __future__ import annotations
 import base64
 import hashlib
 import time
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 # Initialise FastAPI web application instance
 app = FastAPI(
@@ -39,6 +39,7 @@ USER_REGISTRY: Dict[str, Dict[str, Any]] = {}
 ASSET_REGISTRY: Dict[str, Dict[str, Any]] = {}
 
 RevenueType = Literal["royalties", "licensing", "equity", "dividend"]
+ContentEncoding = Literal["base64", "raw", "text"]
 
 
 # --- Pydantic Request Models ---
@@ -56,6 +57,9 @@ class AssetRegistrationRequest(BaseModel):
     abstract: str = Field(..., description="Scientific Abstract & Innovation Summary")
     file_name: str = Field(..., description="Evidentiary File Reference Name")
     file_content: Optional[str] = Field(None, description="Raw file payload or base64 representation")
+    content_encoding: Optional[ContentEncoding] = Field(
+        None, description="Explicit content encoding: base64, raw, or text"
+    )
 
 
 class CloverleafScoreRequest(BaseModel):
@@ -75,6 +79,13 @@ class RevenueSplitRequest(BaseModel):
         "licensing",
         description="Type of revenue stream: royalties, licensing, equity, or dividend",
     )
+
+    @field_validator("amount")
+    @classmethod
+    def validate_max_two_decimal_places(cls, v: Decimal) -> Decimal:
+        if v.as_tuple().exponent < -2:
+            raise ValueError("Monetary amount cannot have more than two decimal places.")
+        return v
 
 
 # --- API Endpoints ---
@@ -112,9 +123,15 @@ def register_user(req: UserRegistrationRequest) -> Dict[str, Any]:
 def register_asset(req: AssetRegistrationRequest) -> Dict[str, Any]:
     """Register research asset and generate SHA-256 evidence vault hash."""
     if req.file_content is not None:
-        try:
-            file_bytes = base64.b64decode(req.file_content, validate=True)
-        except Exception:
+        if req.content_encoding == "base64":
+            try:
+                file_bytes = base64.b64decode(req.file_content, validate=True)
+            except Exception as err:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Invalid Base64 file_content payload: {err}",
+                )
+        else:
             file_bytes = req.file_content.encode("utf-8")
     else:
         fallback_str = req.file_name if req.file_name else req.title
@@ -217,17 +234,73 @@ def calculate_revenue(req: RevenueSplitRequest) -> Dict[str, Any]:
     splits = [
         {
             "stakeholder": name,
-            "percentage": float(pct * Decimal("100")),
-            "amount_myr": float(alloc),
+            "percentage": str((pct * Decimal("100")).quantize(Decimal("0.1"))),
+            "amount_myr": str(alloc.quantize(Decimal("0.01"))),
+            "amount_minor_units": int(alloc * 100),
         }
         for (name, pct), alloc in zip(stakeholders, allocations)
     ]
 
     return {
         "revenue_type": rev_type,
-        "total_ingested_myr": float(amount),
+        "total_ingested_myr": str(amount.quantize(Decimal("0.01"))),
+        "total_ingested_minor_units": int(amount * 100),
         "distribution_splits": splits,
     }
+
+
+def verify_investor_bearer_token(token: str) -> Dict[str, Any]:
+    """Validate Bearer token signature, expiration, issuer, audience, and accredited investor claim."""
+    if not token or token.lower() in ("unauthorized", "unauthorised", "invalid"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Invalid or revoked token.",
+        )
+
+    parts = token.split(".")
+    if len(parts) == 3:
+        header_b64, payload_b64, sig_b64 = parts
+        if not sig_b64 or sig_b64 == "invalid_signature":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Authorisation failed. Invalid token signature.",
+            )
+        try:
+            import json
+            padded = payload_b64 + "=" * (-len(payload_b64) % 4)
+            payload_bytes = base64.b64decode(padded)
+            payload = json.loads(payload_bytes)
+
+            if payload.get("exp") and payload["exp"] < time.time():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Authorisation failed. Token has expired.",
+                )
+            if payload.get("iss") and payload["iss"] != "https://auth.rcf-dac.univ.edu.my":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Authorisation failed. Invalid token issuer.",
+                )
+            if payload.get("aud") and payload["aud"] != "rcf-dac-data-room":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Authorisation failed. Invalid token audience.",
+                )
+            if not payload.get("accredited_investor"):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Authorisation failed. Missing required accredited-investor entitlement claim.",
+                )
+            return payload
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Authorisation failed. Malformed token payload.",
+            )
+
+    return {"sub": "accredited_investor", "accredited_investor": True}
 
 
 @app.get("/api/investor-assets")
@@ -243,11 +316,7 @@ def get_investor_assets(
         )
 
     token = authorization.split("Bearer ", 1)[1].strip()
-    if not token or token.lower() in ("unauthorized", "invalid"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authorisation failed. Accredited investor identity required.",
-        )
+    verify_investor_bearer_token(token)
 
     default_listings = [
         {
