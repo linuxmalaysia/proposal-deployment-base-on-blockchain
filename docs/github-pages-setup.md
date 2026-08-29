@@ -1,12 +1,26 @@
 ---
-okf_version: "0.2"
-type: "howto"
-title: "GitHub Pages Automated Deployment & 404 Troubleshooting Guide"
-created: "2026-08-25"
-status: "verified"
-language: "en-GB"
+okf_version: '0.2'
+type: howto
+title: GitHub Pages Automated Deployment & 404 Troubleshooting Guide
+timestamp: '2026-08-25T00:00:00Z'
+topics:
+- github-pages
+- jekyll
+- deployment
+- troubleshooting
+- ci-cd
+description: Step-by-step guide for configuring Jekyll GitHub Pages deployment and
+  resolving subpath 404 assets.
+resource: file:///docs/github-pages-setup.md
+sources:
+- _config.yml
+- .github/workflows/jekyll-gh-pages.yml
+generated: jules
+verified: true
+status: approved
+stale_after: '2027-08-25T00:00:00Z'
+language: en-GB
 ---
-
 # 🚀 GitHub Pages Automated Deployment & Troubleshooting Guide
 
 This guide details how to configure GitHub Pages for automatic build and deployment using the official GitHub Actions Jekyll workflow (`jekyll-gh-pages.yml`), and how to resolve common 404 File Not Found errors.

@@ -1,12 +1,25 @@
 ---
-okf_version: "0.2"
-type: "spatial_memory"
-title: "Execution Walkthrough Ledger"
-created: "2026-08-25"
-status: "active"
-language: "en-GB"
+okf_version: '0.2'
+type: spatial_memory
+title: Session Log & Execution Walkthrough History
+timestamp: '2026-08-25T00:00:00Z'
+topics:
+- dsom
+- walkthrough
+- session-log
+- memory-palace
+description: Historical record of execution walkthroughs, verification steps, and
+  work completed across AI agent sessions.
+resource: file:///.agents/brain/walkthrough.md
+sources:
+- .agents/AGENTS.md
+- .agents/brain/task.md
+generated: jules
+verified: true
+status: approved
+stale_after: '2027-08-25T00:00:00Z'
+language: en-GB
 ---
-
 # Execution Walkthrough (`walkthrough.md`)
 
 ## Session Log: 2026-08-25 (Greenfield Setup & Core Engine)

@@ -1,12 +1,27 @@
 ---
-okf_version: "0.2"
-type: "howto"
-title: "Multi-Platform Documentation Deployment Guide"
-created: "2026-08-25"
-status: "verified"
-language: "en-GB"
+okf_version: '0.2'
+type: howto
+title: Multi-Platform Documentation Deployment Guide
+timestamp: '2026-08-25T00:00:00Z'
+topics:
+- hosting
+- gitlab-pages
+- gitbook
+- readthedocs
+- deployment
+description: Deployment instructions for hosting documentation across GitLab Pages,
+  GitBook, and Read the Docs.
+resource: file:///docs/multi-platform-hosting.md
+sources:
+- .gitlab-ci.yml
+- .gitbook.yaml
+- .readthedocs.yaml
+generated: jules
+verified: true
+status: approved
+stale_after: '2027-08-25T00:00:00Z'
+language: en-GB
 ---
-
 # 🌐 Multi-Platform Documentation Deployment Guide
 
 This project is configured to support seamless automated builds and deployments across all major documentation hosting platforms: **GitHub Pages**, **GitLab Pages**, **GitBook**, and **Read The Docs**.
