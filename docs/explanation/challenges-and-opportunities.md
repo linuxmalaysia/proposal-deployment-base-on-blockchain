@@ -2,8 +2,21 @@
 okf_version: "0.2"
 type: "explanation"
 title: "Challenges, Caveats, and Market Opportunities in DCA"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "market-analysis"
+  - "custody"
+  - "challenges"
+  - "opportunities"
+  - "institutional"
+description: "Strategic exploration of industry challenges"
+resource: "file:///docs/explanation/challenges-and-opportunities.md"
+sources:
+  - "docs/explanation/architecture-overview.md"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

@@ -2,8 +2,22 @@
 okf_version: "0.2"
 type: "tutorial"
 title: "Getting Started with the DCA & DAC Platform on Percona PostgreSQL"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "tutorial"
+  - "getting-started"
+  - "percona"
+  - "postgresql"
+  - "quickstart"
+description: "Hands-on tutorial for initializing, configuring, and executing transactions"
+resource: "file:///docs/tutorials/getting-started-dca-dac.md"
+sources:
+  - "README.md"
+  - "docs/explanation/percona-timescaledb-blockchain-sync.md"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

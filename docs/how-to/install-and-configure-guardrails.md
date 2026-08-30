@@ -2,8 +2,22 @@
 okf_version: "0.2"
 type: "howto"
 title: "How-To: Install and Configure Repository Guardrails and Documentation Tools"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "guardrails"
+  - "git-hooks"
+  - "generate-summary"
+  - "pyyaml"
+  - "automation"
+description: "Instructions for setting up pre-commit Git guardrail hooks"
+resource: "file:///docs/how-to/install-and-configure-guardrails.md"
+sources:
+  - "tools/install_git_guardrails.py"
+  - "tools/generate_summary.py"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

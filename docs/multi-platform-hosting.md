@@ -2,8 +2,23 @@
 okf_version: "0.2"
 type: "howto"
 title: "Multi-Platform Documentation Deployment Guide"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "hosting"
+  - "gitlab-pages"
+  - "gitbook"
+  - "readthedocs"
+  - "deployment"
+description: "Deployment instructions for hosting documentation across GitLab Pages"
+resource: "file:///docs/multi-platform-hosting.md"
+sources:
+  - ".gitlab-ci.yml"
+  - ".gitbook.yaml"
+  - ".readthedocs.yaml"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

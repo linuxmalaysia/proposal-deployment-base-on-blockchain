@@ -1,23 +1,26 @@
 ---
 okf_version: "0.2"
 type: "overview"
-title: "University Research Commercialisation Fund (RCF) & Digital Asset Custodian (DAC) Web Application"
-timestamp: "2026-08-28T00:00:00Z"
-topics: ["rcf", "dac", "web-application", "university-ip", "cloverleaf-model", "percona-postgresql"]
-description: "Interactive Web Application Portal for University Leadership, Technology Transfer Officers, Researchers, and VC Investors to register, evaluate, and commercialise research assets."
-resource: "file:///index.md"
-sources: [
-  "docs/explanation/research-commercialisation-fund-dac-proposal.md",
-  "docs/explanation/rcf-dac-technical-data-layer.md",
-  "docs/explanation/rcf-dac-five-phase-process.md",
-  ".agents/AGENTS.md"
-]
-generated: "jules"
+title: "Digital Custody Asset (DCA) as a Service Platform"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "dca"
+  - "custody"
+  - "mpc"
+  - "postgresql"
+  - "timescaledb"
+  - "overview"
+description: "Web documentation homepage for the Digital Custody Asset (DCA) as a Service Platform."
+resource: file:///index.md
+sources:
+  - "README.md"
+  - "SUMMARY.md"
+generated: jules
 verified: true
-status: "approved"
-stale_after: "2027-08-28T00:00:00Z"
-language: "en-GB"
-layout: "default"
+status: approved
+stale_after: "2027-08-25T00:00:00Z"
+language: en-GB
+layout: default
 ---
 
 # 🏛️ Research Commercialisation Fund (RCF) & Digital Asset Custodian (DAC) Web Application
@@ -39,14 +42,15 @@ Select an institutional stakeholder view below to test registration, asset prove
   <!-- Role Switcher Control Header -->
   <div class="role-switcher-banner">
     <div class="role-switcher-title">
-      <h3>👥 Institutional Entry Point Switcher</h3>
-      <p>Switch roles to experience tailored views for Researchers, University Admins, and Investors.</p>
+      <h3>👥 Institutional Entry Point Switcher & Database Diagnostic</h3>
+      <p>Switch roles to experience tailored views for Researchers, Admins, and Investors, or check database connection status.</p>
     </div>
     <div class="role-btn-group">
       <button type="button" class="role-select-btn active" data-role="all">🌐 All Modules</button>
       <button type="button" class="role-select-btn" data-role="researcher">👩‍🔬 Researcher / Inventor</button>
       <button type="button" class="role-select-btn" data-role="admin">🏛️ University Admin / TTO</button>
       <button type="button" class="role-select-btn" data-role="investor">💼 VC / Angel Investor</button>
+      <a href="/db-status" class="role-select-btn" style="background:#28a745; color:white; text-decoration:none;">🔌 DB Connection Status</a>
     </div>
   </div>
 
@@ -246,6 +250,11 @@ Select an institutional stakeholder view below to test registration, asset prove
 
 ## 📚 Key Strategic & Architectural Documentation
 
+- 🔌 **[Database Connection Status Page](/db-status)** - Real-time Supabase & PostgreSQL connection diagnostic and schema table verification.
+- 🏛️ **[Architecture Overview]({{ '/docs/explanation/architecture-overview.html' | relative_url }})** - Institutional Digital Asset Custody Architecture.
+- 💼 **[Challenges & Opportunities]({{ '/docs/explanation/challenges-and-opportunities.html' | relative_url }})** - Strategic exploration of industry challenges.
+- 📐 **[Implementation Patterns]({{ '/docs/reference/implementation-patterns.html' | relative_url }})** - Industry Implementation Patterns.
+- 🧭 **[Documentation Summary]({{ '/SUMMARY.html' | relative_url }})** - Complete repository index.
 - 📄 **[Research Commercialisation Fund (RCF) & DAC Proposal](docs/explanation/research-commercialisation-fund-dac-proposal.html)** - Master proposal prepared for Vice-Chancellor & Board of Directors.
 - 💼 **[Business Case: Research as an Asset Class](docs/explanation/rcf-dac-business-case.html)** - Paradigm shift, trusted digital research assets, and national policy alignment (MOSTI, 10-10 MySTIE, MRANTI, MyIPO).
 - ⚡ **[Technical Architecture & Data Layer](docs/explanation/rcf-dac-technical-data-layer.html)** - Percona Server for PostgreSQL 16 + TimescaleDB single source of truth and transactional outbox pattern.

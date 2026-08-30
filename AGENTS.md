@@ -1,9 +1,22 @@
 ---
 okf_version: "0.2"
-type: "gateway"
-title: "Root AI Gateway: Deep State of Mind (DSOM) Protocol"
-created: "2026-08-25"
-status: "verified"
+type: "agent_instructions"
+title: "DCA Platform Core Engineering & Agent Directives"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "agents"
+  - "engineering"
+  - "clean-architecture"
+  - "okf"
+  - "dsom"
+description: "Root-level directives specifying Clean Architecture rules"
+resource: "file:///AGENTS.md"
+sources:
+  - "README.md"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

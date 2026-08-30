@@ -2,8 +2,23 @@
 okf_version: "0.2"
 type: "explanation"
 title: "Open-Source MPC Wallet System Architecture via cb-mpc"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "mpc"
+  - "cb-mpc"
+  - "threshold-signatures"
+  - "dkg"
+  - "key-management"
+  - "cryptography"
+description: "Technical explanation of Coinbase cb-mpc integration"
+resource: file:///docs/explanation/open-source-mpc-wallet-architecture.md
+sources:
+  - "README.md"
+  - "src/dca_service/core/key_management.py"
+generated: jules
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

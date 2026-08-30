@@ -1,9 +1,22 @@
 ---
 okf_version: "0.2"
-type: "constitution"
-title: "DSOM Sovereign AI Master Constitution"
-created: "2026-08-25"
-status: "verified"
+type: "agent_instructions"
+title: "DSOM Digital Twin Agent System Directives & Spatial Protocols"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "dsom"
+  - "agents"
+  - "spatial-memory"
+  - "okf"
+  - "protocol"
+description: "Operational system directives and spatial protocols for AI agents working"
+resource: "file:///.agents/AGENTS.md"
+sources:
+  - "AGENTS.md"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 
@@ -30,7 +43,7 @@ You are operating as a Senior Systems Architect & Cognitive Digital Twin under t
 
 ### 4. Open Knowledge Format (OKF v0.2) Standard
 
-- Every Markdown document must contain valid OKF v0.2 YAML frontmatter (`okf_version`, `type`, `title`, `created`, `status`, `language`).
+- Every Markdown document must contain valid OKF v0.2 YAML frontmatter conforming to the repository's DSOM profile (`okf_version`, `type`, `title`, `timestamp`, `topics`, `description`, `resource`, `sources`, `generated`, `verified`, `status`, `stale_after`, `language`). Generator-owned files (such as `SUMMARY.md`) are explicitly exempt from the `timestamp` requirement and retain their generator schema (`created`).
 
 ### 5. Triple-Ledger Synchronization
 

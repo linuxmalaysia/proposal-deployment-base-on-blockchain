@@ -2,8 +2,23 @@
 okf_version: "0.2"
 type: "overview"
 title: "Digital Custody Asset (DCA) as a Service Platform"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "dca"
+  - "custody"
+  - "mpc"
+  - "postgresql"
+  - "timescaledb"
+  - "clean-architecture"
+description: "Institutional-grade white-label & API-based Digital Asset Custody Platform"
+resource: "file:///README.md"
+sources:
+  - "SUMMARY.md"
+  - "AGENTS.md"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 
@@ -16,7 +31,7 @@ Institutional-grade white-label & API-based Digital Asset Custody Platform built
 - **Client Segregation:** Isolated sub-account ledgers enforcing zero commingling of digital assets.
 - **Policy Engine:** Granular approval workflows, velocity limits, multi-signer quorums, and address allowlists.
 - **Percona PostgreSQL & TimescaleDB Synchronisation:** Dual-write pattern writing transactions to database hypertables first, followed by immutable blockchain settlement (see [Percona & TimescaleDB Architecture Document](docs/explanation/percona-timescaledb-blockchain-sync.md)).
-- **Research Commercialisation Fund (RCF) & Digital Asset Custodian (DAC):** Integrated research asset management, interactive web portal (FastAPI backend with Render.com deployment readiness), and quantitative valuation framework anchored on Percona Server for PostgreSQL (see [RCF & DAC Proposal](docs/explanation/research-commercialisation-fund-dac-proposal.md) and [Render Deployment Guide](docs/how-to/deploy-rcf-dac-web-app-on-render.md)).
+- **Research Commercialisation Fund (RCF) & Digital Asset Custodian (DAC):** Integrated research asset management, interactive web portal (FastAPI backend with Render.com deployment readiness), real-time database connection status page (`/db-status`), and quantitative valuation framework anchored on Supabase PostgreSQL (see [RCF & DAC Proposal](docs/explanation/research-commercialisation-fund-dac-proposal.md), [Supabase Render Connection Guide](docs/how-to/connect-supabase-postgresql-on-render.md), and [Schema DDL](docs/schema.sql)).
 - **Ancillary Services:** Integrated proof-of-stake hooks and tokenised collateral management interfaces.
 - **Immutable Audit Trail:** SOC 1 / SOC 2 compliant structured event auditing.
 

@@ -13,6 +13,7 @@ import json
 import os
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 # Configure environment secret before importing web_app module
 TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
@@ -327,3 +328,79 @@ def test_serve_documentation_pages_returns_200_ok():
     # Non-existent doc test
     res_404 = client.get("/docs/explanation/non-existent-doc.html")
     assert res_404.status_code == 404
+
+
+def test_db_status_api_endpoint():
+    response = client.get("/api/db-status")
+    assert response.status_code == 200
+    data = response.json()
+    assert "status" in data
+    assert "is_connected" in data
+    assert "latency_ms" in data
+    assert "environment" in data
+    assert "schema_tables" in data
+    assert len(data["schema_tables"]) == 5
+    table_names = [t["table_name"] for t in data["schema_tables"]]
+    assert "users" in table_names
+    assert "assets" in table_names
+    assert "cloverleaf_scores" in table_names
+    assert "revenue_splits" in table_names
+    assert "blockchain_transactions" in table_names
+
+    for table in data["schema_tables"]:
+        assert table["status"] in (
+            "VERIFIED IN POSTGRESQL DB",
+            "MISSING IN DATABASE",
+            "UNKNOWN (QUERY FAILED)",
+            "VERIFIED DDL SCHEMA FILE",
+        )
+
+
+def test_db_status_html_dashboard_pages():
+    for route in ["/db-status", "/db-connection"]:
+        response = client.get(route)
+        assert response.status_code == 200
+        assert "<!DOCTYPE html>" in response.text
+        assert "Supabase" in response.text
+        assert "Database Status" in response.text
+        assert "schema.sql" in response.text
+
+
+def test_init_db_endpoint_requires_admin_role():
+    # 1. Unauthenticated request -> 401
+    res_unauth = client.post("/api/init-db")
+    assert res_unauth.status_code == 401
+
+    # 2. Accredited non-admin user token -> 403
+    user_jwt = create_investor_jwt(sub="accredited_investor_01")
+    res_forbidden = client.post(
+        "/api/init-db", headers={"Authorization": f"Bearer {user_jwt}"}
+    )
+    assert res_forbidden.status_code == 403
+    assert "administrator role required" in res_forbidden.json()["detail"].lower()
+
+    # 3. Admin user token -> 200 with mocked initialize_database_schema
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {
+        "sub": "admin_01",
+        "iss": "https://auth.rcf-dac.univ.edu.my",
+        "aud": "rcf-dac-data-room",
+        "exp": int(time.time() + 3600),
+        "accredited_investor": True,
+        "admin": True,
+    }
+    header_b64 = base64url_encode(json.dumps(header, separators=(",", ":")).encode())
+    payload_b64 = base64url_encode(json.dumps(payload, separators=(",", ":")).encode())
+    signing_input = f"{header_b64}.{payload_b64}".encode()
+    signature = hmac.new(TEST_JWT_SECRET, signing_input, hashlib.sha256).digest()
+    sig_b64 = base64url_encode(signature)
+    admin_jwt = f"{header_b64}.{payload_b64}.{sig_b64}"
+
+    with patch("dca_service.web_app.initialize_database_schema") as mock_init:
+        mock_init.return_value = {"success": True, "message": "Mocked DB initialization successful"}
+        res_admin = client.post(
+            "/api/init-db", headers={"Authorization": f"Bearer {admin_jwt}"}
+        )
+        assert res_admin.status_code == 200
+        assert res_admin.json()["success"] is True
+        mock_init.assert_called_once()
