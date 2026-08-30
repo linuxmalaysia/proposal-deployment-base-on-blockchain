@@ -15,7 +15,3 @@ services:
         generateValue: true
       - key: UV_SYNC_EXTRA
         value: ""
-      - key: DATABASE_URL
-        sync: false
-      - key: SUPABASE_PROJECT_REF
-        sync: false

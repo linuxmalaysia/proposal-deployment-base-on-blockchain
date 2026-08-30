@@ -14,6 +14,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-08-30
+
+### Added
+- Diátaxis How-To guide for securely connecting Supabase PostgreSQL database instances on Render.com ([`docs/how-to/connect-supabase-postgresql-on-render.md`](docs/how-to/connect-supabase-postgresql-on-render.md)).
+
 ## [0.1.0] - 2026-08-25
 
 ### Added
@@ -28,4 +33,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete Diátaxis Framework documentation expansion (Tutorials, How-To Guides, and Technical Reference).
 - Interactive FastAPI Web Application (`src/dca_service/web_app.py`) for RCF & DAC portal modules (W3C DID user registration, asset vault SHA-256 evidence hashing, Cloverleaf MRS score calculation, investor data room, revenue split matrix).
 - Render.com Blueprint deployment specification (`render.yaml`) and deployment guide ([`docs/how-to/deploy-rcf-dac-web-app-on-render.md`](docs/how-to/deploy-rcf-dac-web-app-on-render.md)).
-- Diátaxis How-To guide for securely connecting Supabase PostgreSQL database instances on Render.com ([`docs/how-to/connect-supabase-postgresql-on-render.md`](docs/how-to/connect-supabase-postgresql-on-render.md)).
