@@ -10,7 +10,8 @@ sources: [
   "https://render.com/docs/troubleshooting-python-deploys",
   "https://linuxmalaysia.github.io/proposal-deployment-base-on-blockchain/",
   "render.yaml",
-  "pyproject.toml"
+  "pyproject.toml",
+  "docs/how-to/connect-supabase-postgresql-on-render.md"
 ]
 generated: "jules"
 verified: true
