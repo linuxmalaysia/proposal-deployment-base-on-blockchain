@@ -71,6 +71,14 @@ Ensure the repository contains the following deployment artifacts:
 
 If creating the web service manually in the Render Dashboard (especially on Render's Free Tier):
 
+> [!WARNING]
+> **Free Instance Plan Limitations:**
+> - Suitable for testing, prototyping, and hobby projects.
+> - Web services spin down (go to sleep) after 15 minutes of inactivity to conserve resources.
+> - Cold start incoming requests will experience a initial latency delay of approximately 50-60 seconds while the instance spins back up.
+> - Each workspace receives 750 free instance hours per month shared across free web services; services are suspended if monthly hours are exhausted.
+> - Excess outbound bandwidth or build minutes above free tier allowances may incur charges if a credit card or payment method is attached to the workspace.
+
 1. Log into the [Render Dashboard](https://dashboard.render.com/).
 2. Click **New +** -> **Web Service**.
 3. Select **Build and deploy from a Git repository** and connect your repository.
@@ -84,7 +92,7 @@ If creating the web service manually in the Render Dashboard (especially on Rend
    - **Instance Type:** **Free** ($0/month)
 5. Under **Environment Variables**, add:
    - `PYTHON_VERSION`: `3.12.13`
-   - `INVESTOR_JWT_SECRET`: *(enter a secure secret key string)*
+   - `INVESTOR_JWT_SECRET`: *(enter a unique, cryptographically random 256-bit secret string, e.g. generated via `openssl rand -hex 32`; **NEVER** commit secrets to version control)*
 
 ---
 
