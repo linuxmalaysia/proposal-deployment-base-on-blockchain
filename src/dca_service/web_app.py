@@ -456,6 +456,52 @@ def render_markdown_to_html(md_text: str) -> str:
     return "\n".join(html_lines)
 
 
+@app.get("/docs/{file_path:path}", response_class=HTMLResponse)
+def serve_docs(file_path: str) -> HTMLResponse:
+    """Serve documentation Markdown files rendered as HTML."""
+    target_path = file_path
+    if target_path.endswith(".html"):
+        target_path = target_path[:-5] + ".md"
+    elif not target_path.endswith(".md"):
+        target_path = target_path + ".md"
+
+    doc_file = (DOCS_DIR / target_path).resolve()
+
+    # Prevent path traversal outside of DOCS_DIR
+    try:
+        doc_file.relative_to(DOCS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documentation page not found")
+
+    if not doc_file.exists() or not doc_file.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documentation page not found")
+
+    content = doc_file.read_text(encoding="utf-8")
+    if content.startswith("---"):
+        parts = content.split("---", 2)
+        if len(parts) >= 3:
+            content = parts[2]
+
+    rendered_html = render_markdown_to_html(content)
+
+    html_wrapper = f"""<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <title>RCF & DAC Documentation</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/rcf-dac-app.js" defer></script>
+</head>
+<body>
+  <div class="container">
+    <p style="margin-bottom: 1.5rem;"><a href="/">&larr; Return to RCF & DAC Interactive Portal Homepage</a></p>
+    {rendered_html}
+  </div>
+</body>
+</html>"""
+    return HTMLResponse(content=html_wrapper)
+
+
 @app.get("/", response_class=HTMLResponse)
 def serve_index() -> HTMLResponse:
     """Serve interactive web application HTML homepage."""

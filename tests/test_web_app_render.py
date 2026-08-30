@@ -300,3 +300,30 @@ def test_how_to_render_deployment_doc_okf_frontmatter():
     assert "Interactive API documentation" in text
     assert "(>=3.12)" in text
     assert "users must include `uv sync` explicitly" in text
+
+
+def test_serve_documentation_pages_returns_200_ok():
+    doc_links = [
+        "/docs/explanation/research-commercialisation-fund-dac-proposal",
+        "/docs/explanation/rcf-dac-business-case",
+        "/docs/explanation/rcf-dac-technical-data-layer",
+        "/docs/explanation/rcf-dac-five-phase-process",
+        "/docs/explanation/rcf-dac-governance-budget-risks",
+        "/docs/explanation/rcf-dac-ecosystem-precedents",
+        "/docs/tutorials/web-application-user-guide",
+    ]
+
+    for link in doc_links:
+        for ext in [".html", ".md"]:
+            url = f"{link}{ext}"
+            res = client.get(url)
+            assert res.status_code == 200, f"Expected 200 for {url}, got {res.status_code}"
+            assert "<!DOCTYPE html>" in res.text
+
+    # Path traversal protection test
+    res_traversal = client.get("/docs/../../README.md")
+    assert res_traversal.status_code == 404
+
+    # Non-existent doc test
+    res_404 = client.get("/docs/explanation/non-existent-doc.html")
+    assert res_404.status_code == 404
