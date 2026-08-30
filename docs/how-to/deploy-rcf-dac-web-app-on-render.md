@@ -124,6 +124,17 @@ Based on [Render's Official Troubleshooting Guide](https://render.com/docs/troub
   uvicorn src.dca_service.web_app:app --host 0.0.0.0 --port $PORT
   ```
 
+### 5. Missing Required Environment Variables (`INVESTOR_JWT_SECRET`)
+
+- **Symptom:** Deployment startup fails with `RuntimeError: FATAL: Missing required environment variable 'INVESTOR_JWT_SECRET'` or `Exited with status 1`.
+- **Resolution:** When configuring a manual Web Service, Render does not auto-generate environment variables (unlike Render Blueprints via `generateValue: true`). You must manually add `INVESTOR_JWT_SECRET` in the Render Dashboard:
+  1. Open your web service in the [Render Dashboard](https://dashboard.render.com/).
+  2. Select **Environment** from the side menu.
+  3. Under **Environment Variables**, click **Add Environment Variable**.
+  4. Set **Key** to `INVESTOR_JWT_SECRET`.
+  5. Set **Value** to a cryptographically random 256-bit string (e.g. run `openssl rand -hex 32` locally to generate one).
+  6. Click **Save Changes**. Render will automatically trigger a new deployment.
+
 ---
 
 ## 🌐 Endpoints & Verification
