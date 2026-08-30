@@ -346,6 +346,14 @@ def test_db_status_api_endpoint():
     assert "revenue_splits" in table_names
     assert "blockchain_transactions" in table_names
 
+    for table in data["schema_tables"]:
+        assert table["status"] in (
+            "VERIFIED IN POSTGRESQL DB",
+            "MISSING IN DATABASE",
+            "UNKNOWN (QUERY FAILED)",
+            "VERIFIED DDL SCHEMA FILE",
+        )
+
 
 def test_db_status_html_dashboard_pages():
     for route in ["/db-status", "/db-connection"]:
