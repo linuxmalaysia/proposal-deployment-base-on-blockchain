@@ -20,3 +20,4 @@ language: "en-GB"
 - Expanded full Diátaxis documentation suite across Tutorials, How-To Guides, and Reference manuals.
 - Created interactive FastAPI backend service (`src/dca_service/web_app.py`) providing REST API endpoints and web routes for W3C DID registration, evidence vault hashing, Cloverleaf quantitative scoring, investor data room, and revenue distribution split.
 - Configured Render.com Blueprint deployment specification (`render.yaml`) and authored comprehensive deployment & troubleshooting guide (`docs/how-to/deploy-rcf-dac-web-app-on-render.md`).
+- Authored step-by-step Diátaxis guide for securing Supabase PostgreSQL connection strings, environment variables, SSL parameters, and Supabase CLI on Render.com (`docs/how-to/connect-supabase-postgresql-on-render.md`).
