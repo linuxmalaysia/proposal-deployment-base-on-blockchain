@@ -2,8 +2,23 @@
 okf_version: "0.2"
 type: "explanation"
 title: "Percona Server for PostgreSQL & TimescaleDB Dual-Write Blockchain Architecture"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "percona"
+  - "postgresql"
+  - "timescaledb"
+  - "dual-write"
+  - "hypertables"
+  - "blockchain-sync"
+description: "Architectural specification of the database-first dual-write pattern"
+resource: "file:///docs/explanation/percona-timescaledb-blockchain-sync.md"
+sources:
+  - "README.md"
+  - "src/dca_service/adapters/timescaledb_adapter.py"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

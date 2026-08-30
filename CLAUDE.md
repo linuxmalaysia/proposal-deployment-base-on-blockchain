@@ -1,9 +1,22 @@
 ---
 okf_version: "0.2"
 type: "gateway"
-title: "Claude AI Integration Rules"
-created: "2026-08-25"
-status: "verified"
+title: "Claude AI Integration Rules & Workspace Directives"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "claude"
+  - "directives"
+  - "clean-architecture"
+  - "okf"
+  - "dsom"
+description: "Workspace configuration and guidelines for Anthropic Claude AI"
+resource: "file:///CLAUDE.md"
+sources:
+  - "AGENTS.md"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

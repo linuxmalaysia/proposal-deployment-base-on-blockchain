@@ -2,9 +2,23 @@
 okf_version: "0.2"
 type: "howto"
 title: "GitHub Pages Automated Deployment & 404 Troubleshooting Guide"
-created: "2026-08-25"
-status: "verified"
-language: "en-GB"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "github-pages"
+  - "jekyll"
+  - "deployment"
+  - "troubleshooting"
+  - "ci-cd"
+description: "Step-by-step guide for configuring Jekyll GitHub Pages deployment"
+resource: file:///docs/github-pages-setup.md
+sources:
+  - "_config.yml"
+  - ".github/workflows/jekyll-gh-pages.yml"
+generated: jules
+verified: true
+status: approved
+stale_after: "2027-08-25T00:00:00Z"
+language: en-GB
 ---
 
 # 🚀 GitHub Pages Automated Deployment & Troubleshooting Guide

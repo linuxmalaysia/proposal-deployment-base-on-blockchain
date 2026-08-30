@@ -327,3 +327,31 @@ def test_serve_documentation_pages_returns_200_ok():
     # Non-existent doc test
     res_404 = client.get("/docs/explanation/non-existent-doc.html")
     assert res_404.status_code == 404
+
+
+def test_db_status_api_endpoint():
+    response = client.get("/api/db-status")
+    assert response.status_code == 200
+    data = response.json()
+    assert "status" in data
+    assert "is_connected" in data
+    assert "latency_ms" in data
+    assert "environment" in data
+    assert "schema_tables" in data
+    assert len(data["schema_tables"]) == 5
+    table_names = [t["table_name"] for t in data["schema_tables"]]
+    assert "users" in table_names
+    assert "assets" in table_names
+    assert "cloverleaf_scores" in table_names
+    assert "revenue_splits" in table_names
+    assert "blockchain_transactions" in table_names
+
+
+def test_db_status_html_dashboard_pages():
+    for route in ["/db-status", "/db-connection"]:
+        response = client.get(route)
+        assert response.status_code == 200
+        assert "<!DOCTYPE html>" in response.text
+        assert "Supabase" in response.text
+        assert "Database Status" in response.text
+        assert "schema.sql" in response.text

@@ -2,8 +2,21 @@
 okf_version: "0.2"
 type: "history"
 title: "DCA Service Project History Ledger"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "history"
+  - "ledger"
+  - "dca-service"
+  - "milestones"
+description: "Historical repository milestone ledger"
+resource: "file:///HISTORY.md"
+sources:
+  - "CHANGELOG.md"
+  - "README.md"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 
@@ -21,3 +34,4 @@ language: "en-GB"
 - Created interactive FastAPI backend service (`src/dca_service/web_app.py`) providing REST API endpoints and web routes for W3C DID registration, evidence vault hashing, Cloverleaf quantitative scoring, investor data room, and revenue distribution split.
 - Configured Render.com Blueprint deployment specification (`render.yaml`) and authored comprehensive deployment & troubleshooting guide (`docs/how-to/deploy-rcf-dac-web-app-on-render.md`).
 - Authored step-by-step Diátaxis guide for securing Supabase PostgreSQL connection strings, environment variables, SSL parameters, and Supabase CLI on Render.com (`docs/how-to/connect-supabase-postgresql-on-render.md`).
+- Implemented real-time Database Connection Status diagnostic page (`/db-status` & `/api/db-status`), schema DDL specification (`docs/schema.sql` and `src/dca_service/schema.sql`), and Render secret file environment loader in `src/dca_service/web_app.py`.

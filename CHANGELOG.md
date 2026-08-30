@@ -1,9 +1,22 @@
 ---
 okf_version: "0.2"
 type: "changelog"
-title: "DCA Service Changelog"
-created: "2026-08-25"
-status: "verified"
+title: "DCA Service Platform Changelog & Release History"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "changelog"
+  - "releases"
+  - "dca-service"
+  - "versioning"
+description: "Chronological ledger of user-facing changes"
+resource: "file:///CHANGELOG.md"
+sources:
+  - "HISTORY.md"
+  - "README.md"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 
@@ -18,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Interactive Database Connection Status page (`/db-status`) and JSON diagnostic endpoint (`/api/db-status`) verifying real-time connection status, secret variables, and schema tables in `src/dca_service/web_app.py`.
+- SQL DDL schema files (`docs/schema.sql` and `src/dca_service/schema.sql`) for project PostgreSQL tables (`users`, `assets`, `cloverleaf_scores`, `revenue_splits`, `blockchain_transactions`).
+- Secret file loader and fallback handling for `INVESTOR_JWT_SECRET` using `SUPABASE_SECRET_KEY` or environment variables on Render.com.
 - Diátaxis How-To guide for securely connecting Supabase PostgreSQL database instances on Render.com ([`docs/how-to/connect-supabase-postgresql-on-render.md`](docs/how-to/connect-supabase-postgresql-on-render.md)).
 
 ## [0.1.0] - 2026-08-25

@@ -2,8 +2,22 @@
 okf_version: "0.2"
 type: "reference"
 title: "DCA & DAC Core API, CLI, and Data Objects Reference"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "api"
+  - "cli"
+  - "reference"
+  - "data-objects"
+  - "dca-service"
+description: "Technical reference for DCA & DAC domain entities"
+resource: "file:///docs/reference/dca-dac-api-and-cli-reference.md"
+sources:
+  - "src/dca_service/core/account_ledger.py"
+  - "src/dca_service/core/policy_engine.py"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

@@ -2,8 +2,22 @@
 okf_version: "0.2"
 type: "explanation"
 title: "Institutional Digital Asset Custody Architecture"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "architecture"
+  - "custody"
+  - "clean-architecture"
+  - "mpc"
+  - "percona"
+description: "High-level explanation of the DCA platform Concentric Clean Architecture"
+resource: "file:///docs/explanation/architecture-overview.md"
+sources:
+  - "README.md"
+  - "docs/reference/implementation-patterns.md"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

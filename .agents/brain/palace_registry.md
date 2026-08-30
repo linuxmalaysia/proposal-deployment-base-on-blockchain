@@ -1,9 +1,22 @@
 ---
 okf_version: "0.2"
 type: "spatial_memory"
-title: "Palace Registry & Asset Mapping"
-created: "2026-08-25"
-status: "active"
+title: "Spatial Memory Palace Registry & Knowledge Map"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "dsom"
+  - "memory-palace"
+  - "spatial-memory"
+  - "registry"
+description: "Directory registry and structural map of the Spatial Memory Palace"
+resource: "file:///.agents/brain/palace_registry.md"
+sources:
+  - ".agents/AGENTS.md"
+  - "README.md"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 

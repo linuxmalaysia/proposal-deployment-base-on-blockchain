@@ -1,9 +1,22 @@
 ---
 okf_version: "0.2"
 type: "spatial_memory"
-title: "Execution Walkthrough Ledger"
-created: "2026-08-25"
-status: "active"
+title: "Session Log & Execution Walkthrough History"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "dsom"
+  - "walkthrough"
+  - "session-log"
+  - "memory-palace"
+description: "Historical record of execution walkthroughs"
+resource: "file:///.agents/brain/walkthrough.md"
+sources:
+  - ".agents/AGENTS.md"
+  - ".agents/brain/task.md"
+generated: "jules"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 
