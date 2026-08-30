@@ -162,14 +162,18 @@ def get_postgresql_connection():
     if not database_url:
         supabase_url = os.environ.get("SUPABASE_URL", "")
         db_pass = os.environ.get("SUPABASE_DB_PASSWORD", "")
-        if "tqudolprdioisrgqfyna" in supabase_url and db_pass:
+        if supabase_url and db_pass:
+            # Extract hostname/project ref if available
+            parsed = urllib.parse.urlparse(supabase_url)
+            hostname = parsed.netloc or "your-supabase-project-ref.supabase.co"
+            project_ref = hostname.split(".")[0]
             encoded_pass = urllib.parse.quote_plus(db_pass)
             ca_file = Path(os.environ.get("SUPABASE_SSLROOTCERT", "/etc/secrets/prod-supabase-ca.crt"))
             if ca_file.exists():
                 ssl_params = f"sslmode=verify-full&sslrootcert={ca_file}"
             else:
                 return None, "PostgreSQL CA certificate missing (/etc/secrets/prod-supabase-ca.crt); failing closed."
-            database_url = f"postgresql://postgres.tqudolprdioisrgqfyna:{encoded_pass}@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?{ssl_params}"
+            database_url = f"postgresql://postgres.{project_ref}:{encoded_pass}@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?{ssl_params}"
 
     if not database_url:
         return None, "DATABASE_URL or SUPABASE_DB_PASSWORD not configured"
@@ -209,11 +213,12 @@ def initialize_database_schema() -> Dict[str, Any]:
 
 def check_database_connection() -> Dict[str, Any]:
     """Check database connectivity (PostgreSQL & Supabase API) and verify tables read-only."""
-    supabase_url = os.environ.get("SUPABASE_URL", "https://tqudolprdioisrgqfyna.supabase.co")
+    supabase_url = os.environ.get("SUPABASE_URL", "")
     supabase_publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
     supabase_secret_key = os.environ.get("SUPABASE_SECRET_KEY", "")
     supabase_jwks_url = os.environ.get(
-        "SUPABASE_JWKS_URL", "https://tqudolprdioisrgqfyna.supabase.co/auth/v1/.well-known/jwks.json"
+        "SUPABASE_JWKS_URL",
+        f"{supabase_url}/auth/v1/.well-known/jwks.json" if supabase_url else "",
     )
     database_url = os.environ.get("DATABASE_URL", "")
 
@@ -293,13 +298,6 @@ def check_database_connection() -> Dict[str, Any]:
             tbl_status = "VERIFIED DDL SCHEMA FILE"
         tables.append({"table_name": tbl_name, "description": desc, "status": tbl_status})
 
-    def mask_key(k: str) -> str:
-        if not k:
-            return "NOT CONFIGURED"
-        if len(k) <= 8:
-            return "********"
-        return k[:4] + "..." + k[-4:]
-
     return {
         "status": connection_status,
         "is_connected": db_connected,
@@ -308,13 +306,6 @@ def check_database_connection() -> Dict[str, Any]:
         "latency_ms": latency_ms,
         "status_detail": " | ".join(details),
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "environment": {
-            "SUPABASE_URL": supabase_url or "NOT CONFIGURED",
-            "SUPABASE_PUBLISHABLE_KEY": mask_key(supabase_publishable_key),
-            "SUPABASE_SECRET_KEY_CONFIGURED": bool(supabase_secret_key),
-            "SUPABASE_JWKS_URL": supabase_jwks_url or "NOT CONFIGURED",
-            "DATABASE_URL_CONFIGURED": bool(database_url),
-        },
         "schema_tables": tables,
         "schema_file": "docs/schema.sql",
     }
@@ -363,10 +354,6 @@ def serve_db_status_page() -> HTMLResponse:
         else '<span style="background: #dc3545; color: white; padding: 0.4rem 1rem; border-radius: 20px; font-weight: bold; font-size: 1.1rem;">🔴 DISCONNECTED</span>'
     )
 
-    env_html = ""
-    for k, v in db_info["environment"].items():
-        env_html += f"<tr><td style='padding:0.5rem;'><strong>{k}</strong></td><td style='padding:0.5rem;'><code>{v}</code></td></tr>"
-
     tables_html = ""
     for tbl in db_info["schema_tables"]:
         tables_html += f"""<tr>
@@ -409,21 +396,6 @@ def serve_db_status_page() -> HTMLResponse:
           <td style="padding: 0.5rem 0;"><strong>Checked Timestamp:</strong></td>
           <td style="padding: 0.5rem 0;">{db_info['timestamp']}</td>
         </tr>
-      </table>
-    </div>
-
-    <div class="card" style="background: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-      <h3 style="margin-top:0;">🔑 Environment Secret Variables (.env / Render Settings)</h3>
-      <table style="width: 100%; border-collapse: collapse;">
-        <thead>
-          <tr style="border-bottom: 2px solid #dee2e6; text-align: left;">
-            <th style="padding: 0.5rem;">Variable Key</th>
-            <th style="padding: 0.5rem;">Configured Endpoint / Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {env_html}
-        </tbody>
       </table>
     </div>
 

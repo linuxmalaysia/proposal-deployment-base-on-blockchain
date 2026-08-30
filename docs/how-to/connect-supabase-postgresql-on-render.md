@@ -19,7 +19,7 @@ language: "en-GB"
 
 # 🔌 Connecting Supabase PostgreSQL Database Securely on Render.com
 
-This guide provides comprehensive, step-by-step instructions for establishing secure connections between your **Render.com** web service deployment and a remote **Supabase PostgreSQL** instance (`tqudolprdioisrgqfyna`). It covers connection strings, Supabase CLI tooling, backend/frontend client SDKs, Prisma ORM integration, Model Context Protocol (MCP) server configuration, Agent Skills, and Render secret management options (Environment Variables & Secret Files).
+This guide provides comprehensive, step-by-step instructions for establishing secure connections between your **Render.com** web service deployment and a remote **Supabase PostgreSQL** instance (`[YOUR-SUPABASE-PROJECT-REF]`). It covers connection strings, Supabase CLI tooling, backend/frontend client SDKs, Prisma ORM integration, Model Context Protocol (MCP) server configuration, Agent Skills, and Render secret management options (Environment Variables & Secret Files).
 
 > [!CAUTION]
 > **Security Policy & Zero Secret Leakage:**
@@ -41,9 +41,9 @@ Supabase provides direct host endpoints and Supavisor connection poolers for Pos
 
 ### Connection Parameters Overview
 
-- **Project Ref:** `tqudolprdioisrgqfyna`
-- **Project URL:** `https://tqudolprdioisrgqfyna.supabase.co`
-- **Database Host:** `db.tqudolprdioisrgqfyna.supabase.co`
+- **Project Ref:** `[YOUR-SUPABASE-PROJECT-REF]`
+- **Project URL:** `https://[YOUR-SUPABASE-PROJECT-REF].supabase.co`
+- **Database Host:** `db.[YOUR-SUPABASE-PROJECT-REF].supabase.co`
 - **Port:** `5432`
 - **Database Name:** `postgres`
 - **User:** `postgres`
@@ -53,12 +53,12 @@ Supabase provides direct host endpoints and Supavisor connection poolers for Pos
 Direct connection to the primary database host (requires Supabase IPv4 Add-on when deployed on Render.com). Recommended for schema migrations and persistent application instances:
 
 ```text
-postgresql://postgres:[YOUR-PASSWORD]@db.tqudolprdioisrgqfyna.supabase.co:5432/postgres
+postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-SUPABASE-PROJECT-REF].supabase.co:5432/postgres
 ```
 
 *With full SSL certificate verification:*
 ```text
-postgresql://postgres:[YOUR-PASSWORD]@db.tqudolprdioisrgqfyna.supabase.co:5432/postgres?sslmode=verify-full&sslrootcert=/etc/secrets/prod-supabase-ca.crt
+postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-SUPABASE-PROJECT-REF].supabase.co:5432/postgres?sslmode=verify-full&sslrootcert=/etc/secrets/prod-supabase-ca.crt
 ```
 
 ### 2. Supavisor Connection Pooling (AWS AP-Southeast-1)
@@ -67,13 +67,13 @@ Supavisor connection pooling provides native IPv4 routing and mitigates connecti
 
 - **Transaction Mode (Port 6543):** Assigns connections per transaction for high concurrency.
   ```text
-  postgresql://postgres.tqudolprdioisrgqfyna:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+  postgresql://postgres.[YOUR-SUPABASE-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true
   ```
   *(Note: Transaction pooling does NOT support session-level PostgreSQL features such as prepared statements, `LISTEN`/`NOTIFY`, advisory locks, or temporary tables).*
 
 - **Session Mode (Port 5432):** Maintains persistent client sessions per connection pool entry (used for schema migrations and interactive sessions).
   ```text
-  postgresql://postgres.tqudolprdioisrgqfyna:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
+  postgresql://postgres.[YOUR-SUPABASE-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
   ```
 
 ---
@@ -107,11 +107,11 @@ Render.com provides two primary mechanisms to securely inject sensitive credenti
 
 | Key | Value Description | Example |
 | :--- | :--- | :--- |
-| `DATABASE_URL` | Pooled connection string with SSL parameters | `postgresql://postgres.tqudolprdioisrgqfyna:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true` |
-| `SUPABASE_URL` | Base API endpoint URL | `https://tqudolprdioisrgqfyna.supabase.co` |
-| `SUPABASE_PUBLISHABLE_KEY` | Publishable key for client-side API requests | `sb_publishable_sLCOhqUPC4FPdaoTOemeTQ_3TVrRURv` |
+| `DATABASE_URL` | Pooled connection string with SSL parameters | `postgresql://postgres.[YOUR-SUPABASE-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true` |
+| `SUPABASE_URL` | Base API endpoint URL | `https://[YOUR-SUPABASE-PROJECT-REF].supabase.co` |
+| `SUPABASE_PUBLISHABLE_KEY` | Publishable key for client-side API requests | `[YOUR-SUPABASE-PUBLISHABLE-KEY]` |
 | `SUPABASE_SECRET_KEY` | Administrative secret key (**Keep Private!**) | `sb_secret_...` |
-| `SUPABASE_JWKS_URL` | JSON Web Key Set endpoint for JWT verification | `https://tqudolprdioisrgqfyna.supabase.co/auth/v1/.well-known/jwks.json` |
+| `SUPABASE_JWKS_URL` | JSON Web Key Set endpoint for JWT verification | `https://[YOUR-SUPABASE-PROJECT-REF].supabase.co/auth/v1/.well-known/jwks.json` |
 
 5. Click **Save Changes** to trigger an automatic deployment.
 
@@ -157,7 +157,7 @@ export SUPABASE_ACCESS_TOKEN
 supabase init
 
 # Link project non-interactively to remote project reference
-supabase link --project-ref tqudolprdioisrgqfyna
+supabase link --project-ref [YOUR-SUPABASE-PROJECT-REF]
 ```
 
 ### 3. Apply Migrations
@@ -186,10 +186,10 @@ npm install @supabase/server
 Add the following parameters to your runtime `.env` or Render Environment Variables:
 
 ```ini
-SUPABASE_URL=https://tqudolprdioisrgqfyna.supabase.co
-SUPABASE_PUBLISHABLE_KEY=sb_publishable_sLCOhqUPC4FPdaoTOemeTQ_3TVrRURv
+SUPABASE_URL=https://[YOUR-SUPABASE-PROJECT-REF].supabase.co
+SUPABASE_PUBLISHABLE_KEY=[YOUR-SUPABASE-PUBLISHABLE-KEY]
 SUPABASE_SECRET_KEY=[YOUR-SUPABASE-SECRET-KEY]
-SUPABASE_JWKS_URL=https://tqudolprdioisrgqfyna.supabase.co/auth/v1/.well-known/jwks.json
+SUPABASE_JWKS_URL=https://[YOUR-SUPABASE-PROJECT-REF].supabase.co/auth/v1/.well-known/jwks.json
 ```
 
 ---
@@ -207,8 +207,8 @@ npm install @supabase/supabase-js @supabase/ssr
 ### 2. Client Environment File (`.env.local`)
 
 ```ini
-NEXT_PUBLIC_SUPABASE_URL=https://tqudolprdioisrgqfyna.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_sLCOhqUPC4FPdaoTOemeTQ_3TVrRURv
+NEXT_PUBLIC_SUPABASE_URL=https://[YOUR-SUPABASE-PROJECT-REF].supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[YOUR-SUPABASE-PUBLISHABLE-KEY]
 ```
 
 ### 3. Server Client Helper (`utils/supabase/server.ts`)
@@ -341,10 +341,10 @@ npx prisma init
 
 ```ini
 # Shared transaction-mode pooler endpoint (IPv4-compatible for query runtime)
-DATABASE_URL="postgresql://postgres.tqudolprdioisrgqfyna:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DATABASE_URL="postgresql://postgres.[YOUR-SUPABASE-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
 
 # Shared session-mode pooler endpoint (used for Prisma schema migrations)
-DIRECT_URL="postgresql://postgres.tqudolprdioisrgqfyna:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+DIRECT_URL="postgresql://postgres.[YOUR-SUPABASE-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
 ```
 
 ### 3. Schema Configuration (`prisma/schema.prisma`)
@@ -370,7 +370,7 @@ Integrate Supabase with Model Context Protocol (MCP) AI client tools (e.g. Gemin
 ### 1. Add MCP Server via Command Line
 
 ```bash
-gemini mcp add -t http supabase "https://mcp.supabase.com/mcp?project_ref=tqudolprdioisrgqfyna&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching"
+gemini mcp add -t http supabase "https://mcp.supabase.com/mcp?project_ref=[YOUR-SUPABASE-PROJECT-REF]&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching"
 ```
 
 ### 2. Configuration File (`.gemini/settings.json`)
@@ -379,7 +379,7 @@ gemini mcp add -t http supabase "https://mcp.supabase.com/mcp?project_ref=tqudol
 {
   "mcpServers": {
     "supabase": {
-      "httpUrl": "https://mcp.supabase.com/mcp?project_ref=tqudolprdioisrgqfyna&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching"
+      "httpUrl": "https://mcp.supabase.com/mcp?project_ref=[YOUR-SUPABASE-PROJECT-REF]&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching"
     }
   }
 }

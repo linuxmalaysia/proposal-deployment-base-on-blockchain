@@ -337,7 +337,7 @@ def test_db_status_api_endpoint():
     assert "status" in data
     assert "is_connected" in data
     assert "latency_ms" in data
-    assert "environment" in data
+    assert "environment" not in data
     assert "schema_tables" in data
     assert len(data["schema_tables"]) == 5
     table_names = [t["table_name"] for t in data["schema_tables"]]
@@ -364,6 +364,8 @@ def test_db_status_html_dashboard_pages():
         assert "Supabase" in response.text
         assert "Database Status" in response.text
         assert "schema.sql" in response.text
+        assert "Environment Secret Variables" not in response.text
+        assert "SUPABASE_URL" not in response.text
 
 
 def test_init_db_endpoint_requires_admin_role():
