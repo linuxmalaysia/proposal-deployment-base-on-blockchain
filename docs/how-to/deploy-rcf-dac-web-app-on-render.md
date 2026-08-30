@@ -94,7 +94,6 @@ If creating the web service manually in the Render Dashboard (especially on Rend
 5. Under **Environment Variables**, add:
    - `PYTHON_VERSION`: `3.12.13`
    - `INVESTOR_JWT_SECRET`: *(enter a unique, cryptographically random 256-bit secret string, e.g. generated via `openssl rand -hex 32`; **NEVER** commit secrets to version control)*
-   - `DATABASE_URL`: *(see [Connecting Supabase PostgreSQL Database Securely on Render.com](connect-supabase-postgresql-on-render.md) for details on formatting connection strings with `sslmode=verify-full`)*
 
 ---
 

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 2026-08-30
 
 ### Added
+
 - Diátaxis How-To guide for securely connecting Supabase PostgreSQL database instances on Render.com ([`docs/how-to/connect-supabase-postgresql-on-render.md`](docs/how-to/connect-supabase-postgresql-on-render.md)).
 
 ## [0.1.0] - 2026-08-25
