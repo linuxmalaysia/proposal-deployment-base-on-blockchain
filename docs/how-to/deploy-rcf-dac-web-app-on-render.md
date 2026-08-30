@@ -67,18 +67,32 @@ Ensure the repository contains the following deployment artifacts:
 
 ---
 
-### Method 2: Manual Web Service Setup on Render
+### Method 2: Manual Web Service Setup on Render (Free Tier Compatible)
 
-If creating the web service manually in the Render Dashboard:
+If creating the web service manually in the Render Dashboard (especially on Render's Free Tier):
 
-1. Click **New +** -> **Web Service**.
-2. Select your repository.
-3. Set the following parameters:
+> [!WARNING]
+> **Free Instance Plan Limitations:**
+> - Suitable for testing, prototyping, and hobby projects.
+> - Web services spin down (go to sleep) after 15 minutes of inactivity to conserve resources.
+> - Cold start incoming requests will experience a initial latency delay of approximately 50-60 seconds while the instance spins back up.
+> - Each workspace receives 750 free instance hours per month shared across free web services; services are suspended if monthly hours are exhausted.
+> - Excess outbound bandwidth or build minutes above free tier allowances may incur charges if a credit card or payment method is attached to the workspace.
+
+1. Log into the [Render Dashboard](https://dashboard.render.com/).
+2. Click **New +** -> **Web Service**.
+3. Select **Build and deploy from a Git repository** and connect your repository.
+4. Set the following explicit service parameters:
+   - **Name:** `rcf-dac-web-app`
    - **Runtime:** `Python 3`
+   - **Branch:** `main` (or active production branch)
+   - **Root Directory:** *(leave empty for repository root)*
    - **Build Command:** `uv sync`
    - **Start Command:** `uvicorn src.dca_service.web_app:app --host 0.0.0.0 --port $PORT`
-4. Under **Environment Variables**, add:
+   - **Instance Type:** **Free** ($0/month)
+5. Under **Environment Variables**, add:
    - `PYTHON_VERSION`: `3.12.13`
+   - `INVESTOR_JWT_SECRET`: *(enter a unique, cryptographically random 256-bit secret string, e.g. generated via `openssl rand -hex 32`; **NEVER** commit secrets to version control)*
 
 ---
 
@@ -109,6 +123,17 @@ Based on [Render's Official Troubleshooting Guide](https://render.com/docs/troub
   ```bash
   uvicorn src.dca_service.web_app:app --host 0.0.0.0 --port $PORT
   ```
+
+### 5. Missing Required Environment Variables (`INVESTOR_JWT_SECRET`)
+
+- **Symptom:** Deployment startup fails with `RuntimeError: FATAL: Missing required environment variable 'INVESTOR_JWT_SECRET'` or `Exited with status 1`.
+- **Resolution:** When configuring a manual Web Service, Render does not auto-generate environment variables (unlike Render Blueprints via `generateValue: true`). You must manually add `INVESTOR_JWT_SECRET` in the Render Dashboard:
+  1. Open your web service in the [Render Dashboard](https://dashboard.render.com/).
+  2. Select **Environment** from the side menu.
+  3. Under **Environment Variables**, click **Add Environment Variable**.
+  4. Set **Key** to `INVESTOR_JWT_SECRET`.
+  5. Set **Value** to a cryptographically random 256-bit string (e.g. run `openssl rand -hex 32` locally to generate one).
+  6. Click **Save Changes**. Render will automatically trigger a new deployment.
 
 ---
 
