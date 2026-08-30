@@ -151,7 +151,13 @@ def health_check() -> Dict[str, str]:
 
 
 def get_postgresql_connection():
-    """Attempt to establish a real PostgreSQL connection using psycopg with SSL verification."""
+    """
+    Establish a PostgreSQL connection using configured database credentials.
+    
+    Returns:
+        tuple: A connection and success message when connected, or ``None`` and an
+            error message when the driver, configuration, or connection is unavailable.
+    """
     try:
         import psycopg
     except ImportError:
@@ -177,7 +183,14 @@ def get_postgresql_connection():
 
 
 def initialize_database_schema() -> Dict[str, Any]:
-    """Execute docs/schema.sql DDL script against PostgreSQL database to create schema and tables."""
+    """
+    Execute the database schema script against PostgreSQL.
+    
+    Returns:
+        dict[str, Any]: A result containing `success` and `message` keys. `success`
+        is `True` when the schema is applied; otherwise, it is `False` and
+        `message` describes the failure.
+    """
     schema_file = BASE_DIR / "docs" / "schema.sql"
     if not schema_file.exists():
         return {"success": False, "message": "docs/schema.sql file missing"}
@@ -203,7 +216,14 @@ def initialize_database_schema() -> Dict[str, Any]:
 
 
 def check_database_connection() -> Dict[str, Any]:
-    """Check database connectivity (PostgreSQL & Supabase API) and verify tables read-only."""
+    """
+    Check PostgreSQL and Supabase Auth connectivity and report database schema status.
+    
+    Returns:
+        Dict[str, Any]: A diagnostic report containing connection states, latency,
+        masked environment configuration, expected table statuses, and the schema
+        file reference.
+    """
     supabase_url = os.environ.get("SUPABASE_URL", "https://tqudolprdioisrgqfyna.supabase.co")
     supabase_publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
     supabase_secret_key = os.environ.get("SUPABASE_SECRET_KEY", "")
@@ -289,6 +309,14 @@ def check_database_connection() -> Dict[str, Any]:
         tables.append({"table_name": tbl_name, "description": desc, "status": tbl_status})
 
     def mask_key(k: str) -> str:
+        """Mask a configuration key while preserving a small visible prefix and suffix.
+        
+        Parameters:
+        	k (str): The key to mask.
+        
+        Returns:
+        	str: ``"NOT CONFIGURED"`` for an empty key, a fully masked value for short keys, or the first and last four characters separated by an ellipsis.
+        """
         if not k:
             return "NOT CONFIGURED"
         if len(k) <= 8:
@@ -325,7 +353,18 @@ def get_db_status_api() -> Dict[str, Any]:
 def init_db_endpoint(
     authorization: Optional[str] = Header(None, alias="Authorization"),
 ) -> Dict[str, Any]:
-    """Execute docs/schema.sql DDL script to create database schema and tables (Admin only)."""
+    """
+    Initialize the database schema for an authenticated administrator.
+    
+    Parameters:
+        authorization (Optional[str]): Bearer token identifying an administrator.
+    
+    Returns:
+        Dict[str, Any]: The schema initialization result.
+    
+    Raises:
+        HTTPException: If authentication is missing or invalid, or the token does not identify an administrator.
+    """
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -348,7 +387,9 @@ def init_db_endpoint(
 @app.get("/db-status", response_class=HTMLResponse)
 @app.get("/db-connection", response_class=HTMLResponse)
 def serve_db_status_page() -> HTMLResponse:
-    """Serve interactive Database Connection & Schema Status web page."""
+    """
+    Render an HTML page showing database connectivity, latency, environment status, and schema-table verification.
+    """
     db_info = check_database_connection()
     is_conn = db_info["is_connected"]
 
@@ -451,7 +492,14 @@ def serve_db_status_page() -> HTMLResponse:
 
 @app.post("/api/register-user", status_code=status.HTTP_201_CREATED)
 def register_user(req: UserRegistrationRequest) -> Dict[str, Any]:
-    """Mint W3C Decentralised Identifier (DID) and register institutional user."""
+    """Register an institutional user and assign a unique decentralized identifier.
+    
+    Parameters:
+    	req (UserRegistrationRequest): User details to register.
+    
+    Returns:
+    	Dict[str, Any]: Registration status, user record, and simulated database table name.
+    """
     unique_nonce = uuid.uuid4()
     seed_str = f"{req.name}-{req.role}-{req.dept}-{time.time()}-{unique_nonce}"
     did_hash = hashlib.sha256(seed_str.encode()).hexdigest()[:16]
