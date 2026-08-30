@@ -75,7 +75,7 @@ The repository's Deep State of Mind (DSOM) profile mandates 13 mandatory metadat
 | `okf_version` | String | OKF specification version string | "0.2" |
 | `type` | String | Diátaxis or DSOM document classification | "explanation" |
 | `title` | String | Full title of document | "Open Knowledge Format (OKF v0.2)..." |
-| `timestamp` | String | ISO-8601 creation/last update timestamp | "2026-08-25T00:00:00Z" |
+| `timestamp` | String | ISO-8601 immutable document creation timestamp | "2026-08-25T00:00:00Z" |
 | `topics` | Array | Lowercase semantic tagging topics | ["okf", "dsom"] |
 | `description` | String | Executive summary of document contents | "Architectural specification..." |
 | `resource` | String | Permanent URI/file locator | "file:///docs/..." |
@@ -109,9 +109,9 @@ language: "en-GB"
 ## Frontmatter Invariants & Rules
 
 1. **Line 1 Column 1 Invariant:** Frontmatter MUST begin at line 1, column 1 with `---\n`.
-2. **Mandatory Field Invariant:** All 13 mandatory fields MUST be present. `okf_version` MUST be specified as `"0.2"`.
+2. **Mandatory Field Invariant:** All 13 mandatory fields MUST be present in non-generator-owned documents (generator-owned files such as `SUMMARY.md` are explicitly exempt from the `timestamp` requirement and retain `created`). `okf_version` MUST be specified as `"0.2"`.
 3. **Quoting Rules:** Strings with special characters MUST be enclosed in quotes.
-4. **Preservation of Raw Timestamps:** Raw creation timestamps MUST be preserved without alteration.
+4. **Preservation of Raw Timestamps:** The raw `timestamp` MUST represent the document's immutable creation time in ISO-8601 format and MUST be preserved without alteration.
 5. **Language Standard:** Documentation MUST use UK English standard spelling (e.g., `initialise`, `prioritise`, `segregated`).
 
 ## Verification & Link Validation

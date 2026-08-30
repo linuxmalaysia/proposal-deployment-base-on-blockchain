@@ -151,29 +151,28 @@ def health_check() -> Dict[str, str]:
 
 
 def get_postgresql_connection():
-    """
-    Establish a PostgreSQL connection using configured database credentials.
-    
-    Returns:
-        tuple: A connection and success message when connected, or ``None`` and an
-            error message when the driver, configuration, or connection is unavailable.
-    """
+    """Attempt to establish a real PostgreSQL connection using psycopg with SSL verification."""
     try:
         import psycopg
+        import urllib.parse
     except ImportError:
         return None, "psycopg driver not installed"
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         supabase_url = os.environ.get("SUPABASE_URL", "")
-        supabase_secret = os.environ.get("SUPABASE_SECRET_KEY", "")
-        if "tqudolprdioisrgqfyna" in supabase_url and supabase_secret:
-            ca_file = Path("/etc/secrets/prod-supabase-ca.crt")
-            ssl_params = "sslmode=verify-full&sslrootcert=/etc/secrets/prod-supabase-ca.crt" if ca_file.exists() else "sslmode=require"
-            database_url = f"postgresql://postgres.tqudolprdioisrgqfyna:{supabase_secret}@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?{ssl_params}"
+        db_pass = os.environ.get("SUPABASE_DB_PASSWORD", "")
+        if "tqudolprdioisrgqfyna" in supabase_url and db_pass:
+            encoded_pass = urllib.parse.quote_plus(db_pass)
+            ca_file = Path(os.environ.get("SUPABASE_SSLROOTCERT", "/etc/secrets/prod-supabase-ca.crt"))
+            if ca_file.exists():
+                ssl_params = f"sslmode=verify-full&sslrootcert={ca_file}"
+            else:
+                return None, "PostgreSQL CA certificate missing (/etc/secrets/prod-supabase-ca.crt); failing closed."
+            database_url = f"postgresql://postgres.tqudolprdioisrgqfyna:{encoded_pass}@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?{ssl_params}"
 
     if not database_url:
-        return None, "DATABASE_URL not configured"
+        return None, "DATABASE_URL or SUPABASE_DB_PASSWORD not configured"
 
     try:
         conn = psycopg.connect(database_url, connect_timeout=4)
@@ -183,14 +182,7 @@ def get_postgresql_connection():
 
 
 def initialize_database_schema() -> Dict[str, Any]:
-    """
-    Execute the database schema script against PostgreSQL.
-    
-    Returns:
-        dict[str, Any]: A result containing `success` and `message` keys. `success`
-        is `True` when the schema is applied; otherwise, it is `False` and
-        `message` describes the failure.
-    """
+    """Execute docs/schema.sql DDL script against PostgreSQL database to create schema and tables."""
     schema_file = BASE_DIR / "docs" / "schema.sql"
     if not schema_file.exists():
         return {"success": False, "message": "docs/schema.sql file missing"}
@@ -216,14 +208,7 @@ def initialize_database_schema() -> Dict[str, Any]:
 
 
 def check_database_connection() -> Dict[str, Any]:
-    """
-    Check PostgreSQL and Supabase Auth connectivity and report database schema status.
-    
-    Returns:
-        Dict[str, Any]: A diagnostic report containing connection states, latency,
-        masked environment configuration, expected table statuses, and the schema
-        file reference.
-    """
+    """Check database connectivity (PostgreSQL & Supabase API) and verify tables read-only."""
     supabase_url = os.environ.get("SUPABASE_URL", "https://tqudolprdioisrgqfyna.supabase.co")
     supabase_publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
     supabase_secret_key = os.environ.get("SUPABASE_SECRET_KEY", "")
@@ -309,14 +294,6 @@ def check_database_connection() -> Dict[str, Any]:
         tables.append({"table_name": tbl_name, "description": desc, "status": tbl_status})
 
     def mask_key(k: str) -> str:
-        """Mask a configuration key while preserving a small visible prefix and suffix.
-        
-        Parameters:
-        	k (str): The key to mask.
-        
-        Returns:
-        	str: ``"NOT CONFIGURED"`` for an empty key, a fully masked value for short keys, or the first and last four characters separated by an ellipsis.
-        """
         if not k:
             return "NOT CONFIGURED"
         if len(k) <= 8:
@@ -353,18 +330,7 @@ def get_db_status_api() -> Dict[str, Any]:
 def init_db_endpoint(
     authorization: Optional[str] = Header(None, alias="Authorization"),
 ) -> Dict[str, Any]:
-    """
-    Initialize the database schema for an authenticated administrator.
-    
-    Parameters:
-        authorization (Optional[str]): Bearer token identifying an administrator.
-    
-    Returns:
-        Dict[str, Any]: The schema initialization result.
-    
-    Raises:
-        HTTPException: If authentication is missing or invalid, or the token does not identify an administrator.
-    """
+    """Execute docs/schema.sql DDL script to create database schema and tables (Admin only)."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -387,9 +353,7 @@ def init_db_endpoint(
 @app.get("/db-status", response_class=HTMLResponse)
 @app.get("/db-connection", response_class=HTMLResponse)
 def serve_db_status_page() -> HTMLResponse:
-    """
-    Render an HTML page showing database connectivity, latency, environment status, and schema-table verification.
-    """
+    """Serve interactive Database Connection & Schema Status web page."""
     db_info = check_database_connection()
     is_conn = db_info["is_connected"]
 
@@ -492,14 +456,7 @@ def serve_db_status_page() -> HTMLResponse:
 
 @app.post("/api/register-user", status_code=status.HTTP_201_CREATED)
 def register_user(req: UserRegistrationRequest) -> Dict[str, Any]:
-    """Register an institutional user and assign a unique decentralized identifier.
-    
-    Parameters:
-    	req (UserRegistrationRequest): User details to register.
-    
-    Returns:
-    	Dict[str, Any]: Registration status, user record, and simulated database table name.
-    """
+    """Mint W3C Decentralised Identifier (DID) and register institutional user."""
     unique_nonce = uuid.uuid4()
     seed_str = f"{req.name}-{req.role}-{req.dept}-{time.time()}-{unique_nonce}"
     did_hash = hashlib.sha256(seed_str.encode()).hexdigest()[:16]

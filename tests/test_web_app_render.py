@@ -13,6 +13,7 @@ import json
 import os
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 # Configure environment secret before importing web_app module
 TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
@@ -378,7 +379,7 @@ def test_init_db_endpoint_requires_admin_role():
     assert res_forbidden.status_code == 403
     assert "administrator role required" in res_forbidden.json()["detail"].lower()
 
-    # 3. Admin user token -> 200
+    # 3. Admin user token -> 200 with mocked initialize_database_schema
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "sub": "admin_01",
@@ -395,8 +396,11 @@ def test_init_db_endpoint_requires_admin_role():
     sig_b64 = base64url_encode(signature)
     admin_jwt = f"{header_b64}.{payload_b64}.{sig_b64}"
 
-    res_admin = client.post(
-        "/api/init-db", headers={"Authorization": f"Bearer {admin_jwt}"}
-    )
-    assert res_admin.status_code == 200
-    assert "success" in res_admin.json()
+    with patch("dca_service.web_app.initialize_database_schema") as mock_init:
+        mock_init.return_value = {"success": True, "message": "Mocked DB initialization successful"}
+        res_admin = client.post(
+            "/api/init-db", headers={"Authorization": f"Bearer {admin_jwt}"}
+        )
+        assert res_admin.status_code == 200
+        assert res_admin.json()["success"] is True
+        mock_init.assert_called_once()
