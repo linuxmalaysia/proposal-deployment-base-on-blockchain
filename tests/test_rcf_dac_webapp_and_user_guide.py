@@ -10,6 +10,7 @@ CSS_STYLE = REPO_ROOT / "assets" / "css" / "style.css"
 INDEX_MD = REPO_ROOT / "index.md"
 USER_GUIDE_DOC = REPO_ROOT / "docs" / "tutorials" / "web-application-user-guide.md"
 PROPOSAL_DOC = REPO_ROOT / "docs" / "explanation" / "research-commercialisation-fund-dac-proposal.md"
+CONNECT_SUPABASE_DOC = REPO_ROOT / "docs" / "how-to" / "connect-supabase-postgresql-on-render.md"
 
 
 def _read(path: Path) -> str:
@@ -66,3 +67,61 @@ class TestRcfDacIndexMarkdown:
     def test_includes_parse_block_html_options(self):
         content = _read(INDEX_MD)
         assert '{::options parse_block_html="true" /}' in content
+
+
+class TestConnectSupabaseOnRenderDoc:
+    def test_file_exists(self):
+        assert CONNECT_SUPABASE_DOC.is_file()
+
+    def test_okf_v02_frontmatter_present(self):
+        content = _read(CONNECT_SUPABASE_DOC)
+        assert content.startswith("---")
+        assert 'okf_version: "0.2"' in content
+        assert 'type: "howto"' in content
+        assert 'language: "en-GB"' in content
+
+    def test_contains_direct_and_pooler_connection_strings(self):
+        content = _read(CONNECT_SUPABASE_DOC)
+        assert "db.tqudolprdioisrgqfyna.supabase.co:5432" in content
+        assert "aws-0-ap-southeast-1.pooler.supabase.com:6543" in content
+        assert "aws-0-ap-southeast-1.pooler.supabase.com:5432" in content
+
+    def test_contains_supabase_cli_commands(self):
+        content = _read(CONNECT_SUPABASE_DOC)
+        assert "supabase login" in content
+        assert "supabase init" in content
+        assert "supabase link --project-ref tqudolprdioisrgqfyna" in content
+
+    def test_contains_supabase_server_backend(self):
+        content = _read(CONNECT_SUPABASE_DOC)
+        assert "npm install @supabase/server" in content
+        assert "SUPABASE_URL=https://tqudolprdioisrgqfyna.supabase.co" in content
+        assert "SUPABASE_PUBLISHABLE_KEY=sb_publishable_sLCOhqUPC4FPdaoTOemeTQ_3TVrRURv" in content
+
+    def test_contains_ssr_and_client_sdk(self):
+        content = _read(CONNECT_SUPABASE_DOC)
+        assert "npm install @supabase/supabase-js @supabase/ssr" in content
+        assert "createServerClient" in content
+        assert "createBrowserClient" in content
+
+    def test_contains_prisma_orm(self):
+        content = _read(CONNECT_SUPABASE_DOC)
+        assert "npm install prisma --save-dev" in content
+        assert "npx prisma init" in content
+        assert "DATABASE_URL=" in content
+        assert "DIRECT_URL=" in content
+
+    def test_contains_mcp_gemini_setup(self):
+        content = _read(CONNECT_SUPABASE_DOC)
+        assert "gemini mcp add -t http supabase" in content
+        assert "/mcp auth supabase" in content
+
+    def test_contains_agent_skills(self):
+        content = _read(CONNECT_SUPABASE_DOC)
+        assert "npx skills add supabase/agent-skills" in content
+
+    def test_contains_render_env_vars_and_secret_files(self):
+        content = _read(CONNECT_SUPABASE_DOC)
+        assert "Render Environment Variables" in content
+        assert "Render Secret Files" in content
+        assert "/etc/secrets/" in content
