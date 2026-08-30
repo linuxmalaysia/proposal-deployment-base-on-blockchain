@@ -109,8 +109,8 @@ Render.com provides two primary mechanisms to securely inject sensitive credenti
 | :--- | :--- | :--- |
 | `DATABASE_URL` | Pooled connection string with SSL parameters | `postgresql://postgres.[YOUR-SUPABASE-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true` |
 | `SUPABASE_URL` | Base API endpoint URL | `https://[YOUR-SUPABASE-PROJECT-REF].supabase.co` |
-| `SUPABASE_PUBLISHABLE_KEY` | Publishable key for client-side API requests | `[YOUR-SUPABASE-PUBLISHABLE-KEY]` |
-| `SUPABASE_SECRET_KEY` | Administrative secret key (**Keep Private!**) | `sb_secret_...` |
+| `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_PUBLISHABLE_KEYS` | Publishable key for client-side API requests | `sb_publishable_...` |
+| `SUPABASE_SECRET_KEY` / `SUPABASE_SECRET_KEYS` | Administrative secret key (**Keep Private!**) | `sb_secret_...` |
 | `SUPABASE_JWKS_URL` | JSON Web Key Set endpoint for JWT verification | `https://[YOUR-SUPABASE-PROJECT-REF].supabase.co/auth/v1/.well-known/jwks.json` |
 
 5. Click **Save Changes** to trigger an automatic deployment.
@@ -189,6 +189,8 @@ Add the following parameters to your runtime `.env` or Render Environment Variab
 SUPABASE_URL=https://[YOUR-SUPABASE-PROJECT-REF].supabase.co
 SUPABASE_PUBLISHABLE_KEY=[YOUR-SUPABASE-PUBLISHABLE-KEY]
 SUPABASE_SECRET_KEY=[YOUR-SUPABASE-SECRET-KEY]
+SUPABASE_PUBLISHABLE_KEYS=[YOUR-SUPABASE-PUBLISHABLE-KEY]
+SUPABASE_SECRET_KEYS=[YOUR-SUPABASE-SECRET-KEY]
 SUPABASE_JWKS_URL=https://[YOUR-SUPABASE-PROJECT-REF].supabase.co/auth/v1/.well-known/jwks.json
 ```
 
