@@ -82,21 +82,23 @@ class TestConnectSupabaseOnRenderDoc:
 
     def test_contains_direct_and_pooler_connection_strings(self):
         content = _read(CONNECT_SUPABASE_DOC)
-        assert "db.tqudolprdioisrgqfyna.supabase.co:5432" in content
+        assert "db.[YOUR-SUPABASE-PROJECT-REF].supabase.co:5432" in content
         assert "aws-0-ap-southeast-1.pooler.supabase.com:6543" in content
         assert "aws-0-ap-southeast-1.pooler.supabase.com:5432" in content
 
     def test_contains_supabase_cli_commands(self):
         content = _read(CONNECT_SUPABASE_DOC)
+        assert "tqudolprdioisrgqfyna" not in content
         assert "supabase login" in content
         assert "supabase init" in content
-        assert "supabase link --project-ref tqudolprdioisrgqfyna" in content
+        assert "supabase link --project-ref [YOUR-SUPABASE-PROJECT-REF]" in content
 
     def test_contains_supabase_server_backend(self):
         content = _read(CONNECT_SUPABASE_DOC)
+        assert "sb_publishable_sLCOhqUPC4FPdaoTOemeTQ_3TVrRURv" not in content
         assert "npm install @supabase/server" in content
-        assert "SUPABASE_URL=https://tqudolprdioisrgqfyna.supabase.co" in content
-        assert "SUPABASE_PUBLISHABLE_KEY=sb_publishable_sLCOhqUPC4FPdaoTOemeTQ_3TVrRURv" in content
+        assert "SUPABASE_URL=https://[YOUR-SUPABASE-PROJECT-REF].supabase.co" in content
+        assert "SUPABASE_PUBLISHABLE_KEY=[YOUR-SUPABASE-PUBLISHABLE-KEY]" in content
 
     def test_contains_ssr_and_client_sdk(self):
         content = _read(CONNECT_SUPABASE_DOC)
