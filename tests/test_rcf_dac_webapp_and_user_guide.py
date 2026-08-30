@@ -88,12 +88,14 @@ class TestConnectSupabaseOnRenderDoc:
 
     def test_contains_supabase_cli_commands(self):
         content = _read(CONNECT_SUPABASE_DOC)
+        assert "tqudolprdioisrgqfyna" not in content
         assert "supabase login" in content
         assert "supabase init" in content
         assert "supabase link --project-ref [YOUR-SUPABASE-PROJECT-REF]" in content
 
     def test_contains_supabase_server_backend(self):
         content = _read(CONNECT_SUPABASE_DOC)
+        assert "sb_publishable_sLCOhqUPC4FPdaoTOemeTQ_3TVrRURv" not in content
         assert "npm install @supabase/server" in content
         assert "SUPABASE_URL=https://[YOUR-SUPABASE-PROJECT-REF].supabase.co" in content
         assert "SUPABASE_PUBLISHABLE_KEY=[YOUR-SUPABASE-PUBLISHABLE-KEY]" in content

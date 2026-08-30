@@ -160,10 +160,11 @@ def get_postgresql_connection():
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
+        pooler_host = os.environ.get("SUPABASE_POOLER_HOST") or os.environ.get("SUPABASE_DB_HOST")
         supabase_url = os.environ.get("SUPABASE_URL", "")
         db_pass = os.environ.get("SUPABASE_DB_PASSWORD", "")
-        if supabase_url and db_pass:
-            # Extract hostname/project ref if available
+        if pooler_host and supabase_url and db_pass:
+            # Extract project ref from URL hostname
             parsed = urllib.parse.urlparse(supabase_url)
             hostname = parsed.netloc or "your-supabase-project-ref.supabase.co"
             project_ref = hostname.split(".")[0]
@@ -173,7 +174,7 @@ def get_postgresql_connection():
                 ssl_params = f"sslmode=verify-full&sslrootcert={ca_file}"
             else:
                 return None, "PostgreSQL CA certificate missing (/etc/secrets/prod-supabase-ca.crt); failing closed."
-            database_url = f"postgresql://postgres.{project_ref}:{encoded_pass}@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?{ssl_params}"
+            database_url = f"postgresql://postgres.{project_ref}:{encoded_pass}@{pooler_host}:6543/postgres?{ssl_params}"
 
     if not database_url:
         return None, "DATABASE_URL or SUPABASE_DB_PASSWORD not configured"
