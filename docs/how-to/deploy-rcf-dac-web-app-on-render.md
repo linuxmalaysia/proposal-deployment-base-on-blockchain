@@ -67,18 +67,24 @@ Ensure the repository contains the following deployment artifacts:
 
 ---
 
-### Method 2: Manual Web Service Setup on Render
+### Method 2: Manual Web Service Setup on Render (Free Tier Compatible)
 
-If creating the web service manually in the Render Dashboard:
+If creating the web service manually in the Render Dashboard (especially on Render's Free Tier):
 
-1. Click **New +** -> **Web Service**.
-2. Select your repository.
-3. Set the following parameters:
+1. Log into the [Render Dashboard](https://dashboard.render.com/).
+2. Click **New +** -> **Web Service**.
+3. Select **Build and deploy from a Git repository** and connect your repository.
+4. Set the following explicit service parameters:
+   - **Name:** `rcf-dac-web-app`
    - **Runtime:** `Python 3`
+   - **Branch:** `main` (or active production branch)
+   - **Root Directory:** *(leave empty for repository root)*
    - **Build Command:** `uv sync`
    - **Start Command:** `uvicorn src.dca_service.web_app:app --host 0.0.0.0 --port $PORT`
-4. Under **Environment Variables**, add:
+   - **Instance Type:** **Free** ($0/month)
+5. Under **Environment Variables**, add:
    - `PYTHON_VERSION`: `3.12.13`
+   - `INVESTOR_JWT_SECRET`: *(enter a secure secret key string)*
 
 ---
 
