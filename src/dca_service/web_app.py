@@ -410,6 +410,52 @@ def get_investor_assets(
     }
 
 
+def render_markdown_to_html(md_text: str) -> str:
+    """Simple parser to convert index.md markdown elements to clean HTML."""
+    import re
+
+    # Strip Liquid tags like {::options ... /}
+    md_text = re.sub(r"\{::options.*?\/\}", "", md_text)
+
+    # Convert horizontal rules
+    md_text = re.sub(r"^---$", "<hr>", md_text, flags=re.MULTILINE)
+
+    # Convert headers (###, ##, #)
+    md_text = re.sub(r"^### (.*)$", r"<h3>\1</h3>", md_text, flags=re.MULTILINE)
+    md_text = re.sub(r"^## (.*)$", r"<h2>\1</h2>", md_text, flags=re.MULTILINE)
+    md_text = re.sub(r"^# (.*)$", r"<h1>\1</h1>", md_text, flags=re.MULTILINE)
+
+    # Convert bold text **text**
+    md_text = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", md_text)
+
+    # Convert markdown links [text](url)
+    md_text = re.sub(r"\[(.*?)\]\((.*?)\)", r'<a href="\2">\1</a>', md_text)
+
+    # Convert bullet lists - text
+    lines = md_text.splitlines()
+    html_lines = []
+    in_list = False
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            if not in_list:
+                html_lines.append("<ul>")
+                in_list = True
+            item_text = stripped[2:]
+            html_lines.append(f"  <li>{item_text}</li>")
+        else:
+            if in_list:
+                html_lines.append("</ul>")
+                in_list = False
+            html_lines.append(line)
+
+    if in_list:
+        html_lines.append("</ul>")
+
+    return "\n".join(html_lines)
+
+
 @app.get("/", response_class=HTMLResponse)
 def serve_index() -> HTMLResponse:
     """Serve interactive web application HTML homepage."""
@@ -421,6 +467,8 @@ def serve_index() -> HTMLResponse:
             if len(parts) >= 3:
                 content = parts[2]
 
+        rendered_html = render_markdown_to_html(content)
+
         html_wrapper = f"""<!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -431,7 +479,7 @@ def serve_index() -> HTMLResponse:
 </head>
 <body>
   <div class="container">
-    {content}
+    {rendered_html}
   </div>
 </body>
 </html>"""
