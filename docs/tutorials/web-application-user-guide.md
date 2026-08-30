@@ -43,7 +43,7 @@ The platform supports four primary user personas across the university innovatio
 ### Step 0: Check Database Connection & Schema Verification Status (`/db-status`)
 
 1. Open [/db-status](../../db-status) or click **🔌 DB Connection Status** in the application banner.
-2. Review real-time connection status (e.g. `SUCCESSFULLY CONNECTED`), latency diagnostics, secret environment variables (`SUPABASE_URL`, `SUPABASE_JWKS_URL`, `DATABASE_URL`), and verified project schema tables (`users`, `assets`, `cloverleaf_scores`, `revenue_splits`, `blockchain_transactions`).
+2. Review real-time connection status (`SUCCESSFULLY CONNECTED`), latency diagnostics, masked configuration status flags (`DATABASE_URL_CONFIGURED`, `SUPABASE_SECRET_KEY_CONFIGURED`), and verified project schema tables (`users`, `assets`, `cloverleaf_scores`, `revenue_splits`, `blockchain_transactions`).
 3. Click **Re-test Database Connection** or access [/api/db-status](../../api/db-status) for JSON metrics.
 
 ### Step 1: User Identity & W3C DID Registration (Module 1)

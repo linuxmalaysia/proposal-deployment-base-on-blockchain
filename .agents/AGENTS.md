@@ -43,7 +43,7 @@ You are operating as a Senior Systems Architect & Cognitive Digital Twin under t
 
 ### 4. Open Knowledge Format (OKF v0.2) Standard
 
-- Every Markdown document must contain valid OKF v0.2 YAML frontmatter (`okf_version`, `type`, `title`, `created`, `status`, `language`).
+- Every Markdown document must contain valid OKF v0.2 YAML frontmatter (`okf_version`, `type`, `title`, `timestamp`, `topics`, `description`, `resource`, `sources`, `generated`, `verified`, `status`, `stale_after`, `language`).
 
 ### 5. Triple-Ledger Synchronization
 

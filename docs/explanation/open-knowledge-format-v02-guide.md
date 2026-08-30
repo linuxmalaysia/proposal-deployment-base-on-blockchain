@@ -8,6 +8,7 @@ description: "Open Knowledge Format (OKF v0.2) architectural specification and a
 resource: "file:///docs/explanation/open-knowledge-format-v02-guide.md"
 sources: [
   "https://linuxmalaysia.github.io/deep-state-of-mind-for-my-ai/OKF-ADOPTION-GUIDE/",
+  "https://linuxmalaysia.github.io/deep-state-of-mind-for-my-ai/2026-07-24-okf-v02-announcement/",
   "README.md",
   "AGENTS.md",
   ".agents/AGENTS.md"
@@ -23,7 +24,7 @@ language: "en-GB"
 
 ## Executive Summary & Core Concept
 
-The Open Knowledge Format (OKF v0.2) was introduced by Google Cloud's Data Cloud team in June 2026 to overcome the fundamental bottlenecks of traditional Retrieval-Augmented Generation (RAG), including high token overhead and "lost-in-the-middle" attention degradation.
+The Open Knowledge Format (OKF v0.1) was introduced by Google Cloud's Data Cloud team in June 2026 to overcome the fundamental bottlenecks of traditional Retrieval-Augmented Generation (RAG), including high token overhead and "lost-in-the-middle" attention degradation.
 
 OKF provides a Git-native representation of knowledge assets stored as UTF-8 Markdown files with strict YAML frontmatter metadata schemas.
 
@@ -49,20 +50,24 @@ System performance advantages:
 - Multi-Agent interoperability
 
 ### 1. 98%+ Token & Cost Compression Ratio
+
 By leveraging directory routers and OKF frontmatter indexing, agents load only required sub-trees into LLM context windows.
 
 ### 2. Progressive Disclosure via Directory Index Routers
+
 `SUMMARY.md` serves as the root router for instant document discovery.
 
 ### 3. Zero-Loss Persistent Memory & Instant Reanimation
+
 Persistent spatial memory files maintain ongoing task execution state across agent restarts.
 
 ### 4. The Artifact Pyramid & Zero-Cost Context Prediction
+
 Structured metadata enables instant context resolution before deep file inspection.
 
 ## OKF Technical Specification & Conformance Rules
 
-The OKF specification mandates 13 mandatory metadata fields for every Markdown document.
+The repository's Deep State of Mind (DSOM) profile mandates 13 mandatory metadata fields for every Markdown document, whereas core OKF v0.2 specifies `type` by default and treats additional trust fields (`verified`, `generated`, `stale_after`) as opt-in profile extensions.
 
 ### OKF v0.2 Complete Frontmatter Schema
 
@@ -77,7 +82,7 @@ The OKF specification mandates 13 mandatory metadata fields for every Markdown d
 | `resource` | String | Permanent URI/file locator | "file:///docs/..." |
 | `sources` | Array | References and parent sources | ["README.md"] |
 | `generated` | String | Twin or author generator identity | "jules" |
-| `verified` | Boolean | True if cryptographically verified | true |
+| `verified` | Boolean | Verification flag or human-review timestamp status | true |
 | `status` | String | Document approval status | "approved" |
 | `stale_after` | String | ISO-8601 expiration timestamp | "2027-08-25T00:00:00Z" |
 | `language` | String | IETF BCP 47 language tag | "en-GB" |

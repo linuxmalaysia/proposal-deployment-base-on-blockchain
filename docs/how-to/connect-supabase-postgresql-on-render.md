@@ -413,5 +413,5 @@ npx skills add supabase/server
 
 1. **Enforce SSL Verification:** Always attach `sslmode=verify-full` and specify `sslrootcert=/etc/secrets/prod-supabase-ca.crt` on public cloud connections between Render.com and Supabase.
 2. **Prevent Secret Commitments:** Never commit raw passwords, project service role keys, or personal access tokens to version control. Use Render Secret Files or Environment Variables exclusively.
-3. **Database Migration Pipeline:** Perform database migrations (`supabase db push` or `npx prisma migrate deploy`) using `docs/schema.sql` during pre-deploy steps or dedicated CI/CD execution tasks to maintain dual-write transaction consistency.
-4. **Interactive Connection Status Page:** Access the built-in Database Diagnostic Page at `/db-status` (or `/api/db-status`) to verify real-time HTTP/PostgreSQL ping status, latency metrics, secret environment parameters, and project schema table verification.
+3. **Database Migration Pipeline:** Apply project schema DDL (`docs/schema.sql`) using a PostgreSQL client or administrative endpoint (`/api/init-db`), or place it into the migration directory of your ORM framework (e.g., Prisma or Supabase CLI) to maintain database table consistency.
+4. **Interactive Connection Status Page:** Access the built-in Database Diagnostic Page at `/db-status` (or `/api/db-status`) to inspect real-time connection status, latency metrics, and masked configuration flags (`DATABASE_URL_CONFIGURED`, `SUPABASE_SECRET_KEY_CONFIGURED`), along with information_schema table verification.

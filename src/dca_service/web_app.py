@@ -201,7 +201,7 @@ def initialize_database_schema() -> Dict[str, Any]:
 
 
 def check_database_connection() -> Dict[str, Any]:
-    """Check database connectivity (PostgreSQL & Supabase API), execute schema DDL if connected, and verify tables."""
+    """Check database connectivity (PostgreSQL & Supabase API) and verify tables read-only."""
     supabase_url = os.environ.get("SUPABASE_URL", "https://tqudolprdioisrgqfyna.supabase.co")
     supabase_publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
     supabase_secret_key = os.environ.get("SUPABASE_SECRET_KEY", "")
@@ -216,18 +216,12 @@ def check_database_connection() -> Dict[str, Any]:
     details = []
     verified_db_tables = set()
 
-    # 1. Real PostgreSQL database connection and schema verification
+    # 1. Read-only PostgreSQL database connection & table verification
     conn, pg_msg = get_postgresql_connection()
     if conn:
         db_connected = True
         details.append("PostgreSQL Database Connection Established")
         try:
-            schema_file = BASE_DIR / "docs" / "schema.sql"
-            if schema_file.exists():
-                with conn.cursor() as cur:
-                    cur.execute(schema_file.read_text(encoding="utf-8"))
-                conn.commit()
-
             with conn.cursor() as cur:
                 cur.execute(
                     "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
@@ -235,7 +229,7 @@ def check_database_connection() -> Dict[str, Any]:
                 rows = cur.fetchall()
                 verified_db_tables = {r[0] for r in rows}
             conn.close()
-            details.append(f"Query verified {len(verified_db_tables)} tables in PostgreSQL information_schema")
+            details.append(f"Query verified {len(verified_db_tables)} tables in information_schema")
         except Exception as exc:
             details.append(f"PostgreSQL query error: {exc}")
             try:
@@ -245,7 +239,7 @@ def check_database_connection() -> Dict[str, Any]:
     else:
         details.append(pg_msg)
 
-    # 2. Test Supabase HTTP API connectivity if JWKS URL is present
+    # 2. Test Supabase HTTP API connectivity separately
     if supabase_jwks_url:
         import urllib.request
         try:
@@ -261,9 +255,13 @@ def check_database_connection() -> Dict[str, Any]:
             details.append(f"Supabase HTTP API Error: {exc}")
 
     latency_ms = round((time.time() - start_time) * 1000, 2)
-    is_connected = db_connected or http_connected
 
-    connection_status = "SUCCESSFULLY CONNECTED" if is_connected else "DISCONNECTED"
+    if db_connected:
+        connection_status = "SUCCESSFULLY CONNECTED"
+    elif http_connected:
+        connection_status = "HTTP API OPERATIONAL (DB DISCONNECTED)"
+    else:
+        connection_status = "DISCONNECTED"
 
     table_names = ["users", "assets", "cloverleaf_scores", "revenue_splits", "blockchain_transactions"]
     table_descriptions = [
@@ -279,9 +277,9 @@ def check_database_connection() -> Dict[str, Any]:
         if tbl_name in verified_db_tables:
             tbl_status = "VERIFIED IN POSTGRESQL DB"
         elif db_connected:
-            tbl_status = "CREATED & VERIFIED"
+            tbl_status = "MISSING IN DATABASE"
         else:
-            tbl_status = "VERIFIED DDL SCHEMA"
+            tbl_status = "VERIFIED DDL SCHEMA FILE"
         tables.append({"table_name": tbl_name, "description": desc, "status": tbl_status})
 
     def mask_key(k: str) -> str:
@@ -293,7 +291,7 @@ def check_database_connection() -> Dict[str, Any]:
 
     return {
         "status": connection_status,
-        "is_connected": is_connected,
+        "is_connected": db_connected,
         "db_connected": db_connected,
         "http_api_connected": http_connected,
         "latency_ms": latency_ms,
@@ -318,8 +316,20 @@ def get_db_status_api() -> Dict[str, Any]:
 
 
 @app.post("/api/init-db")
-def init_db_endpoint() -> Dict[str, Any]:
-    """Execute docs/schema.sql DDL script to create database schema and tables."""
+def init_db_endpoint(
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+) -> Dict[str, Any]:
+    """Execute docs/schema.sql DDL script to create database schema and tables (Admin only)."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Missing or invalid Bearer token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = authorization.split("Bearer ", 1)[1].strip()
+    verify_investor_bearer_token(token)
+
     return initialize_database_schema()
 
 
