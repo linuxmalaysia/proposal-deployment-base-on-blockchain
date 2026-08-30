@@ -26,3 +26,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Open-Source MPC Wallet System Architecture documentation based on Coinbase `cb-mpc` cryptography library ([`docs/explanation/open-source-mpc-wallet-architecture.md`](docs/explanation/open-source-mpc-wallet-architecture.md)).
 - Research Commercialisation Fund (RCF) and Digital Asset Custodian (DAC) proposal documentation anchored on Percona Server for PostgreSQL ([`docs/explanation/research-commercialisation-fund-dac-proposal.md`](docs/explanation/research-commercialisation-fund-dac-proposal.md)).
 - Complete Diátaxis Framework documentation expansion (Tutorials, How-To Guides, and Technical Reference).
+- Interactive FastAPI Web Application (`src/dca_service/web_app.py`) for RCF & DAC portal modules (W3C DID user registration, asset vault SHA-256 evidence hashing, Cloverleaf MRS score calculation, investor data room, revenue split matrix).
+- Render.com Blueprint deployment specification (`render.yaml`) and deployment guide ([`docs/how-to/deploy-rcf-dac-web-app-on-render.md`](docs/how-to/deploy-rcf-dac-web-app-on-render.md)).

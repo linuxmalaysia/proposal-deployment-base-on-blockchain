@@ -1,0 +1,17 @@
+# Render Infrastructure as Code (Blueprint Specification)
+# RCF & DAC Interactive Web Application Service on Render.com
+services:
+  - type: web
+    name: rcf-dac-web-app
+    runtime: python
+    region: singapore # or oregon, frankfurt, etc.
+    plan: starter
+    buildCommand: "uv sync"
+    startCommand: "uvicorn src.dca_service.web_app:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.13
+      - key: INVESTOR_JWT_SECRET
+        generateValue: true
+      - key: UV_SYNC_EXTRA
+        value: ""
