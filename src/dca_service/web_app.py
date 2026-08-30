@@ -151,7 +151,13 @@ def health_check() -> Dict[str, str]:
 
 
 def get_postgresql_connection():
-    """Attempt to establish a real PostgreSQL connection using psycopg with SSL verification."""
+    """
+    Establish a PostgreSQL connection using configured credentials and SSL verification.
+    
+    Returns:
+    	connection (psycopg.Connection or None): The PostgreSQL connection on success, or `None` when the driver, configuration, certificate, or connection is unavailable.
+    	status (str): A success or error message describing the connection result.
+    """
     try:
         import psycopg
         import urllib.parse
@@ -213,7 +219,12 @@ def initialize_database_schema() -> Dict[str, Any]:
 
 
 def check_database_connection() -> Dict[str, Any]:
-    """Check database connectivity (PostgreSQL & Supabase API) and verify tables read-only."""
+    """
+    Check PostgreSQL connectivity, verify expected public tables, and test the Supabase authentication API.
+    
+    Returns:
+        Dict[str, Any]: Diagnostic status including connection results, latency, timestamp, and table verification details.
+    """
     supabase_url = os.environ.get("SUPABASE_URL", "")
     supabase_publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
     supabase_secret_key = os.environ.get("SUPABASE_SECRET_KEY", "")
@@ -345,7 +356,12 @@ def init_db_endpoint(
 @app.get("/db-status", response_class=HTMLResponse)
 @app.get("/db-connection", response_class=HTMLResponse)
 def serve_db_status_page() -> HTMLResponse:
-    """Serve interactive Database Connection & Schema Status web page."""
+    """
+    Serve the interactive database connection and schema status page.
+    
+    Returns:
+    	HTMLResponse: HTML containing current connection diagnostics and schema table statuses.
+    """
     db_info = check_database_connection()
     is_conn = db_info["is_connected"]
 
