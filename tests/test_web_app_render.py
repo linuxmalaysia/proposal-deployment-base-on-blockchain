@@ -355,3 +355,40 @@ def test_db_status_html_dashboard_pages():
         assert "Supabase" in response.text
         assert "Database Status" in response.text
         assert "schema.sql" in response.text
+
+
+def test_init_db_endpoint_requires_admin_role():
+    # 1. Unauthenticated request -> 401
+    res_unauth = client.post("/api/init-db")
+    assert res_unauth.status_code == 401
+
+    # 2. Accredited non-admin user token -> 403
+    user_jwt = create_investor_jwt(sub="accredited_investor_01")
+    res_forbidden = client.post(
+        "/api/init-db", headers={"Authorization": f"Bearer {user_jwt}"}
+    )
+    assert res_forbidden.status_code == 403
+    assert "administrator role required" in res_forbidden.json()["detail"].lower()
+
+    # 3. Admin user token -> 200
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {
+        "sub": "admin_01",
+        "iss": "https://auth.rcf-dac.univ.edu.my",
+        "aud": "rcf-dac-data-room",
+        "exp": int(time.time() + 3600),
+        "accredited_investor": True,
+        "admin": True,
+    }
+    header_b64 = base64url_encode(json.dumps(header, separators=(",", ":")).encode())
+    payload_b64 = base64url_encode(json.dumps(payload, separators=(",", ":")).encode())
+    signing_input = f"{header_b64}.{payload_b64}".encode()
+    signature = hmac.new(TEST_JWT_SECRET, signing_input, hashlib.sha256).digest()
+    sig_b64 = base64url_encode(signature)
+    admin_jwt = f"{header_b64}.{payload_b64}.{sig_b64}"
+
+    res_admin = client.post(
+        "/api/init-db", headers={"Authorization": f"Bearer {admin_jwt}"}
+    )
+    assert res_admin.status_code == 200
+    assert "success" in res_admin.json()

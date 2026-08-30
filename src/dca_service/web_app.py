@@ -151,7 +151,7 @@ def health_check() -> Dict[str, str]:
 
 
 def get_postgresql_connection():
-    """Attempt to establish a real PostgreSQL connection using psycopg."""
+    """Attempt to establish a real PostgreSQL connection using psycopg with SSL verification."""
     try:
         import psycopg
     except ImportError:
@@ -162,7 +162,9 @@ def get_postgresql_connection():
         supabase_url = os.environ.get("SUPABASE_URL", "")
         supabase_secret = os.environ.get("SUPABASE_SECRET_KEY", "")
         if "tqudolprdioisrgqfyna" in supabase_url and supabase_secret:
-            database_url = f"postgresql://postgres.tqudolprdioisrgqfyna:{supabase_secret}@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+            ca_file = Path("/etc/secrets/prod-supabase-ca.crt")
+            ssl_params = "sslmode=verify-full&sslrootcert=/etc/secrets/prod-supabase-ca.crt" if ca_file.exists() else "sslmode=require"
+            database_url = f"postgresql://postgres.tqudolprdioisrgqfyna:{supabase_secret}@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?{ssl_params}"
 
     if not database_url:
         return None, "DATABASE_URL not configured"
@@ -218,6 +220,7 @@ def check_database_connection() -> Dict[str, Any]:
 
     # 1. Read-only PostgreSQL database connection & table verification
     conn, pg_msg = get_postgresql_connection()
+    query_succeeded = False
     if conn:
         db_connected = True
         details.append("PostgreSQL Database Connection Established")
@@ -228,6 +231,7 @@ def check_database_connection() -> Dict[str, Any]:
                 )
                 rows = cur.fetchall()
                 verified_db_tables = {r[0] for r in rows}
+                query_succeeded = True
             conn.close()
             details.append(f"Query verified {len(verified_db_tables)} tables in information_schema")
         except Exception as exc:
@@ -276,8 +280,10 @@ def check_database_connection() -> Dict[str, Any]:
     for tbl_name, desc in zip(table_names, table_descriptions):
         if tbl_name in verified_db_tables:
             tbl_status = "VERIFIED IN POSTGRESQL DB"
-        elif db_connected:
+        elif db_connected and query_succeeded:
             tbl_status = "MISSING IN DATABASE"
+        elif db_connected:
+            tbl_status = "UNKNOWN (QUERY FAILED)"
         else:
             tbl_status = "VERIFIED DDL SCHEMA FILE"
         tables.append({"table_name": tbl_name, "description": desc, "status": tbl_status})
@@ -328,7 +334,13 @@ def init_db_endpoint(
         )
 
     token = authorization.split("Bearer ", 1)[1].strip()
-    verify_investor_bearer_token(token)
+    payload = verify_investor_bearer_token(token)
+
+    if not payload.get("admin") and payload.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Administrator role required for schema initialization.",
+        )
 
     return initialize_database_schema()
 

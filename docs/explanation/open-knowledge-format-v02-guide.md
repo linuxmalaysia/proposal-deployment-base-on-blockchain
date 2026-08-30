@@ -8,7 +8,6 @@ description: "Open Knowledge Format (OKF v0.2) architectural specification and a
 resource: "file:///docs/explanation/open-knowledge-format-v02-guide.md"
 sources: [
   "https://linuxmalaysia.github.io/deep-state-of-mind-for-my-ai/OKF-ADOPTION-GUIDE/",
-  "https://linuxmalaysia.github.io/deep-state-of-mind-for-my-ai/2026-07-24-okf-v02-announcement/",
   "README.md",
   "AGENTS.md",
   ".agents/AGENTS.md"
@@ -82,7 +81,7 @@ The repository's Deep State of Mind (DSOM) profile mandates 13 mandatory metadat
 | `resource` | String | Permanent URI/file locator | "file:///docs/..." |
 | `sources` | Array | References and parent sources | ["README.md"] |
 | `generated` | String | Twin or author generator identity | "jules" |
-| `verified` | Boolean | Verification flag or human-review timestamp status | true |
+| `verified` | Boolean | Verification status flag (DSOM profile intentionally restricts verified to a Boolean while core OKF v0.2 allows structured {by, at} mappings) | true |
 | `status` | String | Document approval status | "approved" |
 | `stale_after` | String | ISO-8601 expiration timestamp | "2027-08-25T00:00:00Z" |
 | `language` | String | IETF BCP 47 language tag | "en-GB" |
