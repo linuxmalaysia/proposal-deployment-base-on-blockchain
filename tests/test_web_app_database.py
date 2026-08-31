@@ -34,6 +34,8 @@ DATABASE_ENV_KEYS = (
 @pytest.fixture(autouse=True)
 def isolate_database_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep database tests independent from workstation configuration."""
+    web_app._DB_STATUS_CACHE = None
+    web_app._DB_STATUS_CACHE_TIMESTAMP = 0.0
     for key in DATABASE_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
 
@@ -279,6 +281,28 @@ def test_status_endpoints_do_not_expose_configured_secret_names_or_values(
             assert key not in output
             assert value not in output
         assert "Environment Secret Variables" not in output
+
+
+def test_check_database_connection_uses_ttl_cache_unless_bypassed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection1, _ = make_connection([("users",)])
+    get_conn_mock = MagicMock(return_value=(connection1, "Connected to PostgreSQL"))
+    monkeypatch.setattr(web_app, "get_postgresql_connection", get_conn_mock)
+
+    res1 = web_app.check_database_connection()
+    assert res1["cached"] is False
+    assert get_conn_mock.call_count == 1
+
+    # Second query within TTL returns cached result
+    res2 = web_app.check_database_connection()
+    assert res2["cached"] is True
+    assert get_conn_mock.call_count == 1
+
+    # Bypassing cache triggers fresh DB check
+    res3 = web_app.check_database_connection(bypass_cache=True)
+    assert res3["cached"] is False
+    assert get_conn_mock.call_count == 2
 
 
 def test_auto_check_and_build_schema_builds_missing_tables(

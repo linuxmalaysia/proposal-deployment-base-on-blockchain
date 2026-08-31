@@ -71,6 +71,7 @@ Blockchains operate as immutable, append-only time-series databases. Using tradi
 **TimescaleDB** transforms PostgreSQL into a high-performance time-series database through **Hypertables**:
 - **Automatic Partitioning (Chunks):** Hypertables automatically partition incoming data into discrete time-based chunks (e.g., daily or weekly ranges) alongside space partitioning.
 - **Append-Only Write Performance:** Write operations hit active, recent memory-resident chunks, avoiding deep index traversals typical of standard B-Trees.
+- **Composite Indexing:** High-concurrency query execution is accelerated via composite indexes on time-bucket hypertables `blockchain_transactions(timestamp, sync_state)` and research assets `assets(created_at, trl)`.
 - **Real-Time Analytics & Aggregations:** Continuous aggregate views compute rollups and metrics (e.g., hourly transactional throughput, volume by asset type) in real-time.
 
 ---

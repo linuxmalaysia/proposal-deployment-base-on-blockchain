@@ -93,6 +93,11 @@ ASSET_REGISTRY: Dict[str, Dict[str, Any]] = {}
 LAST_SCHEMA_AUTO_CHECK_RESULT: Optional[Dict[str, Any]] = None
 SCHEMA_BACKGROUND_TASK: Optional[Any] = None
 
+# DB Status Diagnostic Cache Configuration & State
+DB_STATUS_CACHE_TTL: float = float(os.environ.get("DB_STATUS_CACHE_TTL", "5.0"))
+_DB_STATUS_CACHE: Optional[Dict[str, Any]] = None
+_DB_STATUS_CACHE_TIMESTAMP: float = 0.0
+
 RevenueType = Literal["royalties", "licensing", "equity", "dividend"]
 ContentEncoding = Literal["base64", "raw", "text"]
 
@@ -376,13 +381,25 @@ def auto_check_and_build_schema() -> Dict[str, Any]:
 
 
 
-def check_database_connection() -> Dict[str, Any]:
+def check_database_connection(bypass_cache: bool = False) -> Dict[str, Any]:
     """
     Check PostgreSQL connectivity, verify expected public tables, and test the Supabase authentication API.
+    Uses in-memory TTL caching to minimize database round-trips under high-concurrency polling unless bypassed.
     
+    Args:
+        bypass_cache (bool): If True, forces a fresh database check bypassing cached result.
+
     Returns:
         Dict[str, Any]: Diagnostic status including connection results, latency, timestamp, and table verification details.
     """
+    global _DB_STATUS_CACHE, _DB_STATUS_CACHE_TIMESTAMP
+    now = time.time()
+
+    if not bypass_cache and _DB_STATUS_CACHE is not None and (now - _DB_STATUS_CACHE_TIMESTAMP) < DB_STATUS_CACHE_TTL:
+        cached = dict(_DB_STATUS_CACHE)
+        cached["cached"] = True
+        return cached
+
     supabase_url = os.environ.get("SUPABASE_URL", "")
     supabase_publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "") or parse_secret_key_env(os.environ.get("SUPABASE_PUBLISHABLE_KEYS")) or ""
     supabase_secret_key = os.environ.get("SUPABASE_SECRET_KEY", "") or parse_secret_key_env(os.environ.get("SUPABASE_SECRET_KEYS")) or ""
@@ -468,7 +485,7 @@ def check_database_connection() -> Dict[str, Any]:
             tbl_status = "VERIFIED DDL SCHEMA FILE"
         tables.append({"table_name": tbl_name, "description": desc, "status": tbl_status})
 
-    return {
+    res = {
         "status": connection_status,
         "is_connected": db_connected,
         "db_connected": db_connected,
@@ -478,13 +495,18 @@ def check_database_connection() -> Dict[str, Any]:
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "schema_tables": tables,
         "schema_file": "docs/schema.sql",
+        "cached": False,
     }
+
+    _DB_STATUS_CACHE = res
+    _DB_STATUS_CACHE_TIMESTAMP = now
+    return res
 
 
 @app.get("/api/db-status")
-def get_db_status_api() -> Dict[str, Any]:
+def get_db_status_api(bypass_cache: bool = False, force: bool = False) -> Dict[str, Any]:
     """Return database connection status, network latency, and schema verification in JSON."""
-    return check_database_connection()
+    return check_database_connection(bypass_cache=bypass_cache or force)
 
 
 @app.post("/api/init-db")
@@ -513,14 +535,14 @@ def init_db_endpoint(
 
 @app.get("/db-status", response_class=HTMLResponse)
 @app.get("/db-connection", response_class=HTMLResponse)
-def serve_db_status_page() -> HTMLResponse:
+def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTMLResponse:
     """
     Serve the interactive database connection and schema status page.
     
     Returns:
     	HTMLResponse: HTML containing current connection diagnostics and schema table statuses.
     """
-    db_info = check_database_connection()
+    db_info = check_database_connection(bypass_cache=bypass_cache or force)
     is_conn = db_info["is_connected"]
 
     status_badge = (
@@ -536,6 +558,12 @@ def serve_db_status_page() -> HTMLResponse:
           <td style='padding:0.5rem;'>{tbl['description']}</td>
           <td style='padding:0.5rem;'><span style="color: #28a745; font-weight: bold;">✅ {tbl['status']}</span></td>
         </tr>"""
+
+    cache_indicator = (
+        '<span style="color: #6c757d; font-size: 0.9rem; margin-left: 0.5rem;">(⚡ Cached TTL response)</span>'
+        if db_info.get("cached")
+        else '<span style="color: #28a745; font-size: 0.9rem; margin-left: 0.5rem;">(🔄 Fresh query)</span>'
+    )
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en-GB">
@@ -565,7 +593,7 @@ def serve_db_status_page() -> HTMLResponse:
         </tr>
         <tr>
           <td style="padding: 0.5rem 0;"><strong>Round-Trip Latency:</strong></td>
-          <td style="padding: 0.5rem 0;"><strong>{db_info['latency_ms']} ms</strong></td>
+          <td style="padding: 0.5rem 0;"><strong>{db_info['latency_ms']} ms</strong> {cache_indicator}</td>
         </tr>
         <tr>
           <td style="padding: 0.5rem 0;"><strong>Checked Timestamp:</strong></td>
@@ -592,7 +620,7 @@ def serve_db_status_page() -> HTMLResponse:
     </div>
 
     <div style="text-align: center; margin-top: 2rem; margin-bottom: 3rem;">
-      <a href="/db-status" class="btn" style="background: #0066cc; color: white; padding: 0.8rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">🔄 Re-test Database Connection</a>
+      <a href="/db-status?bypass_cache=true" class="btn" style="background: #0066cc; color: white; padding: 0.8rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">🔄 Re-test Database Connection</a>
       <a href="/api/db-status" target="_blank" class="btn" style="background: #6c757d; color: white; padding: 0.8rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold; margin-left: 1rem;">View JSON API Endpoint</a>
     </div>
   </div>
