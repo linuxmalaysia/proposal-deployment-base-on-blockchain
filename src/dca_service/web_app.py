@@ -8,6 +8,7 @@ Governed by DSOM Protocol // OKF v0.2 Standard // Concentric Clean Architecture.
 from __future__ import annotations
 
 import base64
+from contextlib import asynccontextmanager
 import hashlib
 import hmac
 import json
@@ -24,20 +25,10 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-# Initialise FastAPI web application instance
-app = FastAPI(
-    title="RCF & DAC Interactive Web Portal",
-    description="Research Commercialisation Fund & Digital Asset Custodian Service API",
-    version="0.1.0",
-)
-
 # Root directory pathing
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ASSETS_DIR = BASE_DIR / "assets"
 DOCS_DIR = BASE_DIR / "docs"
-
-if ASSETS_DIR.exists():
-    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 
 def load_secrets_from_env_files() -> None:
@@ -99,6 +90,8 @@ EXPECTED_AUDIENCE = "rcf-dac-data-room"
 # In-memory storage for demonstration / web service operation
 USER_REGISTRY: Dict[str, Dict[str, Any]] = {}
 ASSET_REGISTRY: Dict[str, Dict[str, Any]] = {}
+LAST_SCHEMA_AUTO_CHECK_RESULT: Optional[Dict[str, Any]] = None
+SCHEMA_BACKGROUND_TASK: Optional[Any] = None
 
 RevenueType = Literal["royalties", "licensing", "equity", "dividend"]
 ContentEncoding = Literal["base64", "raw", "text"]
@@ -165,6 +158,59 @@ class RevenueSplitRequest(BaseModel):
 
 # --- API Endpoints ---
 
+def _safe_auto_check_and_build_schema() -> Dict[str, Any]:
+    """Fail-safe wrapper ensuring no background thread exception escapes unhandled."""
+    try:
+        return auto_check_and_build_schema()
+    except Exception as exc:
+        global LAST_SCHEMA_AUTO_CHECK_RESULT
+        res = {
+            "success": False,
+            "message": f"Fail-safe schema auto-check error: {exc}",
+            "db_connected": False,
+            "tables_created": [],
+            "missing_tables": ["users", "assets", "cloverleaf_scores", "revenue_splits", "blockchain_transactions"],
+        }
+        LAST_SCHEMA_AUTO_CHECK_RESULT = res
+        return res
+
+
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    """
+    FastAPI lifespan context manager ensuring non-blocking schema auto-checking and table building on startup.
+
+    Args:
+        app_instance (FastAPI): The active FastAPI web application instance.
+    """
+    global SCHEMA_BACKGROUND_TASK
+    import asyncio
+    try:
+        SCHEMA_BACKGROUND_TASK = asyncio.create_task(asyncio.to_thread(_safe_auto_check_and_build_schema))
+    except Exception:
+        pass
+
+    yield
+
+    if SCHEMA_BACKGROUND_TASK is not None and not SCHEMA_BACKGROUND_TASK.done():
+        try:
+            await asyncio.wait_for(asyncio.shield(SCHEMA_BACKGROUND_TASK), timeout=5.0)
+        except Exception:
+            pass
+
+
+# Initialise FastAPI web application instance with lifespan context
+app = FastAPI(
+    title="RCF & DAC Interactive Web Portal",
+    description="Research Commercialisation Fund & Digital Asset Custodian Service API",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+if ASSETS_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+
+
 @app.get("/health")
 def health_check() -> Dict[str, str]:
     """Health check endpoint for Render service monitoring."""
@@ -214,7 +260,12 @@ def get_postgresql_connection():
 
 
 def initialize_database_schema() -> Dict[str, Any]:
-    """Execute docs/schema.sql DDL script against PostgreSQL database to create schema and tables."""
+    """
+    Execute docs/schema.sql DDL script against PostgreSQL database to create schema and tables.
+
+    Returns:
+        Dict[str, Any]: Execution status dictionary containing success boolean and descriptive message.
+    """
     schema_file = BASE_DIR / "docs" / "schema.sql"
     if not schema_file.exists():
         return {"success": False, "message": "docs/schema.sql file missing"}
@@ -226,6 +277,7 @@ def initialize_database_schema() -> Dict[str, Any]:
 
     try:
         with conn.cursor() as cur:
+            cur.execute("SET statement_timeout = 10000; SET lock_timeout = 5000;")
             cur.execute(sql_script)
         conn.commit()
         conn.close()
@@ -237,6 +289,91 @@ def initialize_database_schema() -> Dict[str, Any]:
         except Exception:
             pass
         return {"success": False, "message": f"Failed to execute schema DDL: {exc}"}
+
+
+def auto_check_and_build_schema() -> Dict[str, Any]:
+    """
+    Fail-safe automatic schema check and table build routine for application deployment on Render.com.
+
+    Inspects PostgreSQL information_schema.tables for existing application schema tables, maintaining
+    existing data, and automatically executing DDL schema statements if missing tables are detected.
+    Retains schema check and initialisation results in module-level state for operator diagnostics.
+
+    Returns:
+        Dict[str, Any]: Execution status dictionary containing success boolean, message string,
+        db_connected status boolean, tables_created list, and missing_tables list.
+    """
+    global LAST_SCHEMA_AUTO_CHECK_RESULT
+    expected_tables = ["users", "assets", "cloverleaf_scores", "revenue_splits", "blockchain_transactions"]
+    conn, msg = get_postgresql_connection()
+    if not conn:
+        res = {
+            "success": False,
+            "message": f"Auto schema check skipped: {msg}",
+            "db_connected": False,
+            "tables_created": [],
+            "missing_tables": expected_tables,
+        }
+        LAST_SCHEMA_AUTO_CHECK_RESULT = res
+        return res
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SET statement_timeout = 10000; SET lock_timeout = 5000;")
+            cur.execute(
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
+            )
+            existing_tables = {r[0] for r in cur.fetchall()}
+
+        missing_tables = [tbl for tbl in expected_tables if tbl not in existing_tables]
+        conn.close()
+
+        if not missing_tables:
+            res = {
+                "success": True,
+                "message": "All required schema tables verified in PostgreSQL database.",
+                "db_connected": True,
+                "tables_created": [],
+                "missing_tables": [],
+            }
+            LAST_SCHEMA_AUTO_CHECK_RESULT = res
+            return res
+
+        res_init = initialize_database_schema()
+        if res_init.get("success"):
+            res = {
+                "success": True,
+                "message": f"Successfully auto-built missing schema tables: {', '.join(missing_tables)}",
+                "db_connected": True,
+                "tables_created": missing_tables,
+                "missing_tables": [],
+            }
+        else:
+            res = {
+                "success": False,
+                "message": f"Auto-build failed for missing tables ({', '.join(missing_tables)}): {res_init.get('message')}",
+                "db_connected": True,
+                "tables_created": [],
+                "missing_tables": missing_tables,
+            }
+        LAST_SCHEMA_AUTO_CHECK_RESULT = res
+        return res
+    except Exception as exc:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        res = {
+            "success": False,
+            "message": f"Fail-safe schema auto-check error: {exc}",
+            "db_connected": True,
+            "tables_created": [],
+            "missing_tables": expected_tables,
+        }
+        LAST_SCHEMA_AUTO_CHECK_RESULT = res
+        return res
+
+
 
 
 def check_database_connection() -> Dict[str, Any]:
@@ -354,7 +491,7 @@ def get_db_status_api() -> Dict[str, Any]:
 def init_db_endpoint(
     authorization: Optional[str] = Header(None, alias="Authorization"),
 ) -> Dict[str, Any]:
-    """Execute docs/schema.sql DDL script to create database schema and tables (Admin only)."""
+    """Execute docs/schema.sql DDL script to initialise database schema and tables (Admin only)."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -368,7 +505,7 @@ def init_db_endpoint(
     if not payload.get("admin") and payload.get("role") != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authorisation failed. Administrator role required for schema initialization.",
+            detail="Authorisation failed. Administrator role required for schema initialisation.",
         )
 
     return initialize_database_schema()

@@ -27,10 +27,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-08-30
+## [Unreleased] - 2026-08-31
 
 ### Added
 
+- Automatic fail-safe database schema check and table building routine (`auto_check_and_build_schema`) triggered upon application startup via FastAPI `lifespan` context manager in `src/dca_service/web_app.py`.
+- Non-destructive `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` execution preserving existing database tables and records on Render.com deployments.
 - Interactive Database Connection Status page (`/db-status`) and JSON diagnostic endpoint (`/api/db-status`) verifying real-time connection status, secret variables, and schema tables in `src/dca_service/web_app.py`.
 - SQL DDL schema files (`docs/schema.sql` and `src/dca_service/schema.sql`) for project PostgreSQL tables (`users`, `assets`, `cloverleaf_scores`, `revenue_splits`, `blockchain_transactions`).
 - Secret file loader and fallback handling for `INVESTOR_JWT_SECRET` using `SUPABASE_SECRET_KEY` or environment variables on Render.com.

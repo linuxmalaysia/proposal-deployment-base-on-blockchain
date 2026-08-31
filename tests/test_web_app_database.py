@@ -279,3 +279,92 @@ def test_status_endpoints_do_not_expose_configured_secret_names_or_values(
             assert key not in output
             assert value not in output
         assert "Environment Secret Variables" not in output
+
+
+def test_auto_check_and_build_schema_builds_missing_tables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify auto_check_and_build_schema executes DDL schema initialisation when missing tables exist."""
+    connection, cursor = make_connection([("users",)])
+    monkeypatch.setattr(
+        web_app,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected to PostgreSQL"),
+    )
+    mock_init = MagicMock(return_value={"success": True, "message": "Schema executed"})
+    monkeypatch.setattr(web_app, "initialize_database_schema", mock_init)
+
+    res = web_app.auto_check_and_build_schema()
+
+    assert res["success"] is True
+    assert res["db_connected"] is True
+    assert set(res["tables_created"]) == {
+        "assets",
+        "cloverleaf_scores",
+        "revenue_splits",
+        "blockchain_transactions",
+    }
+    mock_init.assert_called_once()
+    connection.close.assert_called_once()
+
+
+def test_auto_check_and_build_schema_skips_when_all_tables_exist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify auto_check_and_build_schema skips DDL schema initialisation when all required tables exist."""
+    connection, cursor = make_connection(
+        [
+            ("users",),
+            ("assets",),
+            ("cloverleaf_scores",),
+            ("revenue_splits",),
+            ("blockchain_transactions",),
+        ]
+    )
+    monkeypatch.setattr(
+        web_app,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected to PostgreSQL"),
+    )
+    mock_init = MagicMock()
+    monkeypatch.setattr(web_app, "initialize_database_schema", mock_init)
+
+    res = web_app.auto_check_and_build_schema()
+
+    assert res["success"] is True
+    assert res["db_connected"] is True
+    assert res["tables_created"] == []
+    mock_init.assert_not_called()
+    connection.close.assert_called_once()
+
+
+def test_auto_check_and_build_schema_handles_connection_failure_failsafely(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify auto_check_and_build_schema handles database connection errors fail-safely without raising."""
+    monkeypatch.setattr(
+        web_app,
+        "get_postgresql_connection",
+        lambda: (None, "PostgreSQL connection error: network unavailable"),
+    )
+
+    res = web_app.auto_check_and_build_schema()
+
+    assert res["success"] is False
+    assert res["db_connected"] is False
+    assert "skipped" in res["message"]
+
+
+def test_lifespan_startup_triggers_auto_check_and_build_schema_failsafely(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify FastAPI lifespan startup context manager triggers schema auto-check fail-safely on app boot."""
+    mock_auto = MagicMock(side_effect=RuntimeError("Database temporarily unreachable"))
+    monkeypatch.setattr(web_app, "auto_check_and_build_schema", mock_auto)
+
+    # Lifespan context startup should execute auto_check_and_build_schema without failing app creation
+    with TestClient(web_app.app) as client:
+        response = client.get("/health")
+        assert response.status_code == 200
+
+    mock_auto.assert_called()
