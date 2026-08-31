@@ -392,8 +392,8 @@ def test_httponly_cookie_session_handling_and_logout():
     assert users_res.status_code == 200
     assert "users" in users_res.json()
 
-    # 3. Call /api/logout endpoint
-    logout_res = client.post("/api/logout", headers={"Cookie": f"rcf_dac_jwt={cookie_token}"})
+    # 3. Call /api/logout endpoint with CSRF header
+    logout_res = client.post("/api/logout", headers={"Cookie": f"rcf_dac_jwt={cookie_token}", "X-CSRF-Token": "valid_csrf_token"})
     assert logout_res.status_code == 200
     assert "logged out" in logout_res.json()["message"].lower()
 

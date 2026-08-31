@@ -30,29 +30,33 @@ This document provides a conceptual explanation of the security enhancements, co
 ## 1. Browser Session Isolation via HttpOnly, Secure, SameSite Cookies
 
 ### The Problem with Client-Side Token Storage
+
 In traditional Single Page Applications (SPAs), storing JSON Web Tokens (JWTs) in `localStorage` or `sessionStorage` exposes tokens to Cross-Site Scripting (XSS) attacks. If an attacker injects malicious JavaScript into the DOM, they can read client-side storage, exfiltrate the JWT bearer token, and hijack user sessions.
 
 ### Security Architecture: Defense-in-Depth
+
 To mitigate XSS exfiltration risks, the platform adopts browser session cookie isolation while retaining backward compatibility for API clients:
 
 1. **HttpOnly Flag:** The `rcf_dac_jwt` session cookie is marked `HttpOnly`, rendering it completely invisible and inaccessible to client-side JavaScript (`document.cookie` returns empty for this token).
-2. **SameSite Lax Enforcement:** Restricts cross-site request forgery (CSRF) by preventing the browser from sending the session cookie on top-level cross-site GET requests from untrusted origins.
+2. **SameSite Lax Enforcement:** Permits cookies on top-level cross-site GET navigations while generally blocking cross-site subrequests and unsafe methods (such as POST or PUT cross-site requests).
 3. **Secure Flag Configuration:** Enforces transmission exclusively over encrypted HTTPS connections in production (`COOKIE_SECURE=true`), while supporting configurable development/test environments.
 4. **Dual Authentication Extraction:** The API adapter (`extract_current_user_payload`) seamlessly checks both the `Authorization: Bearer <token>` header (for programmatic REST clients) and the `rcf_dac_jwt` cookie (for interactive web browser users).
-5. **Session Revocation via `/api/logout`:** Clears the `HttpOnly` cookie server-side upon user logout, revoking session access.
+5. **Session Revocation via `/api/logout`:** Clears only the browser's `HttpOnly` session cookie upon user logout, revoking the browser session context. Note that `/api/logout` does not revoke stateless Bearer tokens; a copied raw JWT string remains accepted by stateless API endpoints like `/api/investor-assets` until token expiration.
 
 ---
 
 ## 2. Supabase & PostgreSQL Connection Pool Metrics Monitoring
 
 ### Connection Pool Bottlenecks in Serverless & Microservice Deployments
+
 Under high concurrency or serverless auto-scaling (e.g. Render Web Services), creating new database connections per HTTP request incurs severe SSL handshake and connection checkout latency. Furthermore, Supabase and Percona PostgreSQL databases impose connection limits.
 
 ### Metrics Tracking Architecture
+
 The platform introduces `ConnectionPoolMetrics` to track database driver health, connection checkout latency, and query volume in real time:
 
 - **Connection Acquisition Latency:** Measures the round-trip time required to check out a pooled PostgreSQL connection (`avg_checkout_latency_ms`).
-- **Utilization Tracking:** Computes real-time pool utilization percentage based on active and peak connection bounds (`max_pool_size`, `min_pool_size`).
+- **Utilization Tracking:** Computes real-time pool utilization percentage as `active_connections` divided by `max_pool_size`.
 - **Failure Diagnostics:** Logs connection acquisition failures (`failed_connection_attempts`) to detect database exhaustion or network partition early.
 - **Monitoring Endpoints:** Exposes diagnostic metrics via `/api/db-pool-metrics` and embeds real-time pool telemetry directly into `/api/db-status`.
 

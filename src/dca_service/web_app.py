@@ -211,7 +211,6 @@ class ConnectionPoolMetrics:
     """Tracks database connection pooling stats, latency, and utilization metrics."""
 
     def __init__(self) -> None:
-        """Initialize connection-pool metrics using configured pool size limits."""
         self.total_acquired: int = 0
         self.active_connections: int = 0
         self.max_pool_size: int = int(os.environ.get("DB_POOL_MAX_SIZE", "20"))
@@ -221,31 +220,16 @@ class ConnectionPoolMetrics:
         self.failed_connections: int = 0
 
     def record_connection_attempt(self, latency_ms: float, success: bool) -> None:
-        """
-        Record the outcome and latency of a connection acquisition attempt.
-        
-        Parameters:
-        	latency_ms (float): Acquisition latency in milliseconds.
-        	success (bool): Whether the connection acquisition succeeded.
-        """
-        self.total_acquired += 1
         if success:
+            self.total_acquired += 1
             self.total_checkout_latency_ms += latency_ms
         else:
             self.failed_connections += 1
 
     def record_query(self) -> None:
-        """Record one database query in the connection-pool metrics."""
         self.total_queries += 1
 
     def to_dict(self) -> dict[str, Any]:
-        """
-        Summarize current database connection-pool metrics.
-        
-        Returns:
-            dict[str, Any]: Pool-size, connection, latency, query, utilization, and
-            UTC timestamp metrics.
-        """
         avg_latency = (
             round(self.total_checkout_latency_ms / self.total_acquired, 2)
             if self.total_acquired > 0
@@ -266,6 +250,18 @@ class ConnectionPoolMetrics:
 
 
 DB_POOL_METRICS = ConnectionPoolMetrics()
+
+
+def close_postgresql_connection(conn: Any) -> None:
+    """Close PostgreSQL connection and decrement active connection pool accounting."""
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        finally:
+            if DB_POOL_METRICS.active_connections > 0:
+                DB_POOL_METRICS.active_connections -= 1
 
 RevenueType = Literal["royalties", "licensing", "equity", "dividend"]
 ContentEncoding = Literal["base64", "raw", "text"]
@@ -412,10 +408,11 @@ def health_check() -> dict[str, str]:
 
 def get_postgresql_connection():
     """
-    Establishes a PostgreSQL connection using configured credentials and verified SSL when required.
-    
+    Establish a PostgreSQL connection using configured credentials and SSL verification.
+
     Returns:
-        tuple: A `(connection, status)` pair, where `connection` is the connection object on success or `None` if unavailable, and `status` describes the result.
+        connection (psycopg.Connection or None): The PostgreSQL connection on success, or `None` when the driver, configuration, certificate, or connection is unavailable.
+        status (str): A success or error message describing the connection result.
     """
     try:
         import urllib.parse
@@ -453,6 +450,7 @@ def get_postgresql_connection():
         conn = psycopg.connect(database_url, connect_timeout=4)
         lat_ms = (time.time() - t0) * 1000.0
         DB_POOL_METRICS.record_connection_attempt(lat_ms, True)
+        DB_POOL_METRICS.active_connections += 1
         return conn, "Connected to PostgreSQL"
     except Exception as exc:
         lat_ms = (time.time() - t0) * 1000.0
@@ -481,12 +479,12 @@ def initialize_database_schema() -> dict[str, Any]:
             cur.execute("SET statement_timeout = 10000; SET lock_timeout = 5000;")
             cur.execute(sql_script)
         conn.commit()
-        conn.close()
+        close_postgresql_connection(conn)
         return {"success": True, "message": "Successfully executed DDL schema and created project tables in PostgreSQL database."}
     except Exception as exc:
         try:
             conn.rollback()
-            conn.close()
+            close_postgresql_connection(conn)
         except Exception:
             pass
         return {"success": False, "message": f"Failed to execute schema DDL: {exc}"}
@@ -527,7 +525,7 @@ def auto_check_and_build_schema() -> dict[str, Any]:
             existing_tables = {r[0] for r in cur.fetchall()}
 
         missing_tables = [tbl for tbl in expected_tables if tbl not in existing_tables]
-        conn.close()
+        close_postgresql_connection(conn)
 
         if not missing_tables:
             res = {
@@ -580,12 +578,13 @@ def auto_check_and_build_schema() -> dict[str, Any]:
 def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
     """
     Check PostgreSQL connectivity, verify expected public tables, and test the Supabase authentication API.
+    Uses in-memory TTL caching to minimize database round-trips under high-concurrency polling unless bypassed.
     
-    Parameters:
-        bypass_cache (bool): Force a fresh diagnostic check instead of using a valid cached result.
-    
+    Args:
+        bypass_cache (bool): If True, forces a fresh database check bypassing cached result.
+
     Returns:
-        dict[str, Any]: Diagnostic status containing connection results, latency, timestamp, table verification details, pool metrics, and cache state.
+        Dict[str, Any]: Diagnostic status including connection results, latency, timestamp, and table verification details.
     """
     global _DB_STATUS_CACHE, _DB_STATUS_CACHE_TIMESTAMP
     now = time.time()
@@ -622,14 +621,11 @@ def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
                 rows = cur.fetchall()
                 verified_db_tables = {r[0] for r in rows}
                 query_succeeded = True
-            conn.close()
             details.append(f"Query verified {len(verified_db_tables)} tables in information_schema")
         except Exception as exc:
             details.append(f"PostgreSQL query error: {exc}")
-            try:
-                conn.close()
-            except Exception:
-                pass
+        finally:
+            close_postgresql_connection(conn)
     else:
         details.append(pg_msg)
 
@@ -713,22 +709,34 @@ def get_db_pool_metrics_endpoint() -> dict[str, Any]:
     }
 
 
+# --- CSRF & Origin Protection Helper ---
+
+def verify_csrf_and_origin(
+    request: Request,
+    x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
+) -> None:
+    """Verify Origin header and non-cookie CSRF token header for cookie-authenticated mutation endpoints."""
+    if "rcf_dac_jwt" in request.cookies:
+        expected_origin = os.environ.get("ALLOWED_ORIGIN", "").rstrip("/")
+        origin = request.headers.get("Origin") or request.headers.get("Referer")
+        if origin and expected_origin:
+            if not origin.rstrip("/").startswith(expected_origin):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="CSRF/Origin validation failed. Untrusted request origin.",
+                )
+        if not x_csrf_token:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="CSRF validation failed. Missing required X-CSRF-Token header.",
+            )
+
+
 # --- RBAC User Management & Authentication Endpoints ---
 
 @app.post("/api/login")
 def login_endpoint(req: LoginRequest, response: Response) -> dict[str, Any]:
-    """Authenticate a system account and establish a browser session.
-    
-    Parameters:
-    	req (LoginRequest): Credentials for the account to authenticate.
-    	response (Response): Response used to set the session cookie.
-    
-    Returns:
-    	dict[str, Any]: Authentication result containing the signed access token and user details.
-    
-    Raises:
-    	HTTPException: If the username or password is invalid.
-    """
+    """Authenticate system account credentials, set HttpOnly session cookie, and return signed JWT session token."""
     account = ACCOUNT_REGISTRY.get(req.username)
     if not account:
         raise HTTPException(
@@ -745,8 +753,8 @@ def login_endpoint(req: LoginRequest, response: Response) -> dict[str, Any]:
     role = account["role"]
     token = create_system_jwt(username=account["username"], role=role)
 
-    # Set HttpOnly, SameSite, Secure session cookie for web browser session isolation
-    secure_cookie = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
+    # Set HttpOnly, SameSite, Secure session cookie (defaults to True; opt-out via COOKIE_SECURE=false)
+    secure_cookie = os.environ.get("COOKIE_SECURE", "true").lower() != "false"
     response.set_cookie(
         key="rcf_dac_jwt",
         value=token,
@@ -773,13 +781,13 @@ def login_endpoint(req: LoginRequest, response: Response) -> dict[str, Any]:
 
 
 @app.post("/api/logout")
-def logout_endpoint(response: Response) -> dict[str, str]:
-    """
-    Clear the browser session cookie.
-    
-    Returns:
-        dict[str, str]: A confirmation message indicating that the session cookie was cleared.
-    """
+def logout_endpoint(
+    request: Request,
+    response: Response,
+    x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
+) -> dict[str, str]:
+    """Clear HttpOnly session cookie to revoke browser session context."""
+    verify_csrf_and_origin(request, x_csrf_token)
     response.delete_cookie(key="rcf_dac_jwt", path="/")
     return {"message": "Successfully logged out. Session cookie cleared."}
 
@@ -841,7 +849,6 @@ def serve_login_page() -> HTMLResponse:
         const data = await resp.json();
 
         if (resp.ok) {
-          localStorage.setItem('rcf_dac_jwt', data.access_token);
           localStorage.setItem('rcf_dac_user', JSON.stringify(data.user));
           alertBox.style.background = '#d4edda';
           alertBox.style.color = '#155724';
@@ -878,12 +885,7 @@ def serve_login_page() -> HTMLResponse:
 
 @app.get("/user-management", response_class=HTMLResponse)
 def serve_user_management_page() -> HTMLResponse:
-    """
-    Serve the interactive user management page for account administration.
-    
-    Returns:
-        HTMLResponse: The rendered user management interface.
-    """
+    """Serve interactive User Management Interface (Admin & Superuser only)."""
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -1094,9 +1096,12 @@ def serve_user_management_page() -> HTMLResponse:
     if (logoutBtn) {
       logoutBtn.addEventListener('click', async () => {
         try {
-          await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+          await fetch('/api/logout', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRF-Token': 'csrf_session_valid' }
+          });
         } catch (e) {}
-        localStorage.removeItem('rcf_dac_jwt');
         localStorage.removeItem('rcf_dac_user');
         window.location.href = '/login';
       });
@@ -1109,7 +1114,6 @@ def serve_user_management_page() -> HTMLResponse:
         const alertBox = document.getElementById('createUserAlert');
         alertBox.style.display = 'none';
 
-        const token = localStorage.getItem('rcf_dac_jwt');
         const username = document.getElementById('newUsername').value.trim();
         const password = document.getElementById('newPassword').value.trim();
         const name = document.getElementById('newName').value.trim();
@@ -1123,7 +1127,7 @@ def serve_user_management_page() -> HTMLResponse:
             credentials: 'same-origin',
             headers: {
               'Content-Type': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+              'X-CSRF-Token': 'csrf_session_valid'
             },
             body: JSON.stringify({ username, password, name, role, dept, email })
           });
@@ -1281,18 +1285,7 @@ def register_user(req: UserRegistrationRequest) -> dict[str, Any]:
 
 @app.post("/api/register-asset", status_code=status.HTTP_201_CREATED)
 def register_asset(req: AssetRegistrationRequest) -> dict[str, Any]:
-    """
-    Register a research asset and queue its evidence record for persistence.
-    
-    Parameters:
-    	req (AssetRegistrationRequest): Asset metadata and optional file content.
-    
-    Returns:
-    	dict[str, Any]: Registration response containing the asset record and queued outbox status.
-    
-    Raises:
-    	HTTPException: If Base64-encoded file content is invalid.
-    """
+    """Register research asset and generate SHA-256 evidence vault hash."""
     if req.file_content is not None:
         if req.content_encoding == "base64":
             try:
@@ -1451,19 +1444,8 @@ def verify_investor_bearer_token(
     token: str, secret: bytes = INVESTOR_JWT_SECRET
 ) -> dict[str, Any]:
     """
-    Validate an investor or administrative JWT and return its claims.
-    
-    Parameters:
-        token (str): JWT to validate.
-        secret (bytes): HMAC-SHA256 secret used to verify the token signature.
-    
-    Returns:
-        dict[str, Any]: Validated JWT claims.
-    
-    Raises:
-        HTTPException: If the token is malformed, has an invalid signature or payload,
-            is expired, has an untrusted issuer or audience, or lacks investor or
-            administrative authorization claims.
+    Perform cryptographic HMAC-SHA256 verification and claims check on investor Bearer tokens.
+    Rejects opaque, malformed, unsigned, forged, expired, non-dict, or missing claim tokens.
     """
     if not token or not isinstance(token, str):
         raise HTTPException(
@@ -1553,20 +1535,7 @@ def extract_current_user_payload(
     rcf_dac_jwt: str | None = None,
     request: Request | None = None,
 ) -> dict[str, Any]:
-    """
-    Extract and verify the authenticated user's JWT payload.
-    
-    Parameters:
-    	authorization (str | None): Optional Authorization header containing a Bearer token.
-    	rcf_dac_jwt (str | None): Optional JWT from the session cookie.
-    	request (Request | None): Optional request used to read the session cookie.
-    
-    Returns:
-    	dict[str, Any]: The verified JWT payload.
-    
-    Raises:
-    	HTTPException: If no usable token is provided or token verification fails.
-    """
+    """Helper to extract and verify JWT payload from Authorization header or HttpOnly session cookie."""
     token = None
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split("Bearer ", 1)[1].strip()
@@ -1590,15 +1559,7 @@ def list_system_users(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """
-    List registered system user accounts for administrative callers.
-    
-    Returns:
-    	dict[str, Any]: A mapping containing user records, the total user count, and the requesting username.
-    
-    Raises:
-    	HTTPException: If the caller lacks administrator or superuser privileges.
-    """
+    """List all registered system user accounts (Admin & Superuser only)."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     role = payload.get("role", "")
     if role not in ("admin", "superuser"):
@@ -1634,18 +1595,7 @@ def create_system_user(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """
-    Create a system user account for an authorized administrator.
-    
-    Parameters:
-        req (CreateUserRequest): Account details for the new user.
-    
-    Returns:
-        dict[str, Any]: A confirmation message and the created user's public account details.
-    
-    Raises:
-        HTTPException: If the caller is unauthorized, the requested role is superuser, or the username already exists.
-    """
+    """Create a new system user account (Admin only; cannot create superuser)."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     caller_role = payload.get("role", "")
 
@@ -1702,17 +1652,8 @@ def reset_user_password(
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
     """
-    Reset the password for a non-superuser account.
-    
-    Parameters:
-        username (str): Username of the account whose password will be reset.
-        req (ResetPasswordRequest): Request containing the new password.
-    
-    Returns:
-        dict[str, Any]: Confirmation message, target username, and resetting administrator.
-    
-    Raises:
-        HTTPException: If the caller lacks administrative privileges, the account does not exist, or the target is a superuser.
+    Reset password for specified user account.
+    Superuser password CANNOT be reset via API; it requires direct database SQL command.
     """
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     caller_role = payload.get("role", "")
@@ -1755,18 +1696,7 @@ def delete_system_user(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """
-    Delete a user account when authorized by an administrator.
-    
-    Parameters:
-        username (str): Username of the account to delete.
-    
-    Returns:
-        dict[str, Any]: Deletion confirmation and the identity of the administrator who performed it.
-    
-    Raises:
-        HTTPException: If the caller is unauthorized, the account does not exist, or the target is a superuser.
-    """
+    """Delete specified user account (Admin only; cannot delete superuser)."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     caller_role = payload.get("role", "")
 
@@ -1801,21 +1731,10 @@ def init_db_endpoint(
     request: Request,
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
+    x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
 ) -> dict[str, Any]:
-    """
-    Initialize the database schema for authorized administrators.
-    
-    Parameters:
-        request (Request): The incoming HTTP request used to resolve authentication.
-        authorization (str | None): Optional Bearer authorization header.
-        rcf_dac_jwt (str | None): Optional session cookie containing the authentication token.
-    
-    Returns:
-        dict[str, Any]: The schema initialization result.
-    
-    Raises:
-        HTTPException: If the requester is not authorized as an administrator.
-    """
+    """Execute docs/schema.sql DDL script to initialise database schema and tables (Admin only)."""
+    verify_csrf_and_origin(request, x_csrf_token)
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
 
     if not payload.get("admin") and payload.get("role") != "admin":
@@ -1834,18 +1753,7 @@ def get_investor_assets(
     rcf_dac_jwt: str | None = Cookie(None),
     bypass_cache: bool = False,
 ) -> dict[str, Any]:
-    """
-    Retrieve data-room listings and assets registered by the authenticated investor.
-    
-    Parameters:
-    	bypass_cache (bool): Whether to bypass the TTL cache and refresh the listings.
-    
-    Returns:
-    	dict[str, Any]: Data-room assets, user-registered assets, access level, and cache status.
-    
-    Raises:
-    	HTTPException: If the authenticated user lacks the investor role.
-    """
+    """Retrieve NDA-gated data room listings for accredited investors, backed by high-throughput TTL in-memory caching."""
     global _INVESTOR_ASSETS_CACHE, _INVESTOR_ASSETS_CACHE_TIMESTAMP
 
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
@@ -1894,14 +1802,7 @@ def get_investor_assets(
 
 
 def render_markdown_to_html(md_text: str) -> str:
-    """Convert selected Markdown elements into HTML.
-    
-    Parameters:
-        md_text (str): Markdown text containing headings, horizontal rules, bold text,
-            links, and unordered lists.
-    
-    Returns:
-        str: HTML-rendered text."""
+    """Simple parser to convert index.md markdown elements to clean HTML."""
     import re
 
     # Strip Liquid tags like {::options ... /}
