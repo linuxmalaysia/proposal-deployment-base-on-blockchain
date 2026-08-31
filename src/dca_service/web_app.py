@@ -63,11 +63,32 @@ def load_secrets_from_env_files() -> None:
 
 load_secrets_from_env_files()
 
-# Mandatory JWT secret lookup (fails closed if neither INVESTOR_JWT_SECRET nor SUPABASE_SECRET_KEY is set)
-_jwt_secret_env = os.environ.get("INVESTOR_JWT_SECRET") or os.environ.get("SUPABASE_SECRET_KEY")
+# Helper to extract secret key from string or JSON-object format (e.g. for SUPABASE_SECRET_KEYS)
+def parse_secret_key_env(val: Optional[str]) -> Optional[str]:
+    if not val:
+        return None
+    val = val.strip()
+    if val.startswith("{"):
+        try:
+            parsed = json.loads(val)
+            if isinstance(parsed, dict):
+                # Return first string value or default/active key
+                for k, v in parsed.items():
+                    if isinstance(v, str) and v:
+                        return v
+        except Exception:
+            pass
+    return val if val else None
+
+# Mandatory JWT secret lookup (fails closed if neither INVESTOR_JWT_SECRET nor SUPABASE_SECRET_KEY / SUPABASE_SECRET_KEYS is set)
+_jwt_secret_env = (
+    os.environ.get("INVESTOR_JWT_SECRET")
+    or parse_secret_key_env(os.environ.get("SUPABASE_SECRET_KEY"))
+    or parse_secret_key_env(os.environ.get("SUPABASE_SECRET_KEYS"))
+)
 if not _jwt_secret_env:
     raise RuntimeError(
-        "FATAL: Missing required environment variable 'INVESTOR_JWT_SECRET' or 'SUPABASE_SECRET_KEY'"
+        "FATAL: Missing required environment variable 'INVESTOR_JWT_SECRET', 'SUPABASE_SECRET_KEY', or 'SUPABASE_SECRET_KEYS'"
     )
 INVESTOR_JWT_SECRET = _jwt_secret_env.encode()
 
@@ -226,8 +247,8 @@ def check_database_connection() -> Dict[str, Any]:
         Dict[str, Any]: Diagnostic status including connection results, latency, timestamp, and table verification details.
     """
     supabase_url = os.environ.get("SUPABASE_URL", "")
-    supabase_publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "")
-    supabase_secret_key = os.environ.get("SUPABASE_SECRET_KEY", "")
+    supabase_publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "") or parse_secret_key_env(os.environ.get("SUPABASE_PUBLISHABLE_KEYS")) or ""
+    supabase_secret_key = os.environ.get("SUPABASE_SECRET_KEY", "") or parse_secret_key_env(os.environ.get("SUPABASE_SECRET_KEYS")) or ""
     supabase_jwks_url = os.environ.get(
         "SUPABASE_JWKS_URL",
         f"{supabase_url}/auth/v1/.well-known/jwks.json" if supabase_url else "",
