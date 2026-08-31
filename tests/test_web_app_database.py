@@ -281,6 +281,98 @@ def test_status_endpoints_do_not_expose_configured_secret_names_or_values(
         assert "Environment Secret Variables" not in output
 
 
+def test_initialize_database_schema_stops_when_schema_file_is_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Do not open a database connection when there is no DDL to execute."""
+    get_connection = MagicMock()
+    monkeypatch.setattr(web_app, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(web_app, "get_postgresql_connection", get_connection)
+
+    result = web_app.initialize_database_schema()
+
+    assert result == {
+        "success": False,
+        "message": "docs/schema.sql file missing",
+    }
+    get_connection.assert_not_called()
+
+
+def test_initialize_database_schema_executes_ddl_and_commits(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Execute the complete schema file in one transaction and close the connection."""
+    schema_dir = tmp_path / "docs"
+    schema_dir.mkdir()
+    schema_sql = "CREATE TABLE users (id UUID PRIMARY KEY);"
+    (schema_dir / "schema.sql").write_text(schema_sql, encoding="utf-8")
+    connection, cursor = make_connection()
+    monkeypatch.setattr(web_app, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(
+        web_app,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected to PostgreSQL"),
+    )
+
+    result = web_app.initialize_database_schema()
+
+    assert result["success"] is True
+    assert "Successfully executed DDL schema" in result["message"]
+    cursor.execute.assert_called_once_with(schema_sql)
+    connection.commit.assert_called_once_with()
+    connection.rollback.assert_not_called()
+    connection.close.assert_called_once_with()
+
+
+def test_initialize_database_schema_returns_database_connection_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Preserve the connection diagnostic when PostgreSQL is unavailable."""
+    schema_dir = tmp_path / "docs"
+    schema_dir.mkdir()
+    (schema_dir / "schema.sql").write_text("SELECT 1;", encoding="utf-8")
+    monkeypatch.setattr(web_app, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(
+        web_app,
+        "get_postgresql_connection",
+        lambda: (None, "PostgreSQL connection error: timed out"),
+    )
+
+    result = web_app.initialize_database_schema()
+
+    assert result == {
+        "success": False,
+        "message": "PostgreSQL connection error: timed out",
+    }
+
+
+def test_initialize_database_schema_rolls_back_after_ddl_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Roll back and close the connection when any schema statement fails."""
+    schema_dir = tmp_path / "docs"
+    schema_dir.mkdir()
+    (schema_dir / "schema.sql").write_text("INVALID DDL;", encoding="utf-8")
+    connection, cursor = make_connection()
+    cursor.execute.side_effect = RuntimeError("permission denied")
+    monkeypatch.setattr(web_app, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(
+        web_app,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected to PostgreSQL"),
+    )
+
+    result = web_app.initialize_database_schema()
+
+    assert result == {
+        "success": False,
+        "message": "Failed to execute schema DDL: permission denied",
+    }
+    connection.commit.assert_not_called()
+    connection.rollback.assert_called_once_with()
+    connection.close.assert_called_once_with()
+
+
 def test_auto_check_and_build_schema_builds_missing_tables(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -304,6 +396,8 @@ def test_auto_check_and_build_schema_builds_missing_tables(
         "revenue_splits",
         "blockchain_transactions",
     }
+    assert res["missing_tables"] == []
+    assert web_app.LAST_SCHEMA_AUTO_CHECK_RESULT is res
     mock_init.assert_called_once()
     connection.close.assert_called_once()
 
@@ -334,6 +428,8 @@ def test_auto_check_and_build_schema_skips_when_all_tables_exist(
     assert res["success"] is True
     assert res["db_connected"] is True
     assert res["tables_created"] == []
+    assert res["missing_tables"] == []
+    assert web_app.LAST_SCHEMA_AUTO_CHECK_RESULT is res
     mock_init.assert_not_called()
     connection.close.assert_called_once()
 
@@ -352,7 +448,90 @@ def test_auto_check_and_build_schema_handles_connection_failure_failsafely(
 
     assert res["success"] is False
     assert res["db_connected"] is False
+    assert res["tables_created"] == []
+    assert res["missing_tables"] == [
+        "users",
+        "assets",
+        "cloverleaf_scores",
+        "revenue_splits",
+        "blockchain_transactions",
+    ]
     assert "skipped" in res["message"]
+    assert web_app.LAST_SCHEMA_AUTO_CHECK_RESULT is res
+
+
+def test_auto_check_and_build_schema_reports_initialisation_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Retain the missing-table list when automatic DDL execution fails."""
+    connection, _ = make_connection([("users",), ("assets",)])
+    monkeypatch.setattr(
+        web_app,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected to PostgreSQL"),
+    )
+    mock_init = MagicMock(
+        return_value={"success": False, "message": "DDL permission denied"}
+    )
+    monkeypatch.setattr(web_app, "initialize_database_schema", mock_init)
+
+    result = web_app.auto_check_and_build_schema()
+
+    expected_missing = [
+        "cloverleaf_scores",
+        "revenue_splits",
+        "blockchain_transactions",
+    ]
+    assert result == {
+        "success": False,
+        "message": (
+            "Auto-build failed for missing tables "
+            "(cloverleaf_scores, revenue_splits, blockchain_transactions): "
+            "DDL permission denied"
+        ),
+        "db_connected": True,
+        "tables_created": [],
+        "missing_tables": expected_missing,
+    }
+    assert web_app.LAST_SCHEMA_AUTO_CHECK_RESULT is result
+    mock_init.assert_called_once_with()
+    connection.close.assert_called_once_with()
+
+
+def test_auto_check_and_build_schema_fails_safely_when_catalogue_query_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Close PostgreSQL and cache a complete diagnostic after catalogue failure."""
+    connection, cursor = make_connection()
+    cursor.execute.side_effect = RuntimeError("information schema unavailable")
+    monkeypatch.setattr(
+        web_app,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected to PostgreSQL"),
+    )
+    mock_init = MagicMock()
+    monkeypatch.setattr(web_app, "initialize_database_schema", mock_init)
+
+    result = web_app.auto_check_and_build_schema()
+
+    assert result == {
+        "success": False,
+        "message": (
+            "Fail-safe schema auto-check error: information schema unavailable"
+        ),
+        "db_connected": True,
+        "tables_created": [],
+        "missing_tables": [
+            "users",
+            "assets",
+            "cloverleaf_scores",
+            "revenue_splits",
+            "blockchain_transactions",
+        ],
+    }
+    assert web_app.LAST_SCHEMA_AUTO_CHECK_RESULT is result
+    mock_init.assert_not_called()
+    connection.close.assert_called_once_with()
 
 
 def test_lifespan_startup_triggers_auto_check_and_build_schema_failsafely(
