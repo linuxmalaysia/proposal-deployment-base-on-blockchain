@@ -26,15 +26,6 @@ class AuditLogger:
         self._events: list[AuditEvent] = []
 
     def log(self, event_id: str, action: str, actor_id: str, details: dict[str, Any]) -> AuditEvent:
-        """
-        Record an audit event with the current UTC timestamp.
-        
-        Parameters:
-            details (dict[str, Any]): Additional event metadata.
-        
-        Returns:
-            AuditEvent: A copy of the recorded audit event.
-        """
         event = AuditEvent(
             event_id=event_id,
             timestamp=datetime.now(UTC).isoformat(),

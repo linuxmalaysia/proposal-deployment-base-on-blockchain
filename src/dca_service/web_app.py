@@ -57,15 +57,6 @@ load_secrets_from_env_files()
 
 # Helper to extract secret key from string or JSON-object format (e.g. for SUPABASE_SECRET_KEYS)
 def parse_secret_key_env(val: str | None) -> str | None:
-    """
-    Extracts a usable secret key from a plain-text or JSON-formatted environment value.
-    
-    Parameters:
-        val (str | None): The environment value containing a secret key or JSON object.
-    
-    Returns:
-        str | None: The first non-empty string value from a JSON object, the stripped input value, or `None` when no value is provided.
-    """
     if not val:
         return None
     val = val.strip()
@@ -110,14 +101,8 @@ PASSWORD_SALT = os.environ.get("RBAC_PASSWORD_SALT", "rcf_dac_rbac_salt_default"
 
 def hash_password(password: str, salt: str | None = None) -> str:
     """
-    Create a salted scrypt hash for a password.
-    
-    Parameters:
-    	password (str): The password to hash.
-    	salt (str | None): An optional salt; a cryptographically random salt is generated when omitted.
-    
-    Returns:
-    	str: A password hash in the format `scrypt$salt$hash`.
+    Hash password using hashlib.scrypt KDF with per-account salt.
+    Returns format 'scrypt$salt$hash'.
     """
     if not salt:
         salt = secrets.token_hex(16)
@@ -126,16 +111,7 @@ def hash_password(password: str, salt: str | None = None) -> str:
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
-    """
-    Verify a password against a stored scrypt or legacy SHA-256 hash.
-    
-    Parameters:
-        password (str): The password to verify.
-        stored_hash (str): The stored password hash.
-    
-    Returns:
-        bool: `true` if the password matches the stored hash, `false` otherwise.
-    """
+    """Verify password against scrypt or legacy hash format."""
     if stored_hash.startswith("scrypt$"):
         parts = stored_hash.split("$")
         if len(parts) != 3:
@@ -150,15 +126,7 @@ def verify_password(password: str, stored_hash: str) -> bool:
 
 
 def get_or_create_initial_password(role: str) -> str:
-    """
-    Retrieve the initial password configured for a role or generate one when none is configured.
-    
-    Parameters:
-        role (str): Account role used to select the environment variable and generate fallback passwords.
-    
-    Returns:
-        str: The configured password, a deterministic test password, or a randomly generated password.
-    """
+    """Get password from environment or generate a secure random password."""
     env_var = f"{role.upper()}_INITIAL_PASSWORD"
     if os.environ.get(env_var):
         return os.environ[env_var]
@@ -210,15 +178,11 @@ INITIAL_ACCOUNT_SPECS = [
 
 
 def seed_initial_accounts() -> None:
-    """Create the initial system accounts with hashed passwords and role metadata."""
-    print("========================================================================")
-    print("🔑 GENERATED SYSTEM ACCOUNTS & INITIAL PASSWORDS (SESSION CONSOLE ONLY):")
-    print("========================================================================")
+    """Initialise and populate initial system user accounts with hashed passwords."""
     for acct in INITIAL_ACCOUNT_SPECS:
         u = acct["username"]
         r = acct["role"]
         p = get_or_create_initial_password(r)
-        print(f"  • User: {u:<16} | Role: {r:<10} | Password: {p}")
         ACCOUNT_REGISTRY[u] = {
             "username": u,
             "password_hash": hash_password(p),
@@ -228,9 +192,7 @@ def seed_initial_accounts() -> None:
             "email": acct["email"],
             "did": f"did:univ:acct-{hashlib.sha256(u.encode()).hexdigest()[:12]}",
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "raw_initial_password": p,
         }
-    print("========================================================================")
 
 
 seed_initial_accounts()
@@ -316,18 +278,6 @@ class RevenueSplitRequest(BaseModel):
     @field_validator("amount")
     @classmethod
     def validate_max_two_decimal_places(cls, v: Decimal) -> Decimal:
-        """
-        Validate that a monetary amount has no more than two decimal places.
-        
-        Parameters:
-            v (Decimal): Monetary amount to validate.
-        
-        Returns:
-            Decimal: The validated monetary amount.
-        
-        Raises:
-            ValueError: If the amount has more than two decimal places.
-        """
         exp = v.as_tuple().exponent
         if isinstance(exp, int) and exp < -2:
             raise ValueError("Monetary amount cannot have more than two decimal places.")
@@ -440,10 +390,10 @@ def get_postgresql_connection():
 
 def initialize_database_schema() -> dict[str, Any]:
     """
-    Execute the database schema definition script against PostgreSQL.
-    
+    Execute docs/schema.sql DDL script against PostgreSQL database to create schema and tables.
+
     Returns:
-        dict[str, Any]: A status dictionary containing `success` and a descriptive `message`.
+        Dict[str, Any]: Execution status dictionary containing success boolean and descriptive message.
     """
     schema_file = BASE_DIR / "docs" / "schema.sql"
     if not schema_file.exists():
@@ -557,13 +507,14 @@ def auto_check_and_build_schema() -> dict[str, Any]:
 
 def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
     """
-    Check PostgreSQL and Supabase connectivity and report the status of expected database tables.
+    Check PostgreSQL connectivity, verify expected public tables, and test the Supabase authentication API.
+    Uses in-memory TTL caching to minimize database round-trips under high-concurrency polling unless bypassed.
     
-    Parameters:
-        bypass_cache (bool): Whether to force a fresh connectivity check instead of using a cached result.
-    
+    Args:
+        bypass_cache (bool): If True, forces a fresh database check bypassing cached result.
+
     Returns:
-        dict[str, Any]: Diagnostic information including connection status, latency, timestamp, and table verification details.
+        Dict[str, Any]: Diagnostic status including connection results, latency, timestamp, and table verification details.
     """
     global _DB_STATUS_CACHE, _DB_STATUS_CACHE_TIMESTAMP
     now = time.time()
@@ -675,16 +626,7 @@ def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
 
 @app.get("/api/db-status")
 def get_db_status_api(bypass_cache: bool = False, force: bool = False) -> dict[str, Any]:
-    """
-    Provide database connectivity, latency, and schema diagnostics.
-    
-    Parameters:
-        bypass_cache (bool): Whether to perform a fresh database check.
-        force (bool): Whether to perform a fresh database check.
-    
-    Returns:
-        dict[str, Any]: Database connection and schema status details.
-    """
+    """Return database connection status, network latency, and schema verification in JSON."""
     return check_database_connection(bypass_cache=bypass_cache or force)
 
 
@@ -692,15 +634,7 @@ def get_db_status_api(bypass_cache: bool = False, force: bool = False) -> dict[s
 
 @app.post("/api/login")
 def login_endpoint(req: LoginRequest) -> dict[str, Any]:
-    """
-    Authenticate system account credentials and create a signed session token.
-    
-    Returns:
-        dict[str, Any]: Authentication status, bearer token, and authenticated user metadata.
-    
-    Raises:
-        HTTPException: If the username is unknown or the password is invalid.
-    """
+    """Authenticate system account credentials and return signed JWT session token."""
     account = ACCOUNT_REGISTRY.get(req.username)
     if not account:
         raise HTTPException(
@@ -734,9 +668,7 @@ def login_endpoint(req: LoginRequest) -> dict[str, Any]:
 
 @app.get("/login", response_class=HTMLResponse)
 def serve_login_page() -> HTMLResponse:
-    """
-    Serve the interactive login page for system users.
-    """
+    """Serve interactive user login HTML page."""
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -827,15 +759,7 @@ def serve_login_page() -> HTMLResponse:
 def list_system_users(
     authorization: str | None = Header(None, alias="Authorization"),
 ) -> dict[str, Any]:
-    """
-    List registered system user accounts for authorized administrators.
-    
-    Parameters:
-    	authorization (str | None): Bearer authorization header for an admin or superuser.
-    
-    Returns:
-    	dict[str, Any]: User summaries, the total account count, and the requesting username.
-    """
+    """List all registered system user accounts (Admin & Superuser only)."""
     payload = extract_current_user_payload(authorization)
     role = payload.get("role", "")
     if role not in ("admin", "superuser"):
@@ -869,18 +793,7 @@ def create_system_user(
     req: CreateUserRequest,
     authorization: str | None = Header(None, alias="Authorization"),
 ) -> dict[str, Any]:
-    """
-    Create a system user account for an authorized administrator.
-    
-    Parameters:
-        req (CreateUserRequest): User details and credentials for the new account.
-    
-    Returns:
-        dict[str, Any]: A success message and the created user's public account details.
-    
-    Raises:
-        HTTPException: If authorization fails, a superuser account is requested, or the username already exists.
-    """
+    """Create a new system user account (Admin only; cannot create superuser)."""
     payload = extract_current_user_payload(authorization)
     caller_role = payload.get("role", "")
 
@@ -935,15 +848,8 @@ def reset_user_password(
     authorization: str | None = Header(None, alias="Authorization"),
 ) -> dict[str, Any]:
     """
-    Reset the password for an eligible user account.
-    
-    Parameters:
-    	username (str): Username of the account whose password is reset.
-    	req (ResetPasswordRequest): Request containing the new password.
-    	authorization (str | None): Bearer authorization header for an administrator or superuser.
-    
-    Returns:
-    	dict[str, Any]: Confirmation containing the username and identity of the administrator who performed the reset.
+    Reset password for specified user account.
+    Superuser password CANNOT be reset via API; it requires direct database SQL command.
     """
     payload = extract_current_user_payload(authorization)
     caller_role = payload.get("role", "")
@@ -984,16 +890,7 @@ def delete_system_user(
     username: str,
     authorization: str | None = Header(None, alias="Authorization"),
 ) -> dict[str, Any]:
-    """
-    Delete a user account authorized by an administrator.
-    
-    Parameters:
-        username (str): Username of the account to delete.
-        authorization (str | None): Bearer token identifying the requesting administrator.
-    
-    Returns:
-        dict[str, Any]: Confirmation message and identifier of the administrator who performed the deletion.
-    """
+    """Delete specified user account (Admin only; cannot delete superuser)."""
     payload = extract_current_user_payload(authorization)
     caller_role = payload.get("role", "")
 
@@ -1025,12 +922,7 @@ def delete_system_user(
 
 @app.get("/user-management", response_class=HTMLResponse)
 def serve_user_management_page() -> HTMLResponse:
-    """
-    Serve the HTML interface for viewing and managing registered users.
-    
-    Returns:
-    	HTMLResponse: The user management page with client-side authentication and account controls.
-    """
+    """Serve interactive User Management Interface (Admin & Superuser only)."""
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -1206,15 +1098,7 @@ def serve_user_management_page() -> HTMLResponse:
 def init_db_endpoint(
     authorization: str | None = Header(None, alias="Authorization"),
 ) -> dict[str, Any]:
-    """
-    Initialize the database schema for an authorized administrator.
-    
-    Parameters:
-    	authorization (str | None): Bearer token identifying an administrator.
-    
-    Returns:
-    	dict[str, Any]: Database schema initialization status and diagnostic details.
-    """
+    """Execute docs/schema.sql DDL script to initialise database schema and tables (Admin only)."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1238,14 +1122,10 @@ def init_db_endpoint(
 @app.get("/db-connection", response_class=HTMLResponse)
 def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTMLResponse:
     """
-    Render an HTML page showing database connectivity and schema verification results.
-    
-    Parameters:
-        bypass_cache (bool): Whether to request fresh database diagnostics.
-        force (bool): Whether to force a fresh diagnostic query.
-    
+    Serve the interactive database connection and schema status page.
+
     Returns:
-        HTMLResponse: The rendered database status page.
+        HTMLResponse: HTML containing current connection diagnostics and schema table statuses.
     """
     db_info = check_database_connection(bypass_cache=bypass_cache or force)
     is_conn = db_info["is_connected"]
@@ -1336,15 +1216,7 @@ def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTM
 
 @app.post("/api/register-user", status_code=status.HTTP_201_CREATED)
 def register_user(req: UserRegistrationRequest) -> dict[str, Any]:
-    """
-    Create a W3C-style decentralized identifier and register the institutional user in memory.
-    
-    Parameters:
-    	req (UserRegistrationRequest): User registration details.
-    
-    Returns:
-    	dict[str, Any]: Registration confirmation containing the user record and simulated database table name.
-    """
+    """Mint W3C Decentralised Identifier (DID) and register institutional user."""
     unique_nonce = uuid.uuid4()
     seed_str = f"{req.name}-{req.role}-{req.dept}-{time.time()}-{unique_nonce}"
     did_hash = hashlib.sha256(seed_str.encode()).hexdigest()[:16]
@@ -1368,18 +1240,7 @@ def register_user(req: UserRegistrationRequest) -> dict[str, Any]:
 
 @app.post("/api/register-asset", status_code=status.HTTP_201_CREATED)
 def register_asset(req: AssetRegistrationRequest) -> dict[str, Any]:
-    """
-    Register a research asset and record its evidence hash.
-    
-    Parameters:
-        req (AssetRegistrationRequest): Asset metadata and optional file content to register.
-    
-    Returns:
-        dict[str, Any]: Registration message, stored asset record, and queued outbox status.
-    
-    Raises:
-        HTTPException: If Base64-encoded file content is invalid.
-    """
+    """Register research asset and generate SHA-256 evidence vault hash."""
     if req.file_content is not None:
         if req.content_encoding == "base64":
             try:
@@ -1422,15 +1283,7 @@ def register_asset(req: AssetRegistrationRequest) -> dict[str, Any]:
 
 @app.post("/api/calculate-cloverleaf")
 def calculate_cloverleaf(req: CloverleafScoreRequest) -> dict[str, Any]:
-    """
-    Calculate the Cloverleaf Market Readiness Score and funding classification.
-    
-    Parameters:
-    	req (CloverleafScoreRequest): Component scores for technology, market, commercialisation, and management.
-    
-    Returns:
-    	dict[str, Any]: Score breakdown, total and maximum scores, investment-grade status, status label, and recommended funding tier.
-    """
+    """Calculate Cloverleaf Market Readiness Score (MRS) (>180 qualification target)."""
     total_score = req.tech + req.market + req.comm + req.mgmt
     max_score = 260
     is_qualified = total_score > 180
@@ -1459,18 +1312,7 @@ def calculate_cloverleaf(req: CloverleafScoreRequest) -> dict[str, Any]:
 
 @app.post("/api/calculate-revenue")
 def calculate_revenue(req: RevenueSplitRequest) -> dict[str, Any]:
-    """
-    Calculate the revenue distribution across institutional stakeholders.
-    
-    Parameters:
-    	req (RevenueSplitRequest): Revenue amount and supported revenue type to distribute.
-    
-    Returns:
-    	dict[str, Any]: Revenue type, total amount in MYR and minor units, and stakeholder allocation details.
-    
-    Raises:
-    	HTTPException: If the revenue type is unsupported.
-    """
+    """Calculate IP policy revenue-split matrix across institutional stakeholders."""
     amount = max(Decimal("0.00"), req.amount)
     rev_type = req.revenue_type.lower()
 
@@ -1532,25 +1374,14 @@ def create_system_jwt(
     exp_delta: float = 3600.0,
     secret: bytes = INVESTOR_JWT_SECRET,
 ) -> str:
-    """
-    Create a signed JWT for system user session authentication.
-    
-    Parameters:
-        username (str): Username to include in the token.
-        role (str): User role used to derive authorization claims.
-        exp_delta (float): Number of seconds until the token expires.
-        secret (bytes): HMAC signing secret.
-    
-    Returns:
-        str: Signed JWT containing the user's identity, role, authorization claims, and expiration.
-    """
+    """Generate a signed HMAC-SHA256 JWT for system user session authentication."""
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "sub": username,
         "username": username,
         "role": role,
         "admin": role in ("admin", "superuser"),
-        "accredited_investor": role in ("investor", "admin", "superuser"),
+        "accredited_investor": role == "investor",
         "iss": EXPECTED_ISSUER,
         "aud": EXPECTED_AUDIENCE,
         "exp": int(time.time() + exp_delta),
@@ -1566,17 +1397,8 @@ def verify_investor_bearer_token(
     token: str, secret: bytes = INVESTOR_JWT_SECRET
 ) -> dict[str, Any]:
     """
-    Validate an investor JWT and return its claims.
-    
-    Parameters:
-        token (str): JWT presented as the investor bearer token.
-        secret (bytes): HMAC-SHA256 key used to verify the token signature.
-    
-    Returns:
-        dict[str, Any]: The validated JWT claims.
-    
-    Raises:
-        HTTPException: If the token is malformed, has an invalid signature or claims, is expired, or does not identify an accredited investor.
+    Perform cryptographic HMAC-SHA256 verification and claims check on investor Bearer tokens.
+    Rejects opaque, malformed, unsigned, forged, expired, non-dict, or missing claim tokens.
     """
     if not token or not isinstance(token, str):
         raise HTTPException(
@@ -1651,7 +1473,8 @@ def verify_investor_bearer_token(
             detail="Authorisation failed. Missing or invalid token audience ('aud').",
         )
 
-    if not payload.get("accredited_investor"):
+    # If role is system admin/superuser, allow token verification without accredited_investor claim
+    if not payload.get("accredited_investor") and not payload.get("admin") and payload.get("role") not in ("admin", "superuser"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Authorisation failed. Missing required 'accredited_investor' claim.",
@@ -1661,18 +1484,7 @@ def verify_investor_bearer_token(
 
 
 def extract_current_user_payload(authorization: str | None) -> dict[str, Any]:
-    """
-    Extract and verify the authenticated user's payload from a Bearer authorization header.
-    
-    Parameters:
-        authorization (str | None): The HTTP Authorization header containing a Bearer token.
-    
-    Returns:
-        dict[str, Any]: The verified user payload.
-    
-    Raises:
-        HTTPException: If the header is missing, malformed, or contains an invalid token.
-    """
+    """Helper to extract and verify Bearer token payload from Authorization header."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1687,15 +1499,7 @@ def extract_current_user_payload(authorization: str | None) -> dict[str, Any]:
 def get_investor_assets(
     authorization: str | None = Header(None, alias="Authorization"),
 ) -> dict[str, Any]:
-    """
-    Retrieve NDA-gated data room listings and registered assets for an authorized accredited investor.
-    
-    Parameters:
-    	authorization (str | None): Bearer token from the Authorization header.
-    
-    Returns:
-    	A dictionary containing data-room listings, user-registered assets, and the access level.
-    """
+    """Retrieve NDA-gated data room listings for accredited investors."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1705,7 +1509,7 @@ def get_investor_assets(
 
     token = authorization.split("Bearer ", 1)[1].strip()
     payload = verify_investor_bearer_token(token)
-    if payload.get("role") and payload.get("role") not in ("investor", "admin", "superuser"):
+    if payload.get("role") and payload.get("role") != "investor":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Authorisation failed. Accredited investor role required.",

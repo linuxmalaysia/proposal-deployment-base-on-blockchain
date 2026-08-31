@@ -13,21 +13,14 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
-
-from fastapi.testclient import TestClient
 
 # Configure environment secret before importing web_app module
 TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
 os.environ["INVESTOR_JWT_SECRET"] = TEST_JWT_SECRET.decode()
 
-from dca_service.web_app import (  # noqa: E402
-    INVESTOR_JWT_SECRET,
-    USER_REGISTRY,
-    app,
-    base64url_encode,
-)
+from fastapi.testclient import TestClient
+from dca_service.web_app import app, USER_REGISTRY, base64url_encode
 
 client = TestClient(app)
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -42,7 +35,7 @@ def create_investor_jwt(
     accredited_investor: bool = True,
     custom_exp: Any = None,
     raw_payload: Any = None,
-    secret: bytes = INVESTOR_JWT_SECRET,
+    secret: bytes = TEST_JWT_SECRET,
 ) -> str:
     """Create a signed HMAC-SHA256 JWT for testing accredited investor authentication."""
     header = {"alg": "HS256", "typ": "JWT"}
@@ -409,7 +402,7 @@ def test_init_db_endpoint_requires_admin_role():
     header_b64 = base64url_encode(json.dumps(header, separators=(",", ":")).encode())
     payload_b64 = base64url_encode(json.dumps(payload, separators=(",", ":")).encode())
     signing_input = f"{header_b64}.{payload_b64}".encode()
-    signature = hmac.new(INVESTOR_JWT_SECRET, signing_input, hashlib.sha256).digest()
+    signature = hmac.new(TEST_JWT_SECRET, signing_input, hashlib.sha256).digest()
     sig_b64 = base64url_encode(signature)
     admin_jwt = f"{header_b64}.{payload_b64}.{sig_b64}"
 

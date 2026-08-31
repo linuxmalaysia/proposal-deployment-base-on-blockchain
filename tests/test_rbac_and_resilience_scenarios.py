@@ -113,17 +113,6 @@ def test_jwt_extended_claims_edge_cases():
 
 
 def _sign_jwt(header: dict[str, Any], payload: dict[str, Any], secret: bytes = INVESTOR_JWT_SECRET) -> str:
-    """
-    Create a signed JWT string from the provided header, payload, and secret.
-    
-    Parameters:
-    	header (dict[str, Any]): JWT header claims.
-    	payload (dict[str, Any]): JWT payload claims.
-    	secret (bytes): Secret key used to create the signature.
-    
-    Returns:
-    	str: The compact serialized JWT.
-    """
     h_b64 = base64url_encode(json.dumps(header, separators=(",", ":")).encode())
     p_b64 = base64url_encode(json.dumps(payload, separators=(",", ":")).encode())
     sig = base64url_encode(hmac.new(secret, f"{h_b64}.{p_b64}".encode(), hashlib.sha256).digest())
@@ -132,19 +121,22 @@ def _sign_jwt(header: dict[str, Any], payload: dict[str, Any], secret: bytes = I
 
 # --- Login & RBAC Scenario Tests ---
 
-def test_rbac_authentication_login_flow():
+def test_rbac_authentication_login_flow(monkeypatch):
     """Test login API endpoint with valid, invalid, and missing credentials."""
+    monkeypatch.setenv("ADMIN_INITIAL_PASSWORD", "AdminPass123!")
+    monkeypatch.setenv("SUPERUSER_INITIAL_PASSWORD", "SuperPass123!")
+    from dca_service.web_app import seed_initial_accounts
+    seed_initial_accounts()
+
     # 1. Valid Admin Login
-    admin_pass = ACCOUNT_REGISTRY["dca_admin_mgr"]["raw_initial_password"]
-    res_admin = client.post("/api/login", json={"username": "dca_admin_mgr", "password": admin_pass})
+    res_admin = client.post("/api/login", json={"username": "dca_admin_mgr", "password": "AdminPass123!"})
     assert res_admin.status_code == 200
     data_admin = res_admin.json()
     assert "access_token" in data_admin
     assert data_admin["user"]["role"] == "admin"
 
     # 2. Valid Superuser Login
-    super_pass = ACCOUNT_REGISTRY["dca_sys_root"]["raw_initial_password"]
-    res_super = client.post("/api/login", json={"username": "dca_sys_root", "password": super_pass})
+    res_super = client.post("/api/login", json={"username": "dca_sys_root", "password": "SuperPass123!"})
     assert res_super.status_code == 200
     assert res_super.json()["user"]["role"] == "superuser"
 
@@ -158,9 +150,7 @@ def test_rbac_authentication_login_flow():
 
 
 def test_superuser_password_reset_protection():
-    """
-    Verify that API password resets for the system superuser are rejected for both administrators and the superuser.
-    """
+    """Verify that Superuser password CANNOT be reset via API/web interface."""
     admin_jwt = create_system_jwt(username="dca_admin_mgr", role="admin")
     super_jwt = create_system_jwt(username="dca_sys_root", role="superuser")
 
