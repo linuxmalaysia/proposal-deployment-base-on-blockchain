@@ -8,6 +8,7 @@ Governed by DSOM Protocol // OKF v0.2 Standard // Concentric Clean Architecture.
 from __future__ import annotations
 
 import base64
+from contextlib import asynccontextmanager
 import hashlib
 import hmac
 import json
@@ -24,20 +25,10 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-# Initialise FastAPI web application instance
-app = FastAPI(
-    title="RCF & DAC Interactive Web Portal",
-    description="Research Commercialisation Fund & Digital Asset Custodian Service API",
-    version="0.1.0",
-)
-
 # Root directory pathing
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ASSETS_DIR = BASE_DIR / "assets"
 DOCS_DIR = BASE_DIR / "docs"
-
-if ASSETS_DIR.exists():
-    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 
 def load_secrets_from_env_files() -> None:
@@ -165,6 +156,28 @@ class RevenueSplitRequest(BaseModel):
 
 # --- API Endpoints ---
 
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    """FastAPI lifespan context manager ensuring fail-safe schema auto-checking and table building on startup."""
+    try:
+        auto_check_and_build_schema()
+    except Exception:
+        pass
+    yield
+
+
+# Initialise FastAPI web application instance with lifespan context
+app = FastAPI(
+    title="RCF & DAC Interactive Web Portal",
+    description="Research Commercialisation Fund & Digital Asset Custodian Service API",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+if ASSETS_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+
+
 @app.get("/health")
 def health_check() -> Dict[str, str]:
     """Health check endpoint for Render service monitoring."""
@@ -237,6 +250,75 @@ def initialize_database_schema() -> Dict[str, Any]:
         except Exception:
             pass
         return {"success": False, "message": f"Failed to execute schema DDL: {exc}"}
+
+
+def auto_check_and_build_schema() -> Dict[str, Any]:
+    """
+    Fail-safe automatic schema check and table build routine for application deployment on Render.com.
+    Inspects PostgreSQL information_schema.tables for existing application schema tables, maintaining
+    existing data, and automatically executing DDL schema statements if missing tables are detected.
+    """
+    expected_tables = ["users", "assets", "cloverleaf_scores", "revenue_splits", "blockchain_transactions"]
+    conn, msg = get_postgresql_connection()
+    if not conn:
+        return {
+            "success": False,
+            "message": f"Auto schema check skipped: {msg}",
+            "db_connected": False,
+            "tables_created": [],
+            "missing_tables": expected_tables,
+        }
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
+            )
+            existing_tables = {r[0] for r in cur.fetchall()}
+
+        missing_tables = [tbl for tbl in expected_tables if tbl not in existing_tables]
+        conn.close()
+
+        if not missing_tables:
+            return {
+                "success": True,
+                "message": "All required schema tables verified in PostgreSQL database.",
+                "db_connected": True,
+                "tables_created": [],
+                "missing_tables": [],
+            }
+
+        res = initialize_database_schema()
+        if res.get("success"):
+            return {
+                "success": True,
+                "message": f"Successfully auto-built missing schema tables: {', '.join(missing_tables)}",
+                "db_connected": True,
+                "tables_created": missing_tables,
+                "missing_tables": [],
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Auto-build failed for missing tables ({', '.join(missing_tables)}): {res.get('message')}",
+                "db_connected": True,
+                "tables_created": [],
+                "missing_tables": missing_tables,
+            }
+    except Exception as exc:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return {
+            "success": False,
+            "message": f"Fail-safe schema auto-check error: {exc}",
+            "db_connected": True,
+            "tables_created": [],
+            "missing_tables": expected_tables,
+        }
+
+
 
 
 def check_database_connection() -> Dict[str, Any]:

@@ -138,6 +138,17 @@ Based on [Render's Official Troubleshooting Guide](https://render.com/docs/troub
 
 ---
 
+## 🗄️ Automatic Fail-Safe Database Table Deployment
+
+The application includes an automated schema table check and build routine (`auto_check_and_build_schema`) managed by FastAPI's application `lifespan` startup handler:
+
+1. **Automatic Table Creation on Startup:** When the web service boots on Render.com, it inspects PostgreSQL `information_schema.tables` for existing tables (`users`, `assets`, `cloverleaf_scores`, `revenue_splits`, `blockchain_transactions`).
+2. **Data-Preserving Idempotency:** If tables are missing, it automatically executes `docs/schema.sql` using non-destructive `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` statements, preserving all pre-existing database records.
+3. **Fail-Safe Startup Safeguard:** If the database instance is temporarily unreachable or unconfigured during initial deployment, exception handling prevents application startup crashes, allowing health checks to pass cleanly.
+4. **Diagnostic Verification:** Visit `/db-status` or `/api/db-status` to inspect real-time connection latency and schema table verification.
+
+---
+
 ## 🌐 Endpoints & Verification
 
 Once deployed, verify your service endpoints:
