@@ -161,7 +161,7 @@ class BlockchainNodeAdapter:
 
     def __init__(self, current_block: int = 100000):
         self.current_block = current_block
-        self._on_chain_ledger: dict[str, dict] = {}
+        self._on_chain_ledger: dict[str, dict[str, Any]] = {}
         self.should_fail = False
 
     def compute_tx_hash(self, entry: TimeSeriesTransactionEntry) -> str:
@@ -212,7 +212,7 @@ class BlockchainNodeAdapter:
         self._on_chain_ledger[tx_hash] = record
         return {"tx_hash": tx_hash, "block_id": str(self.current_block)}
 
-    def get_on_chain_transaction(self, tx_hash: str) -> dict | None:
+    def get_on_chain_transaction(self, tx_hash: str) -> dict[str, Any] | None:
         """Fetch transaction record from on-chain storage."""
         return self._on_chain_ledger.get(tx_hash)
 
@@ -231,7 +231,7 @@ class DualWriteBlockchainSyncService:
         asset_symbol: str,
         amount: Decimal | float,
         timestamp: datetime,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> TimeSeriesTransactionEntry:
         """Execute dual-write: write to TimescaleDB first, then broadcast to blockchain."""
         raw_metadata = {} if metadata is None else metadata
