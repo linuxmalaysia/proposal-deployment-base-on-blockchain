@@ -45,6 +45,9 @@ language: "en-GB"
 * [DCA & DAC Core API, CLI, and Data Objects Reference](docs/reference/dca-dac-api-and-cli-reference.md)
 * [Industry Implementation Patterns for Custody Platforms](docs/reference/implementation-patterns.md)
 
+### Screenshots
+
+
 ### Tutorials
 
 * [Getting Started with the DCA & DAC Platform on Percona PostgreSQL](docs/tutorials/getting-started-dca-dac.md)

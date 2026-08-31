@@ -24,5 +24,7 @@ build-backend = "uv_build"
 dev = [
     "httpx>=0.28.1",
     "httpx2>=2.12.0",
+    "playwright>=1.62.0",
     "pytest>=9.1.1",
+    "pytest-playwright>=0.9.0",
 ]

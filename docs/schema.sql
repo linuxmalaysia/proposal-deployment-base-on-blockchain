@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS blockchain_transactions (
 -- Indexes for high-concurrency lookup
 CREATE INDEX IF NOT EXISTS idx_users_did ON users(did);
 CREATE INDEX IF NOT EXISTS idx_assets_asset_id ON assets(asset_id);
+CREATE INDEX IF NOT EXISTS idx_assets_created_at_trl ON assets(created_at, trl);
 CREATE INDEX IF NOT EXISTS idx_cloverleaf_asset_id ON cloverleaf_scores(asset_id);
 CREATE INDEX IF NOT EXISTS idx_blockchain_tx_id ON blockchain_transactions(transaction_id);
 CREATE INDEX IF NOT EXISTS idx_blockchain_sync_state ON blockchain_transactions(sync_state);
+CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_state ON blockchain_transactions(timestamp, sync_state);
