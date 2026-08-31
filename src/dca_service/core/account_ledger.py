@@ -46,6 +46,20 @@ class SegregatedLedger:
     sub_accounts: dict[str, SubAccount] = field(default_factory=dict)
 
     def get_or_create_sub_account(self, sub_account_id: str, asset_symbol: str) -> SubAccount:
+        """
+        Retrieve a matching sub-account or create one for this ledger's client.
+        
+        Parameters:
+            sub_account_id (str): Identifier of the sub-account.
+            asset_symbol (str): Asset held by the sub-account.
+        
+        Returns:
+            SubAccount: The existing or newly created sub-account.
+        
+        Raises:
+            ComminglingError: If the sub-account belongs to another client.
+            ValueError: If an existing sub-account uses a different asset.
+        """
         if sub_account_id in self.sub_accounts:
             existing = self.sub_accounts[sub_account_id]
             if existing.client_id != self.client_id:
