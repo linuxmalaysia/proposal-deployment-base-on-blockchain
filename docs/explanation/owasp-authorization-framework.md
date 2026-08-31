@@ -63,6 +63,7 @@ Broken Access Control (OWASP Top 10 A01:2021) represents one of the most severe 
 ## 🔒 Deep Dive: Core Authorization Controls
 
 ### 1. Superuser Startup Seeding & SQL-Only Password Reset Restriction
+
 To prevent web application compromise from escalating to total superuser takeover, `SUPERUSER_INITIAL_PASSWORD` is used exclusively for startup initialization during system boot via `get_or_create_initial_password()` and `seed_initial_accounts()`. Runtime credential modifications targeting the superuser account via API endpoints are rejected in `src/dca_service/web_app.py`:
 
 ```python
@@ -80,6 +81,7 @@ if target_acct["role"] == "superuser":
 Attempts by any user (including logged-in admins or superusers) to reset the `superuser` account password via the `/api/users/{username}/reset-password` endpoint are rejected with HTTP 403 Forbidden.
 
 ### 2. Cryptographic Token & Claim Verification
+
 JWT tokens are signed using HMAC-SHA256 with constant-time verification:
 
 ```python

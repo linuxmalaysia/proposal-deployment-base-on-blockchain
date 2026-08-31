@@ -21,7 +21,8 @@ def _read(path: Path) -> str:
 
 def _extract_frontmatter_dict(content: str) -> dict[str, str]:
     lines = content.splitlines()
-    assert lines and lines[0].strip() == "---", "Expected opening '---' frontmatter delimiter"
+    assert lines, "Expected non-empty lines"
+    assert lines[0].strip() == "---", "Expected opening '---' frontmatter delimiter"
     closing_idx = -1
     for idx in range(1, len(lines)):
         if lines[idx].strip() == "---":
@@ -128,7 +129,7 @@ class TestSuperuserResetHowToDoc:
         content = _read(SUPERUSER_RESET_DOC)
         assert "SUPERUSER_INITIAL_PASSWORD" in content
         assert "dca_sys_root" in content
-        assert "UPDATE users" in content
+        assert "get_or_create_initial_password" in content
         assert "POST /api/users" in content
 
 

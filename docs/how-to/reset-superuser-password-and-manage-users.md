@@ -1,7 +1,7 @@
 ---
 okf_version: "0.2"
 type: "how-to"
-title: "How to Reset Superuser Password via SQL & Create Initial Admin Users"
+title: "How to Reset Superuser Password via Environment Configuration & Create Initial Admin Users"
 timestamp: "2026-08-31T00:00:00Z"
 topics:
   - "superuser"
@@ -10,7 +10,7 @@ topics:
   - "postgresql"
   - "sql"
   - "rbac"
-description: "Step-by-step guide explaining how to reset the system superuser password via SQL or environment configuration and create the first administrator account."
+description: "Step-by-step guide explaining how to re-seed the system superuser password via environment configuration and create the first administrator account."
 resource: "file:///docs/how-to/reset-superuser-password-and-manage-users.md"
 sources:
   - "src/dca_service/web_app.py"
@@ -22,63 +22,42 @@ stale_after: "2027-08-31T00:00:00Z"
 language: "en-GB"
 ---
 
-# 🔑 How to Reset Superuser Password via SQL & Create Initial Admin Users
+# 🔑 How to Reset Superuser Password via Environment Configuration & Create Initial Admin Users
 
 This guide provides step-by-step procedures for platform operators and system administrators to reset the `dca_sys_root` superuser password and create initial administrator accounts (`dca_admin_mgr` or custom admin users).
 
 ---
 
-## 🔒 Security Policy: Direct SQL Mandate for Superuser Reset
+## 🔒 Security Policy: Direct Environment Mandate for Superuser Reset
 
 In compliance with the **OWASP Authorization Framework** and platform security policies:
 
 > **RESTRICTION:** The system superuser account (`dca_sys_root`) password **CANNOT** be reset via public API endpoints or web interfaces. API password reset calls targeting `dca_sys_root` are blocked with **HTTP 403 Forbidden**.
 >
-> **REASON:** Restricting superuser credential modification to direct database operations prevents web application compromises from escalating to full superuser account takeover.
+> **REASON:** Restricting superuser credential modification to direct environment configuration or backend seeding prevents web application compromises from escalating to full superuser account takeover.
 
 ---
 
-## 🛠️ Step 1: Reset the Superuser Password
+## 🛠️ Step 1: Reset the Superuser Password via Supported Environment Re-Seeding
 
-Operators can reset the superuser password using either of two supported methods:
+Operators reset the superuser password using the supported environment configuration flow:
 
-### Method A: Environment Variable Startup Seeding (Recommended for Deployment Initialization)
+### Environment Variable Startup Seeding (Supported Reset Mechanism)
 
 1. Access your Render.com Web Service Dashboard (or local `/etc/secrets/.env` file).
+
 2. Add or update the environment variable `SUPERUSER_INITIAL_PASSWORD`:
+
    ```bash
    SUPERUSER_INITIAL_PASSWORD="YourSecureSuperuserPassword2026!"
    ```
-3. Restart or redeploy the Web Service. During system boot, `get_or_create_initial_password("superuser")` and `seed_initial_accounts()` populate `ACCOUNT_REGISTRY` for `dca_sys_root` with the configured password hash.
 
----
+3. Restart or redeploy the Web Service. During system startup, `get_or_create_initial_password("superuser")` and `seed_initial_accounts()` populate `ACCOUNT_REGISTRY` for `dca_sys_root` with the `scrypt` password hash derived from `SUPERUSER_INITIAL_PASSWORD`.
 
-### Method B: Direct PostgreSQL SQL Execution
+4. When PostgreSQL database persistence is active, the superuser record is also synchronized during initialization:
 
-If direct PostgreSQL database access is available (via `psql` or Supabase SQL Editor):
-
-1. Generate an `scrypt` password hash using standard Python `hashlib`:
-   ```bash
-   uv run python -c "
-   import hashlib, secrets
-   salt = secrets.token_hex(16)
-   password = 'YourSecureSuperuserPassword2026!'
-   key = hashlib.scrypt(password.encode(), salt=salt.encode(), n=16384, r=8, p=1)
-   print(f'scrypt\${salt}\${key.hex()}')
-   "
-   ```
-
-2. Execute the targeted SQL statement against your PostgreSQL database targeting exactly `dca_sys_root`:
    ```sql
-   -- Update password_hash for exactly the dca_sys_root superuser account
-   UPDATE users
-   SET password_hash = 'scrypt$GENERATED_SALT$GENERATED_HASH'
-   WHERE username = 'dca_sys_root' AND role = 'superuser';
-   ```
-
-3. Verify that exactly 1 row was updated:
-   ```sql
-   -- Confirm exactly 1 row updated for dca_sys_root
+   -- Verification query for superuser record in PostgreSQL database
    SELECT username, role, email FROM users WHERE username = 'dca_sys_root' AND role = 'superuser';
    ```
 
@@ -92,7 +71,7 @@ If direct PostgreSQL database access is available (via `psql` or Supabase SQL Ed
    - **Username:** `dca_sys_root`
    - **Password:** `YourSecureSuperuserPassword2026!`
 3. Click **Sign In**.
-4. Upon successful authentication, an HMAC-SHA256 signed JWT Bearer token is issued. For browser sessions, the token is passed in the `Authorization: Bearer <token>` header (or stored in protected session cookies / backend-for-frontend pattern in production environments), redirecting you to `/user-management`.
+4. Upon successful authentication, an HMAC-SHA256-signed JWT bearer token is issued. For browser sessions, the token is passed in the `Authorization: Bearer <token>` header (or handled via protected session cookies in production environments), redirecting you to `/user-management`.
 
 ---
 
@@ -147,7 +126,7 @@ curl -X POST "https://<your-render-app-url>/api/users" \
 
 | Role | Default Username | Web Password Reset Allowed? | Administrative Privileges |
 |------|------------------|-----------------------------|---------------------------|
-| `superuser` | `dca_sys_root` | ❌ **No (SQL Only)** | Sudo Auditor / Global Governance |
+| `superuser` | `dca_sys_root` | ❌ **No (API Blocked / Env Only)** | Sudo Auditor / Global Governance |
 | `admin` | `dca_admin_mgr` | ✅ Yes (by Admin/Superuser) | Account Management & Schema Init |
 | `auditor` | `dca_auditor_01` | ✅ Yes | Read-Only Audit & Compliance |
 | `operator` | `dca_operator_01` | ✅ Yes | Asset Vault Operations |

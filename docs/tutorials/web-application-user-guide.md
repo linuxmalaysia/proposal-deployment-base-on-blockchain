@@ -52,7 +52,7 @@ The platform supports four primary user personas across the university innovatio
 1. Open [/login](/login) or click **🔐 System Login** in the application banner or top navigation bar.
 2. Authenticate using system credentials (e.g., initial superuser `dca_sys_root` or admin manager `dca_admin_mgr`).
    - *Note on Superuser Reset:* Superuser (`dca_sys_root`) password resets are restricted to direct SQL database execution or `SUPERUSER_INITIAL_PASSWORD` environment variable configuration (see [How to Reset Superuser Password via SQL](../how-to/reset-superuser-password-and-manage-users.html)).
-3. Upon successful login, the system issues an HMAC-SHA256 signed JWT Bearer token transmitted via standard `Authorization: Bearer <token>` headers for API requests (or handled via protected HttpOnly session cookies in production).
+3. Upon successful login, the system issues an HMAC-SHA256-signed JWT bearer token transmitted via standard `Authorization: Bearer <token>` headers for API requests (or handled via protected HttpOnly session cookies in production).
 4. Access [/user-management](/user-management) or click **👥 User Management** to view registered system accounts, create new administrator or operator accounts, or reset user passwords.
 
 ### Step 1: User Identity & W3C DID Registration (Module 1)

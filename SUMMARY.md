@@ -40,7 +40,7 @@ language: "en-GB"
 * [Connecting Supabase PostgreSQL Database Securely on Render.com](docs/how-to/connect-supabase-postgresql-on-render.md)
 * [Deploying the RCF & DAC Interactive Web Application on Render.com](docs/how-to/deploy-rcf-dac-web-app-on-render.md)
 * [How-To: Install and Configure Repository Guardrails and Documentation Tools](docs/how-to/install-and-configure-guardrails.md)
-* [How to Reset Superuser Password via SQL & Create Initial Admin Users](docs/how-to/reset-superuser-password-and-manage-users.md)
+* [How to Reset Superuser Password via Environment Configuration & Create Initial Admin Users](docs/how-to/reset-superuser-password-and-manage-users.md)
 
 ### Reference
 
