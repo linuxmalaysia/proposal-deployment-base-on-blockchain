@@ -42,10 +42,10 @@ The platform supports four primary user personas across the university innovatio
 
 ### Step 0: Check Database Connection & Automatic Schema Verification Status (`/db-status`)
 
-1. Open [/db-status](../../db-status) or click **🔌 DB Connection Status** in the application banner.
+1. Open [/db-status](/db-status) or click **🔌 DB Connection Status** in the application banner.
 2. Review real-time connection status (`SUCCESSFULLY CONNECTED`), latency diagnostics, masked configuration status flags (`DATABASE_URL_CONFIGURED`, `SUPABASE_SECRET_KEY_CONFIGURED`), and verified project schema tables (`users`, `assets`, `cloverleaf_scores`, `revenue_splits`, `blockchain_transactions`).
 3. On application startup or deployment on Render.com, the system automatically runs a fail-safe schema auto-check routine (`auto_check_and_build_schema`), verifying and building any missing database tables defined in `docs/schema.sql` without overwriting existing data.
-4. Click **Re-test Database Connection** or access [/api/db-status](../../api/db-status) for JSON metrics.
+4. Click **Re-test Database Connection** or access [/api/db-status](/api/db-status) for JSON metrics.
 
 ### Step 1: User Identity & W3C DID Registration (Module 1)
 

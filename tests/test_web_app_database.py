@@ -284,7 +284,7 @@ def test_status_endpoints_do_not_expose_configured_secret_names_or_values(
 def test_auto_check_and_build_schema_builds_missing_tables(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Verify auto_check_and_build_schema executes DDL schema initialization when missing tables exist."""
+    """Verify auto_check_and_build_schema executes DDL schema initialisation when missing tables exist."""
     connection, cursor = make_connection([("users",)])
     monkeypatch.setattr(
         web_app,
@@ -311,7 +311,7 @@ def test_auto_check_and_build_schema_builds_missing_tables(
 def test_auto_check_and_build_schema_skips_when_all_tables_exist(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Verify auto_check_and_build_schema skips DDL schema initialization when all required tables exist."""
+    """Verify auto_check_and_build_schema skips DDL schema initialisation when all required tables exist."""
     connection, cursor = make_connection(
         [
             ("users",),

@@ -90,6 +90,7 @@ EXPECTED_AUDIENCE = "rcf-dac-data-room"
 # In-memory storage for demonstration / web service operation
 USER_REGISTRY: Dict[str, Dict[str, Any]] = {}
 ASSET_REGISTRY: Dict[str, Dict[str, Any]] = {}
+LAST_SCHEMA_AUTO_CHECK_RESULT: Optional[Dict[str, Any]] = None
 
 RevenueType = Literal["royalties", "licensing", "equity", "dividend"]
 ContentEncoding = Literal["base64", "raw", "text"]
@@ -158,9 +159,15 @@ class RevenueSplitRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
-    """FastAPI lifespan context manager ensuring fail-safe schema auto-checking and table building on startup."""
+    """
+    FastAPI lifespan context manager ensuring non-blocking schema auto-checking and table building on startup.
+
+    Args:
+        app_instance (FastAPI): The active FastAPI web application instance.
+    """
+    import asyncio
     try:
-        auto_check_and_build_schema()
+        asyncio.create_task(asyncio.to_thread(auto_check_and_build_schema))
     except Exception:
         pass
     yield
@@ -263,21 +270,25 @@ def auto_check_and_build_schema() -> Dict[str, Any]:
 
     Inspects PostgreSQL information_schema.tables for existing application schema tables, maintaining
     existing data, and automatically executing DDL schema statements if missing tables are detected.
+    Retains schema check and initialisation results in module-level state for operator diagnostics.
 
     Returns:
         Dict[str, Any]: Execution status dictionary containing success boolean, message string,
         db_connected status boolean, tables_created list, and missing_tables list.
     """
+    global LAST_SCHEMA_AUTO_CHECK_RESULT
     expected_tables = ["users", "assets", "cloverleaf_scores", "revenue_splits", "blockchain_transactions"]
     conn, msg = get_postgresql_connection()
     if not conn:
-        return {
+        res = {
             "success": False,
             "message": f"Auto schema check skipped: {msg}",
             "db_connected": False,
             "tables_created": [],
             "missing_tables": expected_tables,
         }
+        LAST_SCHEMA_AUTO_CHECK_RESULT = res
+        return res
 
     try:
         with conn.cursor() as cur:
@@ -290,17 +301,19 @@ def auto_check_and_build_schema() -> Dict[str, Any]:
         conn.close()
 
         if not missing_tables:
-            return {
+            res = {
                 "success": True,
                 "message": "All required schema tables verified in PostgreSQL database.",
                 "db_connected": True,
                 "tables_created": [],
                 "missing_tables": [],
             }
+            LAST_SCHEMA_AUTO_CHECK_RESULT = res
+            return res
 
-        res = initialize_database_schema()
-        if res.get("success"):
-            return {
+        res_init = initialize_database_schema()
+        if res_init.get("success"):
+            res = {
                 "success": True,
                 "message": f"Successfully auto-built missing schema tables: {', '.join(missing_tables)}",
                 "db_connected": True,
@@ -308,25 +321,29 @@ def auto_check_and_build_schema() -> Dict[str, Any]:
                 "missing_tables": [],
             }
         else:
-            return {
+            res = {
                 "success": False,
-                "message": f"Auto-build failed for missing tables ({', '.join(missing_tables)}): {res.get('message')}",
+                "message": f"Auto-build failed for missing tables ({', '.join(missing_tables)}): {res_init.get('message')}",
                 "db_connected": True,
                 "tables_created": [],
                 "missing_tables": missing_tables,
             }
+        LAST_SCHEMA_AUTO_CHECK_RESULT = res
+        return res
     except Exception as exc:
         try:
             conn.close()
         except Exception:
             pass
-        return {
+        res = {
             "success": False,
             "message": f"Fail-safe schema auto-check error: {exc}",
             "db_connected": True,
             "tables_created": [],
             "missing_tables": expected_tables,
         }
+        LAST_SCHEMA_AUTO_CHECK_RESULT = res
+        return res
 
 
 
@@ -460,7 +477,7 @@ def init_db_endpoint(
     if not payload.get("admin") and payload.get("role") != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authorisation failed. Administrator role required for schema initialization.",
+            detail="Authorisation failed. Administrator role required for schema initialisation.",
         )
 
     return initialize_database_schema()
