@@ -5,6 +5,8 @@ Enforces zero-commingling of client digital assets via isolated sub-accounts
 and strict balance tracking.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from decimal import Decimal
 

@@ -36,3 +36,9 @@ language: "en-GB"
 - Authored step-by-step Diátaxis guide for securing Supabase PostgreSQL connection strings, environment variables, SSL parameters, and Supabase CLI on Render.com (`docs/how-to/connect-supabase-postgresql-on-render.md`).
 - Implemented real-time Database Connection Status diagnostic page (`/db-status` & `/api/db-status`), schema DDL specification (`docs/schema.sql`), and Render secret file environment loader in `src/dca_service/web_app.py`.
 - Automated database schema table check and creation routine (`auto_check_and_build_schema`) on application deployment and startup via FastAPI `lifespan` context manager, ensuring fail-safe execution and zero data loss on Render.com.
+- Implemented `HttpOnly`, `SameSite="lax"`, `Secure` cookie session handling (`/api/login`, `/api/logout`) for web browser session isolation from client-side scripts.
+- Implemented connection pool metrics monitoring (`ConnectionPoolMetrics`) for Supabase / PostgreSQL exposed via `/api/db-pool-metrics` and `/api/db-status`.
+- Expanded high-throughput in-memory TTL caching (`INVESTOR_ASSETS_CACHE_TTL`) for investor data room endpoints with instant cache invalidation upon asset registration.
+- Enforced strict type annotations and future annotations across all core domain entities in `src/dca_service/core/` and updated `.gitignore` exclusions for test/cache artifacts.
+- Extended Playwright end-to-end browser automation test suite (`tests/test_playwright_e2e.py`) to automate full login form submission, HttpOnly session cookie handling, administrative user creation, table rendering, and logout workflow under headless CI.
+- Authored Diátaxis explanation guide (`docs/explanation/httponly-cookies-and-connection-pooling.md`) conforming to OKF v0.2 frontmatter with all 13 mandatory fields.

@@ -26,12 +26,18 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Pytest / coverage / Mypy
+# Pytest / coverage / Mypy / Ruff
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
 .coverage
 .coverage.*
 htmlcov/
+test_results/
+
+# Documentation and temporary test artifacts
+docs/screenshots/*.png
+*.webm
 
 # Environments
 .venv/

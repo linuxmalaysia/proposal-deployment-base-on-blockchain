@@ -31,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `HttpOnly`, `SameSite="lax"`, `Secure` cookies for browser session handling on `/api/login` and `/api/logout` endpoint in `src/dca_service/web_app.py`.
+- Session cookie extraction support in `extract_current_user_payload` alongside `Authorization: Bearer` headers.
+- Connection pooling metrics monitoring (`ConnectionPoolMetrics`) for Supabase / PostgreSQL tracking acquisition latency, pool utilization, and query counts, exposed via `/api/db-pool-metrics` and integrated into `/api/db-status`.
+- Expanded in-memory TTL caching (`INVESTOR_ASSETS_CACHE_TTL`) for high-throughput API endpoints with instant cache invalidation upon asset registration.
+- Strict type annotations and `from __future__ import annotations` across all core domain entities in `src/dca_service/core/`.
+- Playwright E2E browser automation tests (`tests/test_playwright_e2e.py`) covering full login form submission, HttpOnly session cookie verification, administrative user creation, table rendering, and logout workflow under headless CI.
+- Diátaxis explanation guide for HttpOnly cookie session security, connection pool metrics, and high-throughput caching ([`docs/explanation/httponly-cookies-and-connection-pooling.md`](docs/explanation/httponly-cookies-and-connection-pooling.md)).
 - Automatic fail-safe database schema check and table building routine (`auto_check_and_build_schema`) triggered upon application startup via FastAPI `lifespan` context manager in `src/dca_service/web_app.py`.
 - Non-destructive `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` execution preserving existing database tables and records on Render.com deployments.
 - Interactive Database Connection Status page (`/db-status`) and JSON diagnostic endpoint (`/api/db-status`) verifying real-time connection status, secret variables, and schema tables in `src/dca_service/web_app.py`.

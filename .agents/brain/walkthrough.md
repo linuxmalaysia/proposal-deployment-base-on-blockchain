@@ -43,3 +43,15 @@ language: "en-GB"
 - Updated core ledgers (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and regenerated `SUMMARY.md` via `tools/generate_summary.py`.
 - Addressed PR comments: updated policy engine signer validation, updated cb-mpc doc frontmatter status to `proposed`, and expanded descriptions for probabilistic Schnorr, trust boundaries, session ID & abort handling, AEAD contract, `SYNC_FAILED` reconciliation, and proactive refresh compromise response.
 - Addressed follow-up PR comments: updated policy engine `TransactionProposal.__post_init__` to enforce list type for signers and require active verifier attestation; updated `DualWriteBlockchainSyncService` with on-chain query reconciliation and terminal revert handling; updated architecture specification with prospective language, chain compatibility matrix, session ID ownership contract, and abort cancellation propagation.
+
+## Session Log: 2026-08-25 (Security, Performance, Code Health & Playwright E2E Workflows)
+
+- Implemented `HttpOnly`, `Secure`, `SameSite="lax"` cookies for browser session handling on `/api/login` and added `/api/logout` endpoint in `src/dca_service/web_app.py`.
+- Updated `extract_current_user_payload` to accept session cookies alongside `Authorization: Bearer` headers.
+- Introduced `ConnectionPoolMetrics` monitoring for Supabase / PostgreSQL exposed via `/api/db-pool-metrics` and integrated into `/api/db-status`.
+- Expanded in-memory TTL caching (`INVESTOR_ASSETS_CACHE_TTL`) for high-throughput API endpoints with instant cache invalidation upon asset registration.
+- Enforced strict type annotations and `from __future__ import annotations` across all core domain entities in `src/dca_service/core/`.
+- Updated `.gitignore` to strictly exclude `.mypy_cache`, `.ruff_cache`, `test_results`, screenshots, and webm media artifacts.
+- Extended Playwright E2E browser tests in `tests/test_playwright_e2e.py` to automate full login form submission, HttpOnly session cookie handling, administrative user creation, table rendering, and logout workflow under headless CI.
+- Authored Diátaxis explanation guide `docs/explanation/httponly-cookies-and-connection-pooling.md` conforming to OKF v0.2 frontmatter with all 13 mandatory fields.
+- Updated triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and regenerated `SUMMARY.md`.

@@ -54,6 +54,7 @@ language: "en-GB"
 
 ### Documentation (`docs/`)
 
+- `docs/explanation/httponly-cookies-and-connection-pooling.md` -> HttpOnly cookie security, connection pool metrics, and caching architecture.
 - `docs/explanation/open-source-mpc-wallet-architecture.md` -> Coinbase `cb-mpc` open-source wallet architecture.
 - `docs/explanation/percona-timescaledb-blockchain-sync.md` -> Dual-write PostgreSQL / TimescaleDB architecture.
 - `docs/explanation/research-commercialisation-fund-dac-proposal.md` -> RCF and DAC proposal architecture document.

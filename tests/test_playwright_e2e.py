@@ -16,7 +16,7 @@ from playwright.sync_api import Page, expect
 
 os.environ.setdefault("INVESTOR_JWT_SECRET", "test_rcf_dac_jwt_secret_key_2026")
 
-from dca_service.web_app import app
+from dca_service.web_app import ACCOUNT_REGISTRY, app, hash_password
 
 
 class ServerThread(threading.Thread):
@@ -103,3 +103,49 @@ def test_playwright_interactive_portal_and_forms(page: Page, live_server: str):
 
     # Capture interactive submission screenshot
     page.screenshot(path="docs/screenshots/playwright_portal_interactive.png", full_page=True)
+
+
+def test_playwright_login_and_user_creation_workflow(page: Page, live_server: str):
+    """Automate full login form submission, HttpOnly JWT session token handling, administrative user creation, and logout."""
+    # Ensure deterministic password for admin account
+    ACCOUNT_REGISTRY["dca_admin_mgr"]["password_hash"] = hash_password("InitPass_admin_2026!")
+
+    # 1. Navigate to login page
+    page.goto(f"{live_server}/login")
+    expect(page).to_have_title("System Login | RCF & DAC Platform")
+
+    # 2. Submit credentials
+    page.locator("#username").fill("dca_admin_mgr")
+    page.locator("#password").fill("InitPass_admin_2026!")
+    page.locator("#loginForm button[type='submit']").click()
+
+    # 3. Wait for redirect to User Management Dashboard
+    page.wait_for_url(f"{live_server}/user-management", timeout=5000)
+    expect(page).to_have_title("User Management Interface | RCF & DAC Platform")
+    expect(page.locator("h1")).to_contain_text("Institutional User Management Dashboard")
+
+    # 4. Fill and submit administrative user creation form
+    page.locator("#newUsername").fill("e2e_operator_02")
+    page.locator("#newPassword").fill("SecuredPass123!")
+    page.locator("#newName").fill("Dr. Alan Turing")
+    page.locator("#newRole").select_option("operator")
+    page.locator("#newDept").fill("Quantum Computing Lab")
+    page.locator("#newEmail").fill("alan.turing@rcf-dac.univ.edu.my")
+    page.locator("#createUserBtn").click()
+
+    # 5. Verify creation alert and table update
+    alert_box = page.locator("#createUserAlert")
+    expect(alert_box).to_be_visible()
+    expect(alert_box).to_contain_text("created successfully")
+    expect(page.locator("#userTableBody")).to_contain_text("e2e_operator_02")
+
+    # Capture screenshot of administrative creation
+    os.makedirs("docs/screenshots", exist_ok=True)
+    page.screenshot(path="docs/screenshots/playwright_user_management.png", full_page=True)
+
+    # 6. Perform logout workflow
+    logout_btn = page.locator("#logoutBtn")
+    expect(logout_btn).to_be_visible()
+    logout_btn.click()
+    page.wait_for_url(f"{live_server}/login", timeout=5000)
+    assert "/login" in page.url

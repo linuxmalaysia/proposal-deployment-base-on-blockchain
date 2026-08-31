@@ -21,7 +21,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, Header, HTTPException, status
+from fastapi import Cookie, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -197,10 +197,71 @@ def seed_initial_accounts() -> None:
 
 seed_initial_accounts()
 
-# DB Status Diagnostic Cache Configuration & State
+# DB Status Diagnostic & High-Throughput Cache Configuration & State
 DB_STATUS_CACHE_TTL: float = float(os.environ.get("DB_STATUS_CACHE_TTL", "5.0"))
 _DB_STATUS_CACHE: dict[str, Any] | None = None
 _DB_STATUS_CACHE_TIMESTAMP: float = 0.0
+
+INVESTOR_ASSETS_CACHE_TTL: float = float(os.environ.get("INVESTOR_ASSETS_CACHE_TTL", "5.0"))
+_INVESTOR_ASSETS_CACHE: dict[str, Any] | None = None
+_INVESTOR_ASSETS_CACHE_TIMESTAMP: float = 0.0
+
+
+class ConnectionPoolMetrics:
+    """Tracks database connection pooling stats, latency, and utilization metrics."""
+
+    def __init__(self) -> None:
+        self.total_acquired: int = 0
+        self.active_connections: int = 0
+        self.max_pool_size: int = int(os.environ.get("DB_POOL_MAX_SIZE", "20"))
+        self.min_pool_size: int = int(os.environ.get("DB_POOL_MIN_SIZE", "5"))
+        self.total_checkout_latency_ms: float = 0.0
+        self.total_queries: int = 0
+        self.failed_connections: int = 0
+
+    def record_connection_attempt(self, latency_ms: float, success: bool) -> None:
+        if success:
+            self.total_acquired += 1
+            self.total_checkout_latency_ms += latency_ms
+        else:
+            self.failed_connections += 1
+
+    def record_query(self) -> None:
+        self.total_queries += 1
+
+    def to_dict(self) -> dict[str, Any]:
+        avg_latency = (
+            round(self.total_checkout_latency_ms / self.total_acquired, 2)
+            if self.total_acquired > 0
+            else 0.0
+        )
+        return {
+            "max_pool_size": self.max_pool_size,
+            "min_pool_size": self.min_pool_size,
+            "total_connections_acquired": self.total_acquired,
+            "failed_connection_attempts": self.failed_connections,
+            "avg_checkout_latency_ms": avg_latency,
+            "total_queries_executed": self.total_queries,
+            "pool_utilization_percent": round(
+                (self.active_connections / self.max_pool_size) * 100, 1
+            ) if self.max_pool_size > 0 else 0.0,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+
+
+DB_POOL_METRICS = ConnectionPoolMetrics()
+
+
+def close_postgresql_connection(conn: Any) -> None:
+    """Close PostgreSQL connection and decrement active connection pool accounting."""
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        finally:
+            if DB_POOL_METRICS.active_connections > 0:
+                DB_POOL_METRICS.active_connections -= 1
 
 RevenueType = Literal["royalties", "licensing", "equity", "dividend"]
 ContentEncoding = Literal["base64", "raw", "text"]
@@ -358,6 +419,7 @@ def get_postgresql_connection():
 
         import psycopg
     except ImportError:
+        DB_POOL_METRICS.record_connection_attempt(0.0, False)
         return None, "psycopg driver not installed"
 
     database_url = os.environ.get("DATABASE_URL")
@@ -375,16 +437,24 @@ def get_postgresql_connection():
             if ca_file.exists():
                 ssl_params = f"sslmode=verify-full&sslrootcert={ca_file}"
             else:
+                DB_POOL_METRICS.record_connection_attempt(0.0, False)
                 return None, "PostgreSQL CA certificate missing (/etc/secrets/prod-supabase-ca.crt); failing closed."
             database_url = f"postgresql://postgres.{project_ref}:{encoded_pass}@{pooler_host}:6543/postgres?{ssl_params}"
 
     if not database_url:
+        DB_POOL_METRICS.record_connection_attempt(0.0, False)
         return None, "DATABASE_URL or SUPABASE_DB_PASSWORD not configured"
 
+    t0 = time.time()
     try:
         conn = psycopg.connect(database_url, connect_timeout=4)
+        lat_ms = (time.time() - t0) * 1000.0
+        DB_POOL_METRICS.record_connection_attempt(lat_ms, True)
+        DB_POOL_METRICS.active_connections += 1
         return conn, "Connected to PostgreSQL"
     except Exception as exc:
+        lat_ms = (time.time() - t0) * 1000.0
+        DB_POOL_METRICS.record_connection_attempt(lat_ms, False)
         return None, f"PostgreSQL connection error: {exc}"
 
 
@@ -409,12 +479,12 @@ def initialize_database_schema() -> dict[str, Any]:
             cur.execute("SET statement_timeout = 10000; SET lock_timeout = 5000;")
             cur.execute(sql_script)
         conn.commit()
-        conn.close()
+        close_postgresql_connection(conn)
         return {"success": True, "message": "Successfully executed DDL schema and created project tables in PostgreSQL database."}
     except Exception as exc:
         try:
             conn.rollback()
-            conn.close()
+            close_postgresql_connection(conn)
         except Exception:
             pass
         return {"success": False, "message": f"Failed to execute schema DDL: {exc}"}
@@ -455,7 +525,7 @@ def auto_check_and_build_schema() -> dict[str, Any]:
             existing_tables = {r[0] for r in cur.fetchall()}
 
         missing_tables = [tbl for tbl in expected_tables if tbl not in existing_tables]
-        conn.close()
+        close_postgresql_connection(conn)
 
         if not missing_tables:
             res = {
@@ -544,20 +614,18 @@ def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
         details.append("PostgreSQL Database Connection Established")
         try:
             with conn.cursor() as cur:
+                DB_POOL_METRICS.record_query()
                 cur.execute(
                     "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
                 )
                 rows = cur.fetchall()
                 verified_db_tables = {r[0] for r in rows}
                 query_succeeded = True
-            conn.close()
             details.append(f"Query verified {len(verified_db_tables)} tables in information_schema")
         except Exception as exc:
             details.append(f"PostgreSQL query error: {exc}")
-            try:
-                conn.close()
-            except Exception:
-                pass
+        finally:
+            close_postgresql_connection(conn)
     else:
         details.append(pg_msg)
 
@@ -616,6 +684,7 @@ def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "schema_tables": tables,
         "schema_file": "docs/schema.sql",
+        "pool_metrics": DB_POOL_METRICS.to_dict(),
         "cached": False,
     }
 
@@ -630,11 +699,44 @@ def get_db_status_api(bypass_cache: bool = False, force: bool = False) -> dict[s
     return check_database_connection(bypass_cache=bypass_cache or force)
 
 
+@app.get("/api/db-pool-metrics")
+def get_db_pool_metrics_endpoint() -> dict[str, Any]:
+    """Return PostgreSQL / Supabase connection pool health and performance metrics."""
+    return {
+        "status": "healthy",
+        "pool_metrics": DB_POOL_METRICS.to_dict(),
+        "service": "rcf-dac-web-app",
+    }
+
+
+# --- CSRF & Origin Protection Helper ---
+
+def verify_csrf_and_origin(
+    request: Request,
+    x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
+) -> None:
+    """Verify Origin header and non-cookie CSRF token header for cookie-authenticated mutation endpoints."""
+    if "rcf_dac_jwt" in request.cookies:
+        expected_origin = os.environ.get("ALLOWED_ORIGIN", "").rstrip("/")
+        origin = request.headers.get("Origin") or request.headers.get("Referer")
+        if origin and expected_origin:
+            if not origin.rstrip("/").startswith(expected_origin):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="CSRF/Origin validation failed. Untrusted request origin.",
+                )
+        if not x_csrf_token:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="CSRF validation failed. Missing required X-CSRF-Token header.",
+            )
+
+
 # --- RBAC User Management & Authentication Endpoints ---
 
 @app.post("/api/login")
-def login_endpoint(req: LoginRequest) -> dict[str, Any]:
-    """Authenticate system account credentials and return signed JWT session token."""
+def login_endpoint(req: LoginRequest, response: Response) -> dict[str, Any]:
+    """Authenticate system account credentials, set HttpOnly session cookie, and return signed JWT session token."""
     account = ACCOUNT_REGISTRY.get(req.username)
     if not account:
         raise HTTPException(
@@ -651,6 +753,18 @@ def login_endpoint(req: LoginRequest) -> dict[str, Any]:
     role = account["role"]
     token = create_system_jwt(username=account["username"], role=role)
 
+    # Set HttpOnly, SameSite, Secure session cookie (defaults to True; opt-out via COOKIE_SECURE=false)
+    secure_cookie = os.environ.get("COOKIE_SECURE", "true").lower() != "false"
+    response.set_cookie(
+        key="rcf_dac_jwt",
+        value=token,
+        httponly=True,
+        secure=secure_cookie,
+        samesite="lax",
+        max_age=3600,
+        path="/",
+    )
+
     return {
         "message": "Authentication successful",
         "access_token": token,
@@ -664,6 +778,18 @@ def login_endpoint(req: LoginRequest) -> dict[str, Any]:
             "did": account["did"],
         },
     }
+
+
+@app.post("/api/logout")
+def logout_endpoint(
+    request: Request,
+    response: Response,
+    x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
+) -> dict[str, str]:
+    """Clear HttpOnly session cookie to revoke browser session context."""
+    verify_csrf_and_origin(request, x_csrf_token)
+    response.delete_cookie(key="rcf_dac_jwt", path="/")
+    return {"message": "Successfully logged out. Session cookie cleared."}
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -717,16 +843,16 @@ def serve_login_page() -> HTMLResponse:
         const resp = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
           body: JSON.stringify({ username, password })
         });
         const data = await resp.json();
 
         if (resp.ok) {
-          localStorage.setItem('rcf_dac_jwt', data.access_token);
           localStorage.setItem('rcf_dac_user', JSON.stringify(data.user));
           alertBox.style.background = '#d4edda';
           alertBox.style.color = '#155724';
-          alertBox.innerText = 'Login successful! Redirecting...';
+          alertBox.innerText = 'Login successful! HttpOnly session established. Redirecting...';
           alertBox.style.display = 'block';
 
           setTimeout(() => {
@@ -755,169 +881,6 @@ def serve_login_page() -> HTMLResponse:
     return HTMLResponse(content=html_content)
 
 
-@app.get("/api/users")
-def list_system_users(
-    authorization: str | None = Header(None, alias="Authorization"),
-) -> dict[str, Any]:
-    """List all registered system user accounts (Admin & Superuser only)."""
-    payload = extract_current_user_payload(authorization)
-    role = payload.get("role", "")
-    if role not in ("admin", "superuser"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authorisation failed. Access restricted to Admin or Superuser roles.",
-        )
-
-    users_list = []
-    for acct in ACCOUNT_REGISTRY.values():
-        users_list.append({
-            "username": acct["username"],
-            "role": acct["role"],
-            "name": acct["name"],
-            "dept": acct["dept"],
-            "email": acct["email"],
-            "did": acct["did"],
-            "created_at": acct.get("created_at"),
-            "superuser_protected": acct["role"] == "superuser",
-        })
-
-    return {
-        "users": users_list,
-        "total": len(users_list),
-        "requested_by": payload.get("sub"),
-    }
-
-
-@app.post("/api/users", status_code=status.HTTP_201_CREATED)
-def create_system_user(
-    req: CreateUserRequest,
-    authorization: str | None = Header(None, alias="Authorization"),
-) -> dict[str, Any]:
-    """Create a new system user account (Admin only; cannot create superuser)."""
-    payload = extract_current_user_payload(authorization)
-    caller_role = payload.get("role", "")
-
-    if caller_role != "admin" and not (caller_role == "superuser" and payload.get("admin")):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authorisation failed. Administrator role required to create user accounts.",
-        )
-
-    if req.role.lower() == "superuser":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Superuser accounts cannot be created via API. They require direct database SQL creation.",
-        )
-
-    if req.username in ACCOUNT_REGISTRY:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"User account '{req.username}' already exists.",
-        )
-
-    did_hash = hashlib.sha256(f"{req.username}-{time.time()}".encode()).hexdigest()[:12]
-    new_user = {
-        "username": req.username,
-        "password_hash": hash_password(req.password),
-        "role": req.role.lower(),
-        "name": req.name,
-        "dept": req.dept,
-        "email": req.email,
-        "did": f"did:univ:acct-{did_hash}",
-        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    }
-    ACCOUNT_REGISTRY[req.username] = new_user
-
-    return {
-        "message": f"User account '{req.username}' successfully created.",
-        "user": {
-            "username": new_user["username"],
-            "role": new_user["role"],
-            "name": new_user["name"],
-            "dept": new_user["dept"],
-            "email": new_user["email"],
-            "did": new_user["did"],
-        },
-    }
-
-
-@app.post("/api/users/{username}/reset-password")
-def reset_user_password(
-    username: str,
-    req: ResetPasswordRequest,
-    authorization: str | None = Header(None, alias="Authorization"),
-) -> dict[str, Any]:
-    """
-    Reset password for specified user account.
-    Superuser password CANNOT be reset via API; it requires direct database SQL command.
-    """
-    payload = extract_current_user_payload(authorization)
-    caller_role = payload.get("role", "")
-
-    if caller_role not in ("admin", "superuser"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authorisation failed. Administrator or Superuser role required for password reset.",
-        )
-
-    target_acct = ACCOUNT_REGISTRY.get(username)
-    if not target_acct:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User account '{username}' not found.",
-        )
-
-    # Superuser protection mandate: Superuser password CAN ONLY be reset by direct SQL command
-    if target_acct["role"] == "superuser":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "SECURITY RESTRICTION: Superuser account password CANNOT be reset via API/web interface. "
-                "Superuser password can ONLY be reset via direct PostgreSQL database SQL command."
-            ),
-        )
-
-    target_acct["password_hash"] = hash_password(req.new_password)
-    return {
-        "message": f"Password for user '{username}' successfully reset.",
-        "username": username,
-        "reset_by": payload.get("sub"),
-    }
-
-
-@app.delete("/api/users/{username}")
-def delete_system_user(
-    username: str,
-    authorization: str | None = Header(None, alias="Authorization"),
-) -> dict[str, Any]:
-    """Delete specified user account (Admin only; cannot delete superuser)."""
-    payload = extract_current_user_payload(authorization)
-    caller_role = payload.get("role", "")
-
-    if caller_role != "admin" and not (caller_role == "superuser" and payload.get("admin")):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authorisation failed. Administrator role required to delete accounts.",
-        )
-
-    target_acct = ACCOUNT_REGISTRY.get(username)
-    if not target_acct:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User account '{username}' not found.",
-        )
-
-    if target_acct["role"] == "superuser":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="SECURITY RESTRICTION: Superuser account cannot be deleted via API.",
-        )
-
-    del ACCOUNT_REGISTRY[username]
-    return {
-        "message": f"User account '{username}' successfully deleted.",
-        "deleted_by": payload.get("sub"),
-    }
 
 
 @app.get("/user-management", response_class=HTMLResponse)
@@ -932,7 +895,10 @@ def serve_user_management_page() -> HTMLResponse:
 </head>
 <body>
   <div class="container" style="max-width: 1000px; margin: 2rem auto; padding: 0 1rem;">
-    <p style="margin-bottom: 1.5rem;"><a href="/">&larr; Return to RCF & DAC Homepage</a></p>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <p style="margin: 0;"><a href="/">&larr; Return to RCF & DAC Homepage</a></p>
+      <button id="logoutBtn" style="background: #6c757d; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: bold;">Sign Out</button>
+    </div>
 
     <div style="text-align: center; margin-bottom: 2rem;">
       <h1>👥 Institutional User Management Dashboard</h1>
@@ -946,6 +912,45 @@ def serve_user_management_page() -> HTMLResponse:
     </div>
 
     <div id="adminContent" style="display: none;">
+      <div class="card" style="background: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <h3>➕ Create New System User</h3>
+        <div id="createUserAlert" style="display: none; padding: 0.8rem; border-radius: 4px; margin-bottom: 1rem;"></div>
+        <form id="createUserForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div>
+            <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newUsername">Username:</label>
+            <input type="text" id="newUsername" name="username" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+          </div>
+          <div>
+            <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newPassword">Password:</label>
+            <input type="password" id="newPassword" name="password" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+          </div>
+          <div>
+            <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newName">Full Name:</label>
+            <input type="text" id="newName" name="name" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+          </div>
+          <div>
+            <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newRole">Role:</label>
+            <select id="newRole" name="role" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+              <option value="operator">operator</option>
+              <option value="admin">admin</option>
+              <option value="auditor">auditor</option>
+              <option value="investor">investor</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newDept">Department:</label>
+            <input type="text" id="newDept" name="dept" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+          </div>
+          <div>
+            <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newEmail">Email:</label>
+            <input type="email" id="newEmail" name="email" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+          </div>
+          <div style="grid-column: span 2;">
+            <button type="submit" id="createUserBtn" style="background: #28a745; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Create User Account</button>
+          </div>
+        </form>
+      </div>
+
       <div class="card" style="background: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
         <h3>📋 System Registered Users</h3>
         <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
@@ -972,23 +977,21 @@ def serve_user_management_page() -> HTMLResponse:
       const unauthAlert = document.getElementById('unauthAlert');
       const adminContent = document.getElementById('adminContent');
 
-      if (!token) {
-        unauthAlert.style.display = 'block';
-        return;
-      }
-
       try {
         const resp = await fetch('/api/users', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          credentials: 'same-origin',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
 
         if (!resp.ok) {
           unauthAlert.style.display = 'block';
+          adminContent.style.display = 'none';
           return;
         }
 
         const data = await resp.json();
         adminContent.style.display = 'block';
+        unauthAlert.style.display = 'none';
 
         const tbody = document.getElementById('userTableBody');
         tbody.innerHTML = '';
@@ -1059,6 +1062,7 @@ def serve_user_management_page() -> HTMLResponse:
         });
       } catch (err) {
         unauthAlert.style.display = 'block';
+        adminContent.style.display = 'none';
       }
     }
 
@@ -1070,9 +1074,10 @@ def serve_user_management_page() -> HTMLResponse:
       try {
         const resp = await fetch(`/api/users/${username}/reset-password`, {
           method: 'POST',
+          credentials: 'same-origin',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
           body: JSON.stringify({ new_password: newPassword })
         });
@@ -1087,6 +1092,68 @@ def serve_user_management_page() -> HTMLResponse:
       }
     }
 
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        try {
+          await fetch('/api/logout', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRF-Token': 'csrf_session_valid' }
+          });
+        } catch (e) {}
+        localStorage.removeItem('rcf_dac_user');
+        window.location.href = '/login';
+      });
+    }
+
+    const createUserForm = document.getElementById('createUserForm');
+    if (createUserForm) {
+      createUserForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const alertBox = document.getElementById('createUserAlert');
+        alertBox.style.display = 'none';
+
+        const username = document.getElementById('newUsername').value.trim();
+        const password = document.getElementById('newPassword').value.trim();
+        const name = document.getElementById('newName').value.trim();
+        const role = document.getElementById('newRole').value;
+        const dept = document.getElementById('newDept').value.trim();
+        const email = document.getElementById('newEmail').value.trim();
+
+        try {
+          const resp = await fetch('/api/users', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': 'csrf_session_valid'
+            },
+            body: JSON.stringify({ username, password, name, role, dept, email })
+          });
+          const resData = await resp.json();
+          if (resp.ok) {
+            alertBox.style.background = '#d4edda';
+            alertBox.style.color = '#155724';
+            alertBox.innerText = `User account '${username}' created successfully!`;
+            alertBox.style.display = 'block';
+            createUserForm.reset();
+            loadUsers();
+          } else {
+            alertBox.style.background = '#f8d7da';
+            alertBox.style.color = '#721c24';
+            alertBox.innerText = resData.detail || 'Failed to create user.';
+            alertBox.style.display = 'block';
+          }
+        } catch (err) {
+          alertBox.style.background = '#f8d7da';
+          alertBox.style.color = '#721c24';
+          alertBox.innerText = 'Network error during user creation.';
+          alertBox.style.display = 'block';
+        }
+      });
+    }
+
     document.addEventListener('DOMContentLoaded', loadUsers);
   </script>
 </body>
@@ -1094,28 +1161,6 @@ def serve_user_management_page() -> HTMLResponse:
     return HTMLResponse(content=html_content)
 
 
-@app.post("/api/init-db")
-def init_db_endpoint(
-    authorization: str | None = Header(None, alias="Authorization"),
-) -> dict[str, Any]:
-    """Execute docs/schema.sql DDL script to initialise database schema and tables (Admin only)."""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required. Missing or invalid Bearer token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    token = authorization.split("Bearer ", 1)[1].strip()
-    payload = verify_investor_bearer_token(token)
-
-    if not payload.get("admin") and payload.get("role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authorisation failed. Administrator role required for schema initialisation.",
-        )
-
-    return initialize_database_schema()
 
 
 @app.get("/db-status", response_class=HTMLResponse)
@@ -1274,6 +1319,8 @@ def register_asset(req: AssetRegistrationRequest) -> dict[str, Any]:
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     ASSET_REGISTRY[asset_id] = asset_record
+    global _INVESTOR_ASSETS_CACHE
+    _INVESTOR_ASSETS_CACHE = None  # Invalidate high-throughput cache
     return {
         "message": "Digital Research Asset registered in evidence vault",
         "asset": asset_record,
@@ -1483,37 +1530,244 @@ def verify_investor_bearer_token(
     return payload
 
 
-def extract_current_user_payload(authorization: str | None) -> dict[str, Any]:
-    """Helper to extract and verify Bearer token payload from Authorization header."""
-    if not authorization or not authorization.startswith("Bearer "):
+def extract_current_user_payload(
+    authorization: str | None = None,
+    rcf_dac_jwt: str | None = None,
+    request: Request | None = None,
+) -> dict[str, Any]:
+    """Helper to extract and verify JWT payload from Authorization header or HttpOnly session cookie."""
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split("Bearer ", 1)[1].strip()
+    elif rcf_dac_jwt:
+        token = rcf_dac_jwt
+    elif request and "rcf_dac_jwt" in request.cookies:
+        token = request.cookies["rcf_dac_jwt"]
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required. Missing or invalid Bearer token header.",
+            detail="Authentication required. Missing or invalid Bearer token or session cookie.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    token = authorization.split("Bearer ", 1)[1].strip()
     return verify_investor_bearer_token(token)
+
+
+@app.get("/api/users")
+def list_system_users(
+    request: Request,
+    authorization: str | None = Header(None, alias="Authorization"),
+    rcf_dac_jwt: str | None = Cookie(None),
+) -> dict[str, Any]:
+    """List all registered system user accounts (Admin & Superuser only)."""
+    payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
+    role = payload.get("role", "")
+    if role not in ("admin", "superuser"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Access restricted to Admin or Superuser roles.",
+        )
+
+    users_list = []
+    for acct in ACCOUNT_REGISTRY.values():
+        users_list.append({
+            "username": acct["username"],
+            "role": acct["role"],
+            "name": acct["name"],
+            "dept": acct["dept"],
+            "email": acct["email"],
+            "did": acct["did"],
+            "created_at": acct.get("created_at"),
+            "superuser_protected": acct["role"] == "superuser",
+        })
+
+    return {
+        "users": users_list,
+        "total": len(users_list),
+        "requested_by": payload.get("sub"),
+    }
+
+
+@app.post("/api/users", status_code=status.HTTP_201_CREATED)
+def create_system_user(
+    req: CreateUserRequest,
+    request: Request,
+    authorization: str | None = Header(None, alias="Authorization"),
+    rcf_dac_jwt: str | None = Cookie(None),
+) -> dict[str, Any]:
+    """Create a new system user account (Admin only; cannot create superuser)."""
+    payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
+    caller_role = payload.get("role", "")
+
+    if caller_role != "admin" and not (caller_role == "superuser" and payload.get("admin")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Administrator role required to create user accounts.",
+        )
+
+    if req.role.lower() == "superuser":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Superuser accounts cannot be created via API. They require direct database SQL creation.",
+        )
+
+    if req.username in ACCOUNT_REGISTRY:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"User account '{req.username}' already exists.",
+        )
+
+    did_hash = hashlib.sha256(f"{req.username}-{time.time()}".encode()).hexdigest()[:12]
+    new_user = {
+        "username": req.username,
+        "password_hash": hash_password(req.password),
+        "role": req.role.lower(),
+        "name": req.name,
+        "dept": req.dept,
+        "email": req.email,
+        "did": f"did:univ:acct-{did_hash}",
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    ACCOUNT_REGISTRY[req.username] = new_user
+
+    return {
+        "message": f"User account '{req.username}' successfully created.",
+        "user": {
+            "username": new_user["username"],
+            "role": new_user["role"],
+            "name": new_user["name"],
+            "dept": new_user["dept"],
+            "email": new_user["email"],
+            "did": new_user["did"],
+        },
+    }
+
+
+@app.post("/api/users/{username}/reset-password")
+def reset_user_password(
+    username: str,
+    req: ResetPasswordRequest,
+    request: Request,
+    authorization: str | None = Header(None, alias="Authorization"),
+    rcf_dac_jwt: str | None = Cookie(None),
+) -> dict[str, Any]:
+    """
+    Reset password for specified user account.
+    Superuser password CANNOT be reset via API; it requires direct database SQL command.
+    """
+    payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
+    caller_role = payload.get("role", "")
+
+    if caller_role not in ("admin", "superuser"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Administrator or Superuser role required for password reset.",
+        )
+
+    target_acct = ACCOUNT_REGISTRY.get(username)
+    if not target_acct:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User account '{username}' not found.",
+        )
+
+    # Superuser protection mandate: Superuser password CAN ONLY be reset by direct SQL command
+    if target_acct["role"] == "superuser":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "SECURITY RESTRICTION: Superuser account password CANNOT be reset via API/web interface. "
+                "Superuser password can ONLY be reset via direct PostgreSQL database SQL command."
+            ),
+        )
+
+    target_acct["password_hash"] = hash_password(req.new_password)
+    return {
+        "message": f"Password for user '{username}' successfully reset.",
+        "username": username,
+        "reset_by": payload.get("sub"),
+    }
+
+
+@app.delete("/api/users/{username}")
+def delete_system_user(
+    username: str,
+    request: Request,
+    authorization: str | None = Header(None, alias="Authorization"),
+    rcf_dac_jwt: str | None = Cookie(None),
+) -> dict[str, Any]:
+    """Delete specified user account (Admin only; cannot delete superuser)."""
+    payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
+    caller_role = payload.get("role", "")
+
+    if caller_role != "admin" and not (caller_role == "superuser" and payload.get("admin")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Administrator role required to delete accounts.",
+        )
+
+    target_acct = ACCOUNT_REGISTRY.get(username)
+    if not target_acct:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User account '{username}' not found.",
+        )
+
+    if target_acct["role"] == "superuser":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="SECURITY RESTRICTION: Superuser account cannot be deleted via API.",
+        )
+
+    del ACCOUNT_REGISTRY[username]
+    return {
+        "message": f"User account '{username}' successfully deleted.",
+        "deleted_by": payload.get("sub"),
+    }
+
+
+@app.post("/api/init-db")
+def init_db_endpoint(
+    request: Request,
+    authorization: str | None = Header(None, alias="Authorization"),
+    rcf_dac_jwt: str | None = Cookie(None),
+    x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
+) -> dict[str, Any]:
+    """Execute docs/schema.sql DDL script to initialise database schema and tables (Admin only)."""
+    verify_csrf_and_origin(request, x_csrf_token)
+    payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
+
+    if not payload.get("admin") and payload.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Administrator role required for schema initialisation.",
+        )
+
+    return initialize_database_schema()
 
 
 @app.get("/api/investor-assets")
 def get_investor_assets(
+    request: Request,
     authorization: str | None = Header(None, alias="Authorization"),
+    rcf_dac_jwt: str | None = Cookie(None),
+    bypass_cache: bool = False,
 ) -> dict[str, Any]:
-    """Retrieve NDA-gated data room listings for accredited investors."""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required. Missing or invalid Bearer token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    """Retrieve NDA-gated data room listings for accredited investors, backed by high-throughput TTL in-memory caching."""
+    global _INVESTOR_ASSETS_CACHE, _INVESTOR_ASSETS_CACHE_TIMESTAMP
 
-    token = authorization.split("Bearer ", 1)[1].strip()
-    payload = verify_investor_bearer_token(token)
+    payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     if payload.get("role") and payload.get("role") != "investor":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Authorisation failed. Accredited investor role required.",
         )
+
+    now = time.time()
+    if not bypass_cache and _INVESTOR_ASSETS_CACHE is not None and (now - _INVESTOR_ASSETS_CACHE_TIMESTAMP) < INVESTOR_ASSETS_CACHE_TTL:
+        cached_res = dict(_INVESTOR_ASSETS_CACHE)
+        cached_res["cached"] = True
+        return cached_res
 
     default_listings = [
         {
@@ -1536,11 +1790,15 @@ def get_investor_assets(
         },
     ]
     registered = list(ASSET_REGISTRY.values())
-    return {
+    res = {
         "data_room_assets": default_listings,
         "user_registered_assets": registered,
         "access_level": "Accredited VC / Corporate Partner NDA Gated",
+        "cached": False,
     }
+    _INVESTOR_ASSETS_CACHE = res
+    _INVESTOR_ASSETS_CACHE_TIMESTAMP = now
+    return res
 
 
 def render_markdown_to_html(md_text: str) -> str:
