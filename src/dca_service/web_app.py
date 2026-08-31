@@ -160,10 +160,10 @@ class RevenueSplitRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
     """
-    FastAPI lifespan context manager ensuring non-blocking schema auto-checking and table building on startup.
-
-    Args:
-        app_instance (FastAPI): The active FastAPI web application instance.
+    Run the database schema check and construction task when the application starts.
+    
+    Parameters:
+    	app_instance (FastAPI): The application instance managed by the lifespan context.
     """
     import asyncio
     try:
@@ -266,15 +266,11 @@ def initialize_database_schema() -> Dict[str, Any]:
 
 def auto_check_and_build_schema() -> Dict[str, Any]:
     """
-    Fail-safe automatic schema check and table build routine for application deployment on Render.com.
-
-    Inspects PostgreSQL information_schema.tables for existing application schema tables, maintaining
-    existing data, and automatically executing DDL schema statements if missing tables are detected.
-    Retains schema check and initialisation results in module-level state for operator diagnostics.
-
+    Check the PostgreSQL database for required application tables and create missing tables.
+    
     Returns:
-        Dict[str, Any]: Execution status dictionary containing success boolean, message string,
-        db_connected status boolean, tables_created list, and missing_tables list.
+        Dict[str, Any]: Status details including success, database connectivity, created tables,
+            and missing tables.
     """
     global LAST_SCHEMA_AUTO_CHECK_RESULT
     expected_tables = ["users", "assets", "cloverleaf_scores", "revenue_splits", "blockchain_transactions"]
@@ -463,7 +459,18 @@ def get_db_status_api() -> Dict[str, Any]:
 def init_db_endpoint(
     authorization: Optional[str] = Header(None, alias="Authorization"),
 ) -> Dict[str, Any]:
-    """Execute docs/schema.sql DDL script to create database schema and tables (Admin only)."""
+    """
+    Initialize the database schema for an authenticated administrator.
+    
+    Parameters:
+        authorization (Optional[str]): Bearer token identifying the administrator.
+    
+    Returns:
+        Dict[str, Any]: The schema initialization status and diagnostic details.
+    
+    Raises:
+        HTTPException: If authentication is missing or invalid, or the token does not identify an administrator.
+    """
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
