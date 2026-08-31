@@ -16,10 +16,30 @@ SUPERUSER_RESET_DOC = REPO_ROOT / "docs" / "how-to" / "reset-superuser-password-
 
 
 def _read(path: Path) -> str:
+    """Read a UTF-8-encoded text file.
+    
+    Parameters:
+    	path (Path): Path to the file to read
+    
+    Returns:
+    	str: The file contents
+    """
     return path.read_text(encoding="utf-8")
 
 
 def _extract_frontmatter_dict(content: str) -> dict[str, str]:
+    """
+    Extract key-value pairs from a document's YAML-style frontmatter.
+    
+    Parameters:
+        content (str): Document content beginning and ending with `---` frontmatter delimiters.
+    
+    Returns:
+        dict[str, str]: Parsed frontmatter keys and values.
+    
+    Raises:
+        AssertionError: If the content is empty or lacks the required frontmatter delimiters.
+    """
     lines = content.splitlines()
     assert lines, "Expected non-empty lines"
     assert lines[0].strip() == "---", "Expected opening '---' frontmatter delimiter"
