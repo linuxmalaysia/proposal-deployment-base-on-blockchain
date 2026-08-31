@@ -23,6 +23,13 @@ class TransactionProposal:
     signers: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        """Validate the transaction amount and signer identities for a proposal.
+        
+        Raises:
+            ValueError: If the amount is not greater than zero, signers are not provided
+                as a list, a signer identity is empty or not a string, or duplicate
+                signers are present.
+        """
         if self.amount <= Decimal("0.0"):
             raise ValueError("Transaction proposal amount must be strictly greater than zero.")
 
@@ -51,7 +58,18 @@ class PolicyRule:
     current_daily_accumulated: Decimal = Decimal("0.0")
 
     def evaluate(self, proposal: TransactionProposal, verified_authenticated_signers: set[str] | None = None) -> None:
-        """Evaluate a proposal against policy parameters. Raises PolicyViolationError if invalid."""
+        """
+        Evaluate a transaction proposal against the configured policy rules.
+        
+        Parameters:
+            proposal (TransactionProposal): The transaction proposal to validate.
+            verified_authenticated_signers (set[str] | None): Signers confirmed by the
+                authentication verifier.
+        
+        Raises:
+            PolicyViolationError: If the proposal violates a destination, amount,
+                velocity, signer authentication, signer authorization, or quorum rule.
+        """
         # 1. Allowlist Check
         if self.allowlisted_addresses and proposal.destination_address not in self.allowlisted_addresses:
             raise PolicyViolationError(

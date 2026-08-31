@@ -57,12 +57,24 @@ class TimescaleDBAdapter:
     """Adapter simulating Percona Server for PostgreSQL with TimescaleDB hypertables."""
 
     def __init__(self, hypertable_name: str = "blockchain_transactions"):
+        """Initialize a TimescaleDB adapter for the specified hypertable name.
+        
+        Parameters:
+        	hypertable_name (str): Name of the hypertable used for transaction storage.
+        """
         self.hypertable_name = hypertable_name
         self._records: dict[str, TimeSeriesTransactionEntry] = {}
         self._chunks: list[HypertableChunkInfo] = []
 
     def insert_transaction(self, entry: TimeSeriesTransactionEntry) -> TimeSeriesTransactionEntry:
-        """Insert a transaction into the TimescaleDB hypertable idempotently."""
+        """Store a transaction idempotently.
+        
+        Returns:
+            TimeSeriesTransactionEntry: The stored transaction, or the existing matching transaction on retry.
+        
+        Raises:
+            ValueError: If the transaction ID already exists with different payload data.
+        """
         if entry.transaction_id in self._records:
             existing = self._records[entry.transaction_id]
             # If entry matches existing ID and payload parameters, return existing (idempotent retry)
@@ -86,7 +98,22 @@ class TimescaleDBAdapter:
         tx_hash: str | None = None,
         failure_reason: str | None = None,
     ) -> TimeSeriesTransactionEntry:
-        """Update transaction sync state in the hypertable."""
+        """
+        Update a transaction's synchronization state while preserving unspecified fields.
+        
+        Parameters:
+            transaction_id (str): Identifier of the transaction to update.
+            new_state (SyncState): Synchronization state to assign.
+            block_id (int | None): Block identifier to store when provided.
+            tx_hash (str | None): Transaction hash to store when provided.
+            failure_reason (str | None): Failure reason to store; increments the retry count when provided.
+        
+        Returns:
+            TimeSeriesTransactionEntry: The updated transaction record.
+        
+        Raises:
+            KeyError: If the transaction identifier is not found.
+        """
         if transaction_id not in self._records:
             raise KeyError(f"Transaction ID {transaction_id} not found in hypertable.")
 
@@ -112,7 +139,13 @@ class TimescaleDBAdapter:
         return self._records.get(transaction_id)
 
     def query_pending_sync(self) -> list[TimeSeriesTransactionEntry]:
-        """Query transactions pending blockchain sync."""
+        """
+        Select transactions that require blockchain synchronization.
+        
+        Returns:
+            list[TimeSeriesTransactionEntry]: Transactions recorded in the database,
+                awaiting blockchain synchronization, or whose previous synchronization failed.
+        """
         return [
             rec for rec in self._records.values()
             if rec.sync_state in (SyncState.DB_RECORDED, SyncState.PENDING_BLOCKCHAIN, SyncState.SYNC_FAILED)
@@ -131,7 +164,18 @@ class TimescaleDBAdapter:
         return list(self._chunks)
 
     def apply_archiving_policy(self, policy: HypertableArchivingPolicy, now: datetime) -> dict[str, int]:
-        """Apply chunk compression and archiving policies based on age."""
+        """Apply compression and archiving rules to hypertable chunks based on their age.
+        
+        Parameters:
+            policy (HypertableArchivingPolicy): Thresholds and hypertable name governing chunk transitions.
+            now (datetime): Reference time used to determine chunk age.
+        
+        Returns:
+            dict[str, int]: Counts of chunks compressed and archived, keyed by ``"compressed"`` and ``"archived"``.
+        
+        Raises:
+            ValueError: If the policy targets a different hypertable.
+        """
         if policy.hypertable_name != self.hypertable_name:
             raise ValueError(
                 f"Policy hypertable name '{policy.hypertable_name}' does not match adapter hypertable '{self.hypertable_name}'."
@@ -160,12 +204,20 @@ class BlockchainNodeAdapter:
     """Adapter simulating a blockchain node RPC connection (BTC / ETH / L2)."""
 
     def __init__(self, current_block: int = 100000):
+        """Initialize a simulated blockchain node at the specified block height."""
         self.current_block = current_block
         self._on_chain_ledger: dict[str, dict] = {}
         self.should_fail = False
 
     def compute_tx_hash(self, entry: TimeSeriesTransactionEntry) -> str:
-        """Compute stable transaction hash digest for payload."""
+        """Compute a stable hash for a transaction's canonical payload.
+        
+        Parameters:
+        	entry (TimeSeriesTransactionEntry): Transaction data used to construct the payload.
+        
+        Returns:
+        	str: A SHA-256 digest prefixed with ``0x``.
+        """
         if not isinstance(entry.metadata, dict):
             raise TypeError("Metadata must be a dictionary.")
 
@@ -182,7 +234,19 @@ class BlockchainNodeAdapter:
         return "0x" + hashlib.sha256(raw_payload.encode("utf-8")).hexdigest()
 
     def broadcast_transaction(self, entry: TimeSeriesTransactionEntry) -> dict[str, str]:
-        """Broadcast transaction to blockchain node."""
+        """
+        Broadcast a transaction entry to the blockchain and record its confirmation details.
+        
+        Parameters:
+            entry (TimeSeriesTransactionEntry): Transaction entry to broadcast.
+        
+        Returns:
+            dict[str, str]: Transaction hash and assigned block identifier.
+        
+        Raises:
+            RuntimeError: If the blockchain node is configured to reject broadcasts.
+            TypeError: If the entry metadata is not a dictionary.
+        """
         if self.should_fail:
             raise RuntimeError("Blockchain node broadcast network error.")
 
@@ -233,7 +297,15 @@ class DualWriteBlockchainSyncService:
         timestamp: datetime,
         metadata: dict | None = None,
     ) -> TimeSeriesTransactionEntry:
-        """Execute dual-write: write to TimescaleDB first, then broadcast to blockchain."""
+        """
+        Record a transaction in the database and synchronize it with the blockchain.
+        
+        Parameters:
+            metadata (dict | None): Optional transaction metadata to normalize before storage.
+        
+        Returns:
+            TimeSeriesTransactionEntry: The transaction with its updated synchronization state.
+        """
         raw_metadata = {} if metadata is None else metadata
         if not isinstance(raw_metadata, dict):
             raise TypeError("Metadata must be a dictionary.")
