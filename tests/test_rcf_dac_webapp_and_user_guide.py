@@ -127,3 +127,46 @@ class TestConnectSupabaseOnRenderDoc:
         assert "Render Environment Variables" in content
         assert "Render Secret Files" in content
         assert "/etc/secrets/" in content
+
+    def test_render_variable_table_documents_singular_and_plural_key_names(self):
+        content = _read(CONNECT_SUPABASE_DOC)
+        expected_rows = (
+            (
+                "`SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_PUBLISHABLE_KEYS`",
+                "`sb_publishable_...`",
+            ),
+            (
+                "`SUPABASE_SECRET_KEY` / `SUPABASE_SECRET_KEYS`",
+                "`sb_secret_...`",
+            ),
+        )
+
+        for key_names, example in expected_rows:
+            row_pattern = rf"^\| {re.escape(key_names)} \| .* \| {re.escape(example)} \|$"
+            assert re.search(row_pattern, content, flags=re.MULTILINE), (
+                f"Render variable table is missing the documented aliases {key_names}"
+            )
+
+    def test_runtime_environment_example_includes_every_key_alias(self):
+        content = _read(CONNECT_SUPABASE_DOC)
+        expected_assignments = {
+            "SUPABASE_PUBLISHABLE_KEY": "[YOUR-SUPABASE-PUBLISHABLE-KEY]",
+            "SUPABASE_PUBLISHABLE_KEYS": "[YOUR-SUPABASE-PUBLISHABLE-KEY]",
+            "SUPABASE_SECRET_KEY": "[YOUR-SUPABASE-SECRET-KEY]",
+            "SUPABASE_SECRET_KEYS": "[YOUR-SUPABASE-SECRET-KEY]",
+        }
+
+        for variable, placeholder in expected_assignments.items():
+            assignment = rf"^{variable}={re.escape(placeholder)}$"
+            assert re.search(assignment, content, flags=re.MULTILINE), (
+                f"Runtime environment example is missing {variable}"
+            )
+
+    def test_runtime_key_aliases_never_contain_live_credential_examples(self):
+        content = _read(CONNECT_SUPABASE_DOC)
+        live_credential_assignment = (
+            r"^SUPABASE_(?:PUBLISHABLE|SECRET)_KEYS?="
+            r"sb_(?:publishable|secret)_[^\s]+$"
+        )
+
+        assert not re.search(live_credential_assignment, content, flags=re.MULTILINE)
