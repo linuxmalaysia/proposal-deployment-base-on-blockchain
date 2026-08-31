@@ -23,6 +23,7 @@ language: "en-GB"
 * [Challenges, Caveats, and Market Opportunities in DCA](docs/explanation/challenges-and-opportunities.md)
 * [Open Knowledge Format (OKF v0.2) Architectural Specification & Adoption Guide](docs/explanation/open-knowledge-format-v02-guide.md)
 * [Open-Source MPC Wallet System Architecture via cb-mpc](docs/explanation/open-source-mpc-wallet-architecture.md)
+* [OWASP Authorization Framework Adoption & Access Control Architecture](docs/explanation/owasp-authorization-framework.md)
 * [Percona Server for PostgreSQL & TimescaleDB Dual-Write Blockchain Architecture](docs/explanation/percona-timescaledb-blockchain-sync.md)
 * [RCF & DAC Proposal: 1. Background and Problem Statement](docs/explanation/rcf-dac-background-problem.md)
 * [RCF & DAC Proposal: 2. Business Case — Research as an Asset Class](docs/explanation/rcf-dac-business-case.md)
@@ -39,6 +40,7 @@ language: "en-GB"
 * [Connecting Supabase PostgreSQL Database Securely on Render.com](docs/how-to/connect-supabase-postgresql-on-render.md)
 * [Deploying the RCF & DAC Interactive Web Application on Render.com](docs/how-to/deploy-rcf-dac-web-app-on-render.md)
 * [How-To: Install and Configure Repository Guardrails and Documentation Tools](docs/how-to/install-and-configure-guardrails.md)
+* [How to Reset Superuser Password via SQL & Create Initial Admin Users](docs/how-to/reset-superuser-password-and-manage-users.md)
 
 ### Reference
 

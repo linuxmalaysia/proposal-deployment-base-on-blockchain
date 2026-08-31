@@ -112,6 +112,7 @@ EXPECTED_EXPLANATION_REL_PATH_ORDER = [
     "docs/explanation/challenges-and-opportunities.md",
     "docs/explanation/open-knowledge-format-v02-guide.md",
     "docs/explanation/open-source-mpc-wallet-architecture.md",
+    "docs/explanation/owasp-authorization-framework.md",
     "docs/explanation/percona-timescaledb-blockchain-sync.md",
     "docs/explanation/rcf-dac-background-problem.md",
     "docs/explanation/rcf-dac-business-case.md",

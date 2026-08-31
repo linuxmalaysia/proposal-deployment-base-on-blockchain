@@ -11,6 +11,8 @@ INDEX_MD = REPO_ROOT / "index.md"
 USER_GUIDE_DOC = REPO_ROOT / "docs" / "tutorials" / "web-application-user-guide.md"
 PROPOSAL_DOC = REPO_ROOT / "docs" / "explanation" / "research-commercialisation-fund-dac-proposal.md"
 CONNECT_SUPABASE_DOC = REPO_ROOT / "docs" / "how-to" / "connect-supabase-postgresql-on-render.md"
+OWASP_AUTH_DOC = REPO_ROOT / "docs" / "explanation" / "owasp-authorization-framework.md"
+SUPERUSER_RESET_DOC = REPO_ROOT / "docs" / "how-to" / "reset-superuser-password-and-manage-users.md"
 
 
 def _read(path: Path) -> str:
@@ -67,6 +69,48 @@ class TestRcfDacIndexMarkdown:
     def test_includes_parse_block_html_options(self):
         content = _read(INDEX_MD)
         assert '{::options parse_block_html="true" /}' in content
+
+    def test_includes_login_and_user_management_navigation_links(self):
+        content = _read(INDEX_MD)
+        assert 'href="/login"' in content
+        assert 'href="/user-management"' in content
+
+
+class TestOWASPAuthorizationFrameworkDoc:
+    def test_file_exists(self):
+        assert OWASP_AUTH_DOC.is_file()
+
+    def test_okf_v02_frontmatter_present(self):
+        content = _read(OWASP_AUTH_DOC)
+        assert content.startswith("---")
+        assert 'okf_version: "0.2"' in content
+        assert 'type: "explanation"' in content
+        assert 'language: "en-GB"' in content
+
+    def test_documents_owasp_recommendations(self):
+        content = _read(OWASP_AUTH_DOC)
+        assert "Enforce Least Privileges" in content
+        assert "Deny by Default" in content
+        assert "Superuser SQL-Only Password Reset Restriction" in content
+
+
+class TestSuperuserResetHowToDoc:
+    def test_file_exists(self):
+        assert SUPERUSER_RESET_DOC.is_file()
+
+    def test_okf_v02_frontmatter_present(self):
+        content = _read(SUPERUSER_RESET_DOC)
+        assert content.startswith("---")
+        assert 'okf_version: "0.2"' in content
+        assert 'type: "how-to"' in content
+        assert 'language: "en-GB"' in content
+
+    def test_contains_superuser_reset_sql_and_env_instructions(self):
+        content = _read(SUPERUSER_RESET_DOC)
+        assert "SUPERUSER_INITIAL_PASSWORD" in content
+        assert "dca_sys_root" in content
+        assert "UPDATE users" in content
+        assert "POST /api/users" in content
 
 
 class TestConnectSupabaseOnRenderDoc:
