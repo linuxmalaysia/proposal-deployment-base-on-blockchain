@@ -50,6 +50,8 @@ Select an institutional stakeholder view below to test registration, asset prove
       <button type="button" class="role-select-btn" data-role="researcher">👩‍🔬 Researcher / Inventor</button>
       <button type="button" class="role-select-btn" data-role="admin">🏛️ University Admin / TTO</button>
       <button type="button" class="role-select-btn" data-role="investor">💼 VC / Angel Investor</button>
+      <a href="/login" class="role-select-btn" style="background:#0066cc; color:white; text-decoration:none;">🔐 System Login</a>
+      <a href="/user-management" class="role-select-btn" style="background:#6c757d; color:white; text-decoration:none;">👥 User Management</a>
       <a href="/db-status" class="role-select-btn" style="background:#28a745; color:white; text-decoration:none;">🔌 DB Connection Status</a>
     </div>
   </div>
@@ -250,6 +252,8 @@ Select an institutional stakeholder view below to test registration, asset prove
 
 ## 📚 Key Strategic & Architectural Documentation
 
+- 🔐 **[System Login Page](/login)** - RBAC system user authentication portal.
+- 👥 **[User Management Dashboard](/user-management)** - Administrative user account management interface.
 - 🔌 **[Database Connection Status Page](/db-status)** - Real-time Supabase & PostgreSQL connection diagnostic and schema table verification.
 - 🏛️ **[Architecture Overview]({{ '/docs/explanation/architecture-overview.html' | relative_url }})** - Institutional Digital Asset Custody Architecture.
 - 💼 **[Challenges & Opportunities]({{ '/docs/explanation/challenges-and-opportunities.html' | relative_url }})** - Strategic exploration of industry challenges.

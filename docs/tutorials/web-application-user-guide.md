@@ -47,6 +47,14 @@ The platform supports four primary user personas across the university innovatio
 3. On application startup or deployment on Render.com, the system automatically runs a fail-safe schema auto-check routine (`auto_check_and_build_schema`), verifying and building any missing database tables defined in `docs/schema.sql` without overwriting existing data.
 4. Click **Re-test Database Connection** or access [/api/db-status](/api/db-status) for JSON metrics.
 
+### Step 0.1: System Authentication & User Account Management (`/login` & `/user-management`)
+
+1. Open [/login](/login) or click **🔐 System Login** in the application banner or top navigation bar.
+2. Authenticate using system credentials (e.g., initial superuser `dca_sys_root` or admin manager `dca_admin_mgr`).
+   - *Note on Superuser Reset:* Superuser (`dca_sys_root`) password resets are restricted to direct SQL database execution or `SUPERUSER_INITIAL_PASSWORD` environment variable configuration (see [How to Reset Superuser Password via SQL](../how-to/reset-superuser-password-and-manage-users.html)).
+3. Upon successful login, the system issues an HMAC-SHA256-signed JWT bearer token transmitted via standard `Authorization: Bearer <token>` headers for API requests (or handled via protected HttpOnly session cookies in production).
+4. Access [/user-management](/user-management) or click **👥 User Management** to view registered system accounts, create new administrator or operator accounts, or reset user passwords.
+
 ### Step 1: User Identity & W3C DID Registration (Module 1)
 
 1. Open the [Interactive Web Application Portal](../../index.html).

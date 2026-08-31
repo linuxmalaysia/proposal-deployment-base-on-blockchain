@@ -36,13 +36,15 @@
   <nav class="top-nav">
     <div class="top-nav-inner">
       <a href="{{ '/' | relative_url }}" {% if page.url == "/" %}class="active"{% endif %}>[1] Web App Portal</a>
-      <a href="{{ '/docs/explanation/research-commercialisation-fund-dac-proposal.html' | relative_url }}">[2] RCF Proposal</a>
-      <a href="{{ '/README.html' | relative_url }}" {% if page.url == "/README.html" %}class="active"{% endif %}>[3] Overview</a>
-      <a href="{{ '/CHANGELOG.html' | relative_url }}" {% if page.url == "/CHANGELOG.html" %}class="active"{% endif %}>[4] Changelog</a>
-      <a href="{{ '/HISTORY.html' | relative_url }}" {% if page.url == "/HISTORY.html" %}class="active"{% endif %}>[5] History</a>
-      <a href="{{ '/SUMMARY.html' | relative_url }}" {% if page.url == "/SUMMARY.html" %}class="active"{% endif %}>[6] Docs Index</a>
-      <a href="{{ '/docs/explanation/architecture-overview.html' | relative_url }}">[7] Architecture</a>
-      <a href="{{ '/docs/reference/implementation-patterns.html' | relative_url }}">[8] Benchmarks</a>
+      <a href="{{ '/login' | relative_url }}" {% if page.url == "/login" %}class="active"{% endif %}>[2] 🔐 Login</a>
+      <a href="{{ '/user-management' | relative_url }}" {% if page.url == "/user-management" %}class="active"{% endif %}>[3] 👥 User Mgmt</a>
+      <a href="{{ '/docs/explanation/research-commercialisation-fund-dac-proposal.html' | relative_url }}">[4] RCF Proposal</a>
+      <a href="{{ '/README.html' | relative_url }}" {% if page.url == "/README.html" %}class="active"{% endif %}>[5] Overview</a>
+      <a href="{{ '/CHANGELOG.html' | relative_url }}" {% if page.url == "/CHANGELOG.html" %}class="active"{% endif %}>[6] Changelog</a>
+      <a href="{{ '/HISTORY.html' | relative_url }}" {% if page.url == "/HISTORY.html" %}class="active"{% endif %}>[7] History</a>
+      <a href="{{ '/SUMMARY.html' | relative_url }}" {% if page.url == "/SUMMARY.html" %}class="active"{% endif %}>[8] Docs Index</a>
+      <a href="{{ '/docs/explanation/architecture-overview.html' | relative_url }}">[9] Architecture</a>
+      <a href="{{ '/docs/reference/implementation-patterns.html' | relative_url }}">[10] Benchmarks</a>
     </div>
   </nav>
 
@@ -53,6 +55,8 @@
       <h2>📌 Web App Navigation</h2>
       <ul class="sidebar-nav">
         <li><a href="{{ '/' | relative_url }}">🏠 Interactive Web App</a></li>
+        <li><a href="{{ '/login' | relative_url }}">🔐 System Login</a></li>
+        <li><a href="{{ '/user-management' | relative_url }}">👥 User Management</a></li>
         <li><a href="{{ '/docs/tutorials/web-application-user-guide.html' | relative_url }}">📖 Web App User Guide</a></li>
         <li><a href="{{ '/docs/explanation/research-commercialisation-fund-dac-proposal.html' | relative_url }}">📄 RCF & DAC Master Proposal</a></li>
         <li><a href="{{ '/README.html' | relative_url }}">📘 System Architecture</a></li>

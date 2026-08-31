@@ -3,18 +3,65 @@
 from pathlib import Path
 import re
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 JS_APP = REPO_ROOT / "assets" / "js" / "rcf-dac-app.js"
 CSS_STYLE = REPO_ROOT / "assets" / "css" / "style.css"
 INDEX_MD = REPO_ROOT / "index.md"
+DEFAULT_LAYOUT = REPO_ROOT / "_layouts" / "default.html"
+SUMMARY_DOC = REPO_ROOT / "SUMMARY.md"
+GITIGNORE = REPO_ROOT / ".gitignore"
 USER_GUIDE_DOC = REPO_ROOT / "docs" / "tutorials" / "web-application-user-guide.md"
 PROPOSAL_DOC = REPO_ROOT / "docs" / "explanation" / "research-commercialisation-fund-dac-proposal.md"
 CONNECT_SUPABASE_DOC = REPO_ROOT / "docs" / "how-to" / "connect-supabase-postgresql-on-render.md"
+OWASP_AUTH_DOC = REPO_ROOT / "docs" / "explanation" / "owasp-authorization-framework.md"
+SUPERUSER_RESET_DOC = REPO_ROOT / "docs" / "how-to" / "reset-superuser-password-and-manage-users.md"
 
 
 def _read(path: Path) -> str:
+    """Read a UTF-8-encoded text file.
+
+    Parameters:
+        path (Path): Path to the file to read
+
+    Returns:
+        str: The file contents
+    """
     return path.read_text(encoding="utf-8")
+
+
+def _extract_frontmatter_dict(content: str) -> dict[str, str]:
+    """
+    Extract key-value pairs from a document's YAML-style frontmatter.
+
+    Parameters:
+        content (str): Document content beginning and ending with `---` frontmatter delimiters.
+
+    Returns:
+        dict[str, str]: Parsed frontmatter keys and values.
+
+    Raises:
+        AssertionError: If the content is empty or lacks the required frontmatter delimiters.
+    """
+    lines = content.splitlines()
+    assert lines, "Expected non-empty lines"
+    assert lines[0].strip() == "---", "Expected opening '---' frontmatter delimiter"
+    closing_idx = -1
+    for idx in range(1, len(lines)):
+        if lines[idx].strip() == "---":
+            closing_idx = idx
+            break
+    assert closing_idx != -1, "Expected closing '---' frontmatter delimiter"
+
+    frontmatter = {}
+    for line in lines[1:closing_idx]:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and ":" in stripped:
+            k, v = stripped.split(":", 1)
+            frontmatter[k.strip()] = v.strip().strip("'\"")
+    return frontmatter
 
 
 class TestRcfDacJsAppEngine:
@@ -55,6 +102,24 @@ class TestRcfDacUserGuideDoc:
         content = _read(USER_GUIDE_DOC)
         assert "strictly exceeds **180 / 260 points**" in content or "scores > 180" in content
 
+    @pytest.mark.parametrize("route", ["/login", "/user-management"])
+    def test_documents_authentication_navigation_routes(self, route):
+        content = _read(USER_GUIDE_DOC)
+        assert f"]({route})" in content
+
+    def test_documents_authenticated_user_management_workflow(self):
+        content = _read(USER_GUIDE_DOC)
+        assert "dca_sys_root" in content
+        assert "dca_admin_mgr" in content
+        assert "Authorization: Bearer <token>" in content
+        assert "create new administrator or operator accounts" in content
+
+    def test_links_to_superuser_reset_guide_and_documents_api_restriction(self):
+        content = _read(USER_GUIDE_DOC)
+        assert "../how-to/reset-superuser-password-and-manage-users.html" in content
+        assert "password resets are restricted" in content
+        assert "SUPERUSER_INITIAL_PASSWORD" in content
+
 
 class TestRcfDacIndexMarkdown:
     def test_index_md_file_exists(self):
@@ -67,6 +132,184 @@ class TestRcfDacIndexMarkdown:
     def test_includes_parse_block_html_options(self):
         content = _read(INDEX_MD)
         assert '{::options parse_block_html="true" /}' in content
+
+    @pytest.mark.parametrize(
+        ("route", "label"),
+        [
+            ("/login", "System Login"),
+            ("/user-management", "User Management"),
+        ],
+    )
+    def test_includes_authentication_links_in_banner_and_documentation(self, route, label):
+        content = _read(INDEX_MD)
+        assert f'href="{route}" class="role-select-btn"' in content
+        assert f"**[{label}" in content
+        assert f"]({route})" in content
+
+
+class TestDefaultLayoutAuthenticationNavigation:
+    @pytest.mark.parametrize(
+        ("route", "top_label", "sidebar_label"),
+        [
+            ("/login", "[2] 🔐 Login", "🔐 System Login"),
+            ("/user-management", "[3] 👥 User Mgmt", "👥 User Management"),
+        ],
+    )
+    def test_authentication_routes_use_relative_url_in_both_navigation_areas(
+        self, route, top_label, sidebar_label
+    ):
+        content = _read(DEFAULT_LAYOUT)
+        liquid_href = f'href="{{{{ \'{route}\' | relative_url }}}}"'
+        assert f"{liquid_href} {{% if page.url == \"{route}\" %}}class=\"active\"" in content
+        assert f">{top_label}</a>" in content
+        assert f"{liquid_href}>{sidebar_label}</a>" in content
+
+    def test_top_navigation_numbers_remain_unique_and_sequential(self):
+        content = _read(DEFAULT_LAYOUT)
+        top_nav = re.search(
+            r'<nav class="top-nav">(.*?)</nav>', content, flags=re.DOTALL
+        )
+        assert top_nav, "Expected a top navigation block"
+        numbers = [int(value) for value in re.findall(r">\[(\d+)\]", top_nav.group(1))]
+        assert numbers == list(range(1, 11))
+
+    def test_login_precedes_user_management_in_top_navigation(self):
+        content = _read(DEFAULT_LAYOUT)
+        login_position = content.index("[2] 🔐 Login")
+        user_management_position = content.index("[3] 👥 User Mgmt")
+        proposal_position = content.index("[4] RCF Proposal")
+        assert login_position < user_management_position < proposal_position
+
+
+class TestOWASPAuthorizationFrameworkDoc:
+    def test_file_exists(self):
+        assert OWASP_AUTH_DOC.is_file()
+
+    def test_okf_v02_frontmatter_present(self):
+        content = _read(OWASP_AUTH_DOC)
+        frontmatter = _extract_frontmatter_dict(content)
+        assert frontmatter.get("okf_version") == "0.2"
+        assert frontmatter.get("type") == "explanation"
+        assert frontmatter.get("language") == "en-GB"
+
+    def test_documents_owasp_recommendations(self):
+        content = _read(OWASP_AUTH_DOC)
+        assert "Enforce Least Privileges" in content
+        assert "Deny by Default" in content
+        assert "Superuser Startup Seeding & SQL-Only Password Reset Restriction" in content
+
+    def test_adoption_matrix_contains_each_recommendation_exactly_once(self):
+        content = _read(OWASP_AUTH_DOC)
+        recommendation_numbers = re.findall(
+            r"^\| \*\*(\d+)\*\* \|", content, flags=re.MULTILINE
+        )
+        assert recommendation_numbers == [str(number) for number in range(1, 12)]
+
+    @pytest.mark.parametrize("claim", ["`exp`", "`iss`", "`aud`", "`role`"])
+    def test_documents_required_jwt_claim_validation(self, claim):
+        content = _read(OWASP_AUTH_DOC)
+        assert claim in content
+
+    def test_documents_constant_time_signature_verification(self):
+        content = _read(OWASP_AUTH_DOC)
+        assert "hmac.compare_digest(sig_b64, expected_sig)" in content
+        assert "Invalid or forged token signature" in content
+
+    def test_distinguishes_startup_seeding_from_runtime_password_reset(self):
+        content = _read(OWASP_AUTH_DOC)
+        assert "used exclusively for startup initialization" in content
+        assert "seed_initial_accounts()" in content
+        assert "/api/users/{username}/reset-password" in content
+        assert "rejected with HTTP 403 Forbidden" in content
+
+
+class TestSuperuserResetHowToDoc:
+    def test_file_exists(self):
+        assert SUPERUSER_RESET_DOC.is_file()
+
+    def test_okf_v02_frontmatter_present(self):
+        content = _read(SUPERUSER_RESET_DOC)
+        frontmatter = _extract_frontmatter_dict(content)
+        assert frontmatter.get("okf_version") == "0.2"
+        assert frontmatter.get("type") == "how-to"
+        assert frontmatter.get("language") == "en-GB"
+
+    def test_contains_superuser_reset_sql_and_env_instructions(self):
+        content = _read(SUPERUSER_RESET_DOC)
+        assert "SUPERUSER_INITIAL_PASSWORD" in content
+        assert "dca_sys_root" in content
+        assert "get_or_create_initial_password" in content
+        assert "POST /api/users" in content
+
+    def test_documents_complete_environment_reseeding_sequence(self):
+        content = _read(SUPERUSER_RESET_DOC)
+        expected_steps = [
+            "Add or update the environment variable `SUPERUSER_INITIAL_PASSWORD`",
+            "Restart or redeploy the Web Service",
+            'get_or_create_initial_password("superuser")',
+            "seed_initial_accounts()",
+            "SELECT username, role, email FROM users WHERE username = 'dca_sys_root'",
+        ]
+        positions = [content.index(step) for step in expected_steps]
+        assert positions == sorted(positions)
+
+    def test_explicitly_forbids_api_and_web_superuser_password_resets(self):
+        content = _read(SUPERUSER_RESET_DOC)
+        assert "password **CANNOT** be reset via public API endpoints or web interfaces" in content
+        assert "HTTP 403 Forbidden" in content
+        assert "No (API Blocked / Env Only)" in content
+
+    def test_admin_creation_example_includes_authentication_and_expected_response(self):
+        content = _read(SUPERUSER_RESET_DOC)
+        assert '-H "Authorization: Bearer <your_superuser_jwt_token>"' in content
+        assert '"username": "dca_admin_mgr"' in content
+        assert '"role": "admin"' in content
+        assert "HTTP 201 Created" in content
+
+    @pytest.mark.parametrize(
+        ("role", "username"),
+        [
+            ("superuser", "dca_sys_root"),
+            ("admin", "dca_admin_mgr"),
+            ("auditor", "dca_auditor_01"),
+            ("operator", "dca_operator_01"),
+            ("investor", "dca_investor_01"),
+        ],
+    )
+    def test_role_capability_table_lists_each_default_account(self, role, username):
+        content = _read(SUPERUSER_RESET_DOC)
+        assert re.search(
+            rf"^\| `{re.escape(role)}` \| `{re.escape(username)}` \|",
+            content,
+            flags=re.MULTILINE,
+        )
+
+
+class TestDocumentationIndexAndIgnoreRules:
+    @pytest.mark.parametrize(
+        ("title", "path"),
+        [
+            (
+                "OWASP Authorization Framework Adoption & Access Control Architecture",
+                "docs/explanation/owasp-authorization-framework.md",
+            ),
+            (
+                "How to Reset Superuser Password via Environment Configuration & Create Initial Admin Users",
+                "docs/how-to/reset-superuser-password-and-manage-users.md",
+            ),
+        ],
+    )
+    def test_summary_links_each_new_document_once(self, title, path):
+        content = _read(SUMMARY_DOC)
+        assert content.count(f"* [{title}]({path})") == 1
+
+    def test_mypy_cache_is_ignored(self):
+        entries = {
+            line.strip()
+            for line in _read(GITIGNORE).splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        }
+        assert ".mypy_cache/" in entries
 
 
 class TestConnectSupabaseOnRenderDoc:
