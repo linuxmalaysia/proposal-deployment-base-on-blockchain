@@ -7,6 +7,7 @@ Governed by DSOM Protocol // OKF v0.2 Standard.
 from __future__ import annotations
 
 import base64
+import copy
 import hashlib
 import hmac
 import json
@@ -14,6 +15,7 @@ import time
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 from dca_service.web_app import (
     ACCOUNT_REGISTRY,
@@ -26,9 +28,19 @@ from dca_service.web_app import (
     create_system_jwt,
     get_postgresql_connection,
     hash_password,
+        verify_password,
 )
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def isolate_account_registry():
+    """Snapshot and restore ACCOUNT_REGISTRY before and after each test."""
+    original = copy.deepcopy(ACCOUNT_REGISTRY)
+    yield
+    ACCOUNT_REGISTRY.clear()
+    ACCOUNT_REGISTRY.update(original)
 
 
 # --- Database Reconnect Resilience Tests ---
@@ -182,7 +194,7 @@ def test_admin_user_management_crud_and_rbac():
         headers={"Authorization": f"Bearer {admin_jwt}"},
     )
     assert res_reset.status_code == 200
-    assert ACCOUNT_REGISTRY["test_operator_99"]["password_hash"] == hash_password("test_updated_password")
+    assert verify_password("test_updated_password", ACCOUNT_REGISTRY["test_operator_99"]["password_hash"])
 
     # 3. List system users
     res_list = client.get("/api/users", headers={"Authorization": f"Bearer {admin_jwt}"})

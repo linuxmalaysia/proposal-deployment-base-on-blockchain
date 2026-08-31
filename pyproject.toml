@@ -22,7 +22,7 @@ build-backend = "uv_build"
 
 [tool.ruff.lint]
 select = ["E", "F"]
-ignore = ["E501", "F841", "E101"]
+ignore = ["E501"]
 
 [dependency-groups]
 dev = [

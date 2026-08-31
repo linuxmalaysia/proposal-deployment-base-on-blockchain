@@ -249,7 +249,7 @@ class DualWriteBlockchainSyncService:
             metadata=normalized_meta,
             sync_state=SyncState.DB_RECORDED,
         )
-        stored_entry = self.db.insert_transaction(entry)
+        self.db.insert_transaction(entry)
 
         return self.reconcile_and_sync(transaction_id)
 

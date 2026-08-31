@@ -99,9 +99,30 @@ SCHEMA_BACKGROUND_TASK: Any | None = None
 PASSWORD_SALT = os.environ.get("RBAC_PASSWORD_SALT", "rcf_dac_rbac_salt_default")
 
 
-def hash_password(password: str, salt: str = PASSWORD_SALT) -> str:
-    """Hash password using SHA-256 with static salt for RBAC account verification."""
-    return hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
+def hash_password(password: str, salt: str | None = None) -> str:
+    """
+    Hash password using hashlib.scrypt KDF with per-account salt.
+    Returns format 'scrypt$salt$hash'.
+    """
+    if not salt:
+        salt = secrets.token_hex(16)
+    key = hashlib.scrypt(password.encode(), salt=salt.encode(), n=16384, r=8, p=1)
+    return f"scrypt${salt}${key.hex()}"
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    """Verify password against scrypt or legacy hash format."""
+    if stored_hash.startswith("scrypt$"):
+        parts = stored_hash.split("$")
+        if len(parts) != 3:
+            return False
+        salt = parts[1]
+        expected_key = parts[2]
+        key = hashlib.scrypt(password.encode(), salt=salt.encode(), n=16384, r=8, p=1)
+        return hmac.compare_digest(key.hex(), expected_key)
+    # Fallback legacy SHA-256 comparison for test compatibility
+    legacy_hash = hashlib.sha256(f"{PASSWORD_SALT}:{password}".encode()).hexdigest()
+    return hmac.compare_digest(stored_hash, legacy_hash)
 
 
 def get_or_create_initial_password(role: str) -> str:
@@ -333,10 +354,10 @@ def health_check() -> dict[str, str]:
 def get_postgresql_connection():
     """
     Establish a PostgreSQL connection using configured credentials and SSL verification.
-    
+
     Returns:
-    	connection (psycopg.Connection or None): The PostgreSQL connection on success, or `None` when the driver, configuration, certificate, or connection is unavailable.
-    	status (str): A success or error message describing the connection result.
+        connection (psycopg.Connection or None): The PostgreSQL connection on success, or `None` when the driver, configuration, certificate, or connection is unavailable.
+        status (str): A success or error message describing the connection result.
     """
     try:
         import urllib.parse
@@ -510,13 +531,10 @@ def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
         return cached
 
     supabase_url = os.environ.get("SUPABASE_URL", "")
-    supabase_publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "") or parse_secret_key_env(os.environ.get("SUPABASE_PUBLISHABLE_KEYS")) or ""
-    supabase_secret_key = os.environ.get("SUPABASE_SECRET_KEY", "") or parse_secret_key_env(os.environ.get("SUPABASE_SECRET_KEYS")) or ""
     supabase_jwks_url = os.environ.get(
         "SUPABASE_JWKS_URL",
         f"{supabase_url}/auth/v1/.well-known/jwks.json" if supabase_url else "",
     )
-    database_url = os.environ.get("DATABASE_URL", "")
 
     start_time = time.time()
     db_connected = False
@@ -630,8 +648,7 @@ def login_endpoint(req: LoginRequest) -> dict[str, Any]:
             detail="Authentication failed. Invalid username or password.",
         )
 
-    expected_hash = hash_password(req.password)
-    if not hmac.compare_digest(account["password_hash"], expected_hash):
+    if not verify_password(req.password, account["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication failed. Invalid username or password.",
@@ -986,21 +1003,64 @@ def serve_user_management_page() -> HTMLResponse:
           const tr = document.createElement('tr');
           tr.style.borderBottom = '1px solid #e9ecef';
 
-          let actionBtn = '';
+          const tdUser = document.createElement('td');
+          tdUser.style.padding = '0.6rem';
+          const strongUser = document.createElement('strong');
+          strongUser.textContent = u.username;
+          tdUser.appendChild(strongUser);
+
+          const tdName = document.createElement('td');
+          tdName.style.padding = '0.6rem';
+          tdName.textContent = u.name;
+
+          const tdRole = document.createElement('td');
+          tdRole.style.padding = '0.6rem';
+          const spanRole = document.createElement('span');
+          spanRole.style.background = '#e9ecef';
+          spanRole.style.padding = '0.2rem 0.5rem';
+          spanRole.style.borderRadius = '12px';
+          spanRole.style.fontWeight = 'bold';
+          spanRole.textContent = u.role;
+          tdRole.appendChild(spanRole);
+
+          const tdDept = document.createElement('td');
+          tdDept.style.padding = '0.6rem';
+          tdDept.textContent = u.dept;
+
+          const tdDid = document.createElement('td');
+          tdDid.style.padding = '0.6rem';
+          const codeDid = document.createElement('code');
+          codeDid.textContent = u.did;
+          tdDid.appendChild(codeDid);
+
+          const tdActions = document.createElement('td');
+          tdActions.style.padding = '0.6rem';
           if (u.role === 'superuser') {
-            actionBtn = '<span style="color: #6c757d; font-size: 0.85rem; font-style: italic;">🔒 SQL-Only Reset</span>';
+            const spanSuper = document.createElement('span');
+            spanSuper.style.color = '#6c757d';
+            spanSuper.style.fontSize = '0.85rem';
+            spanSuper.style.fontStyle = 'italic';
+            spanSuper.textContent = '🔒 SQL-Only Reset';
+            tdActions.appendChild(spanSuper);
           } else {
-            actionBtn = `<button onclick="promptReset('${u.username}')" style="background: #dc3545; color: white; border: none; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer;">Reset Password</button>`;
+            const btnReset = document.createElement('button');
+            btnReset.style.background = '#dc3545';
+            btnReset.style.color = 'white';
+            btnReset.style.border = 'none';
+            btnReset.style.padding = '0.3rem 0.6rem';
+            btnReset.style.borderRadius = '4px';
+            btnReset.style.cursor = 'pointer';
+            btnReset.textContent = 'Reset Password';
+            btnReset.addEventListener('click', () => promptReset(u.username));
+            tdActions.appendChild(btnReset);
           }
 
-          tr.innerHTML = `
-            <td style="padding: 0.6rem;"><strong>${u.username}</strong></td>
-            <td style="padding: 0.6rem;">${u.name}</td>
-            <td style="padding: 0.6rem;"><span style="background: #e9ecef; padding: 0.2rem 0.5rem; border-radius: 12px; font-weight: bold;">${u.role}</span></td>
-            <td style="padding: 0.6rem;">${u.dept}</td>
-            <td style="padding: 0.6rem;"><code>${u.did}</code></td>
-            <td style="padding: 0.6rem;">${actionBtn}</td>
-          `;
+          tr.appendChild(tdUser);
+          tr.appendChild(tdName);
+          tr.appendChild(tdRole);
+          tr.appendChild(tdDept);
+          tr.appendChild(tdDid);
+          tr.appendChild(tdActions);
           tbody.appendChild(tr);
         });
       } catch (err) {
@@ -1069,9 +1129,9 @@ def init_db_endpoint(
 def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTMLResponse:
     """
     Serve the interactive database connection and schema status page.
-    
+
     Returns:
-    	HTMLResponse: HTML containing current connection diagnostics and schema table statuses.
+        HTMLResponse: HTML containing current connection diagnostics and schema table statuses.
     """
     db_info = check_database_connection(bypass_cache=bypass_cache or force)
     is_conn = db_info["is_connected"]
@@ -1327,7 +1387,7 @@ def create_system_jwt(
         "username": username,
         "role": role,
         "admin": role in ("admin", "superuser"),
-        "accredited_investor": True,
+        "accredited_investor": role in ("investor", "admin", "superuser"),
         "iss": EXPECTED_ISSUER,
         "aud": EXPECTED_AUDIENCE,
         "exp": int(time.time() + exp_delta),
@@ -1453,7 +1513,12 @@ def get_investor_assets(
         )
 
     token = authorization.split("Bearer ", 1)[1].strip()
-    verify_investor_bearer_token(token)
+    payload = verify_investor_bearer_token(token)
+    if payload.get("role") and payload.get("role") not in ("investor", "admin", "superuser"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Accredited investor role required.",
+        )
 
     default_listings = [
         {
