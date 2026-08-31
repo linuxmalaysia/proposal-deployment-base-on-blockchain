@@ -142,7 +142,7 @@ def test_superuser_password_reset_protection():
     # 1. Admin attempting to reset superuser password via API -> 403 Forbidden
     res_admin_reset = client.post(
         "/api/users/dca_sys_root/reset-password",
-        json={"new_password": "NewSuperPassword123!"},
+        json={"new_password": "test_reset_password"},
         headers={"Authorization": f"Bearer {admin_jwt}"},
     )
     assert res_admin_reset.status_code == 403
@@ -151,7 +151,7 @@ def test_superuser_password_reset_protection():
     # 2. Superuser attempting to reset own password via API -> 403 Forbidden
     res_self_reset = client.post(
         "/api/users/dca_sys_root/reset-password",
-        json={"new_password": "NewSuperPassword123!"},
+        json={"new_password": "test_reset_password"},
         headers={"Authorization": f"Bearer {super_jwt}"},
     )
     assert res_self_reset.status_code == 403
@@ -165,7 +165,7 @@ def test_admin_user_management_crud_and_rbac():
     # 1. Create new user account
     create_payload = {
         "username": "test_operator_99",
-        "password": "OperatorPass#2026",
+        "password": "test_initial_password",
         "name": "Jane Doe Operator",
         "role": "operator",
         "dept": "Operations Hub",
@@ -178,11 +178,11 @@ def test_admin_user_management_crud_and_rbac():
     # 2. Reset password for created user account
     res_reset = client.post(
         "/api/users/test_operator_99/reset-password",
-        json={"new_password": "UpdatedOperatorPass#2026"},
+        json={"new_password": "test_updated_password"},
         headers={"Authorization": f"Bearer {admin_jwt}"},
     )
     assert res_reset.status_code == 200
-    assert ACCOUNT_REGISTRY["test_operator_99"]["password_hash"] == hash_password("UpdatedOperatorPass#2026")
+    assert ACCOUNT_REGISTRY["test_operator_99"]["password_hash"] == hash_password("test_updated_password")
 
     # 3. List system users
     res_list = client.get("/api/users", headers={"Authorization": f"Bearer {admin_jwt}"})
