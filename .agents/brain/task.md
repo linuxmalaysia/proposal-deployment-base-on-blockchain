@@ -43,6 +43,11 @@ language: "en-GB"
 - [x] Run full test suite verification under `uv run pytest`.
 
 - [x] Design Open-Source MPC Wallet System Architecture using Coinbase `cb-mpc` (`docs/explanation/open-source-mpc-wallet-architecture.md`).
+- [x] Implement HttpOnly, Secure, SameSite cookie session handling and `/api/logout` endpoint in `src/dca_service/web_app.py`.
+- [x] Expand high-throughput in-memory TTL caching and connection pool metrics monitoring (`/api/db-pool-metrics`).
+- [x] Enforce strict type annotations across core domain modules in `src/dca_service/core/` and update `.gitignore` exclusions.
+- [x] Extend Playwright E2E browser test suite (`tests/test_playwright_e2e.py`) to automate full login form submission, HttpOnly JWT token session handling, administrative user creation, and logout workflows.
+- [x] Author Diátaxis explanation guide (`docs/explanation/httponly-cookies-and-connection-pooling.md`) conforming to OKF v0.2 frontmatter with all 13 mandatory fields.
 - [x] Update triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and regenerate `SUMMARY.md`.
 
 ### Pending Tasks

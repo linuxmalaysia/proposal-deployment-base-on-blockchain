@@ -20,7 +20,7 @@ TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
 os.environ["INVESTOR_JWT_SECRET"] = TEST_JWT_SECRET.decode()
 
 from fastapi.testclient import TestClient
-from dca_service.web_app import app, USER_REGISTRY, base64url_encode
+from dca_service.web_app import app, ACCOUNT_REGISTRY, USER_REGISTRY, base64url_encode, hash_password
 
 client = TestClient(app)
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -374,6 +374,77 @@ def test_db_status_html_dashboard_pages():
         assert "SUPABASE_PUBLISHABLE_KEY" not in response.text
         assert "SUPABASE_SECRET_KEY" not in response.text
         assert "SUPABASE_JWKS_URL" not in response.text
+
+
+def test_httponly_cookie_session_handling_and_logout():
+    # 1. Set explicit password for test account to ensure deterministic test run
+    ACCOUNT_REGISTRY["dca_admin_mgr"]["password_hash"] = hash_password("InitPass_admin_2026!")
+
+    # Login with valid credentials
+    login_res = client.post("/api/login", json={"username": "dca_admin_mgr", "password": "InitPass_admin_2026!"})
+    assert login_res.status_code == 200
+    assert "rcf_dac_jwt" in login_res.cookies
+    cookie_token = login_res.cookies["rcf_dac_jwt"]
+    assert cookie_token
+
+    # 2. Access authenticated endpoint using HttpOnly cookie header
+    users_res = client.get("/api/users", headers={"Cookie": f"rcf_dac_jwt={cookie_token}"})
+    assert users_res.status_code == 200
+    assert "users" in users_res.json()
+
+    # 3. Call /api/logout endpoint
+    logout_res = client.post("/api/logout", headers={"Cookie": f"rcf_dac_jwt={cookie_token}"})
+    assert logout_res.status_code == 200
+    assert "logged out" in logout_res.json()["message"].lower()
+
+
+def test_connection_pool_metrics_and_high_throughput_caching():
+    # 1. Verify /api/db-pool-metrics endpoint
+    res_metrics = client.get("/api/db-pool-metrics")
+    assert res_metrics.status_code == 200
+    data_m = res_metrics.json()
+    assert data_m["status"] == "healthy"
+    assert "pool_metrics" in data_m
+    pm = data_m["pool_metrics"]
+    assert "max_pool_size" in pm
+    assert "total_connections_acquired" in pm
+    assert "pool_utilization_percent" in pm
+
+    # 2. Verify pool metrics included in /api/db-status
+    res_status = client.get("/api/db-status")
+    assert res_status.status_code == 200
+    assert "pool_metrics" in res_status.json()
+
+    # 3. Verify investor assets high-throughput caching
+    jwt = create_investor_jwt()
+    # Reset cache to test fresh call
+    import dca_service.web_app as wa
+    wa._INVESTOR_ASSETS_CACHE = None
+
+    # First call (fresh response)
+    res_fresh = client.get("/api/investor-assets", headers={"Authorization": f"Bearer {jwt}"})
+    assert res_fresh.status_code == 200
+    assert res_fresh.json().get("cached") is False
+
+    # Second call (cached response)
+    res_cached = client.get("/api/investor-assets", headers={"Authorization": f"Bearer {jwt}"})
+    assert res_cached.status_code == 200
+    assert res_cached.json().get("cached") is True
+
+    # 4. Register new asset -> invalidates cache
+    asset_payload = {
+        "title": "Graphene Quantum Dot Sensor",
+        "trl": 4,
+        "abstract": "Ultra-sensitive biosensor array",
+        "file_name": "sensor.pdf",
+    }
+    res_reg = client.post("/api/register-asset", json=asset_payload)
+    assert res_reg.status_code == 201
+
+    # Call after registration (cache invalidated, fresh response)
+    res_after_reg = client.get("/api/investor-assets", headers={"Authorization": f"Bearer {jwt}"})
+    assert res_after_reg.status_code == 200
+    assert res_after_reg.json().get("cached") is False
 
 
 def test_init_db_endpoint_requires_admin_role():

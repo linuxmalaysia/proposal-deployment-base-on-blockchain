@@ -5,6 +5,8 @@ Enforces transaction policy rules, velocity limits, multi-signer quorums,
 and destination address allowlists.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from decimal import Decimal
 

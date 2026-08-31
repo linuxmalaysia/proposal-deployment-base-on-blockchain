@@ -21,6 +21,7 @@ language: "en-GB"
 
 * [Institutional Digital Asset Custody Architecture](docs/explanation/architecture-overview.md)
 * [Challenges, Caveats, and Market Opportunities in DCA](docs/explanation/challenges-and-opportunities.md)
+* [HttpOnly Cookie Session Security, Connection Pooling Metrics, and High-Throughput Caching](docs/explanation/httponly-cookies-and-connection-pooling.md)
 * [Open Knowledge Format (OKF v0.2) Architectural Specification & Adoption Guide](docs/explanation/open-knowledge-format-v02-guide.md)
 * [Open-Source MPC Wallet System Architecture via cb-mpc](docs/explanation/open-source-mpc-wallet-architecture.md)
 * [OWASP Authorization Framework Adoption & Access Control Architecture](docs/explanation/owasp-authorization-framework.md)

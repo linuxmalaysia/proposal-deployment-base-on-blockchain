@@ -5,6 +5,8 @@ Provides interfaces for Staking & Tokenisation collateral management,
 alongside SOC-2 compliant immutable structured audit logging.
 """
 
+from __future__ import annotations
+
 import copy
 from dataclasses import dataclass
 from datetime import UTC, datetime

@@ -4,6 +4,8 @@ Concentric Clean Architecture Principle:
 This module contains pure domain entities and business logic with zero external dependencies.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
