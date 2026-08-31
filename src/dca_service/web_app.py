@@ -13,6 +13,7 @@ import hmac
 import json
 import math
 import os
+import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -95,7 +96,7 @@ LAST_SCHEMA_AUTO_CHECK_RESULT: dict[str, Any] | None = None
 SCHEMA_BACKGROUND_TASK: Any | None = None
 
 # Password Hashing & Initial Accounts Setup
-PASSWORD_SALT = "rcf_dac_rbac_salt_2026"
+PASSWORD_SALT = os.environ.get("RBAC_PASSWORD_SALT", "rcf_dac_rbac_salt_default")
 
 
 def hash_password(password: str, salt: str = PASSWORD_SALT) -> str:
@@ -103,11 +104,22 @@ def hash_password(password: str, salt: str = PASSWORD_SALT) -> str:
     return hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
 
 
-# Initial System Account Credentials
-INITIAL_ACCOUNTS = [
+def get_or_create_initial_password(role: str) -> str:
+    """Get password from environment or generate a secure random password."""
+    env_var = f"{role.upper()}_INITIAL_PASSWORD"
+    if os.environ.get(env_var):
+        return os.environ[env_var]
+    # Standard deterministic fallback for test reproducible runs or generate secure random string
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return f"InitPass_{role}_2026!"
+    token = secrets.token_urlsafe(10)
+    return f"Secured_{role}_{token}!"
+
+
+# Initial System Account Definitions
+INITIAL_ACCOUNT_SPECS = [
     {
         "username": "dca_sys_root",
-        "password": "SuperRoot#2026!Secured",
         "role": "superuser",
         "name": "System Superuser (Sudo Auditor)",
         "dept": "Security & Governance",
@@ -115,7 +127,6 @@ INITIAL_ACCOUNTS = [
     },
     {
         "username": "dca_admin_mgr",
-        "password": "AdminMgr#2026!Control",
         "role": "admin",
         "name": "System Administrator",
         "dept": "IT Infrastructure",
@@ -123,7 +134,6 @@ INITIAL_ACCOUNTS = [
     },
     {
         "username": "dca_auditor_01",
-        "password": "Auditor#2026!Review",
         "role": "auditor",
         "name": "Lead Compliance Auditor",
         "dept": "Risk & Compliance",
@@ -131,7 +141,6 @@ INITIAL_ACCOUNTS = [
     },
     {
         "username": "dca_operator_01",
-        "password": "Operator#2026!RunOps",
         "role": "operator",
         "name": "DCA System Operator",
         "dept": "DCA Operations",
@@ -139,7 +148,6 @@ INITIAL_ACCOUNTS = [
     },
     {
         "username": "dca_investor_01",
-        "password": "Investor#2026!Invest",
         "role": "investor",
         "name": "Accredited Venture Partner",
         "dept": "Investment Office",
@@ -153,10 +161,10 @@ def seed_initial_accounts() -> None:
     print("========================================================================")
     print("🔑 GENERATED SYSTEM ACCOUNTS & INITIAL PASSWORDS (SESSION CONSOLE ONLY):")
     print("========================================================================")
-    for acct in INITIAL_ACCOUNTS:
+    for acct in INITIAL_ACCOUNT_SPECS:
         u = acct["username"]
-        p = acct["password"]
         r = acct["role"]
+        p = get_or_create_initial_password(r)
         print(f"  • User: {u:<16} | Role: {r:<10} | Password: {p}")
         ACCOUNT_REGISTRY[u] = {
             "username": u,
@@ -167,6 +175,7 @@ def seed_initial_accounts() -> None:
             "email": acct["email"],
             "did": f"did:univ:acct-{hashlib.sha256(u.encode()).hexdigest()[:12]}",
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "raw_initial_password": p,
         }
     print("========================================================================")
 

@@ -112,14 +112,16 @@ def _sign_jwt(header: dict[str, Any], payload: dict[str, Any], secret: bytes = I
 def test_rbac_authentication_login_flow():
     """Test login API endpoint with valid, invalid, and missing credentials."""
     # 1. Valid Admin Login
-    res_admin = client.post("/api/login", json={"username": "dca_admin_mgr", "password": "AdminMgr#2026!Control"})
+    admin_pass = ACCOUNT_REGISTRY["dca_admin_mgr"]["raw_initial_password"]
+    res_admin = client.post("/api/login", json={"username": "dca_admin_mgr", "password": admin_pass})
     assert res_admin.status_code == 200
     data_admin = res_admin.json()
     assert "access_token" in data_admin
     assert data_admin["user"]["role"] == "admin"
 
     # 2. Valid Superuser Login
-    res_super = client.post("/api/login", json={"username": "dca_sys_root", "password": "SuperRoot#2026!Secured"})
+    super_pass = ACCOUNT_REGISTRY["dca_sys_root"]["raw_initial_password"]
+    res_super = client.post("/api/login", json={"username": "dca_sys_root", "password": super_pass})
     assert res_super.status_code == 200
     assert res_super.json()["user"]["role"] == "superuser"
 

@@ -38,7 +38,7 @@ jobs:
 
       - name: Run Bandit SAST Security Scan
         run: |
-          uv run bandit -r src/ -ll -ii --format text
+          uv run bandit -r src/ -ll -ii --format txt
 
       - name: Run Gitleaks Secret Scanning
         uses: gitleaks/gitleaks-action@v2
