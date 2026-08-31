@@ -91,6 +91,7 @@ EXPECTED_AUDIENCE = "rcf-dac-data-room"
 USER_REGISTRY: Dict[str, Dict[str, Any]] = {}
 ASSET_REGISTRY: Dict[str, Dict[str, Any]] = {}
 LAST_SCHEMA_AUTO_CHECK_RESULT: Optional[Dict[str, Any]] = None
+SCHEMA_BACKGROUND_TASK: Optional[Any] = None
 
 RevenueType = Literal["royalties", "licensing", "equity", "dividend"]
 ContentEncoding = Literal["base64", "raw", "text"]
@@ -157,20 +158,45 @@ class RevenueSplitRequest(BaseModel):
 
 # --- API Endpoints ---
 
+def _safe_auto_check_and_build_schema() -> Dict[str, Any]:
+    """Fail-safe wrapper ensuring no background thread exception escapes unhandled."""
+    try:
+        return auto_check_and_build_schema()
+    except Exception as exc:
+        global LAST_SCHEMA_AUTO_CHECK_RESULT
+        res = {
+            "success": False,
+            "message": f"Fail-safe schema auto-check error: {exc}",
+            "db_connected": False,
+            "tables_created": [],
+            "missing_tables": ["users", "assets", "cloverleaf_scores", "revenue_splits", "blockchain_transactions"],
+        }
+        LAST_SCHEMA_AUTO_CHECK_RESULT = res
+        return res
+
+
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
     """
-    Run the database schema check and construction task when the application starts.
-    
-    Parameters:
-    	app_instance (FastAPI): The application instance managed by the lifespan context.
+    FastAPI lifespan context manager ensuring non-blocking schema auto-checking and table building on startup.
+
+    Args:
+        app_instance (FastAPI): The active FastAPI web application instance.
     """
+    global SCHEMA_BACKGROUND_TASK
     import asyncio
     try:
-        asyncio.create_task(asyncio.to_thread(auto_check_and_build_schema))
+        SCHEMA_BACKGROUND_TASK = asyncio.create_task(asyncio.to_thread(_safe_auto_check_and_build_schema))
     except Exception:
         pass
+
     yield
+
+    if SCHEMA_BACKGROUND_TASK is not None and not SCHEMA_BACKGROUND_TASK.done():
+        try:
+            await asyncio.wait_for(asyncio.shield(SCHEMA_BACKGROUND_TASK), timeout=5.0)
+        except Exception:
+            pass
 
 
 # Initialise FastAPI web application instance with lifespan context
@@ -251,6 +277,7 @@ def initialize_database_schema() -> Dict[str, Any]:
 
     try:
         with conn.cursor() as cur:
+            cur.execute("SET statement_timeout = 10000; SET lock_timeout = 5000;")
             cur.execute(sql_script)
         conn.commit()
         conn.close()
@@ -266,11 +293,15 @@ def initialize_database_schema() -> Dict[str, Any]:
 
 def auto_check_and_build_schema() -> Dict[str, Any]:
     """
-    Check the PostgreSQL database for required application tables and create missing tables.
-    
+    Fail-safe automatic schema check and table build routine for application deployment on Render.com.
+
+    Inspects PostgreSQL information_schema.tables for existing application schema tables, maintaining
+    existing data, and automatically executing DDL schema statements if missing tables are detected.
+    Retains schema check and initialisation results in module-level state for operator diagnostics.
+
     Returns:
-        Dict[str, Any]: Status details including success, database connectivity, created tables,
-            and missing tables.
+        Dict[str, Any]: Execution status dictionary containing success boolean, message string,
+        db_connected status boolean, tables_created list, and missing_tables list.
     """
     global LAST_SCHEMA_AUTO_CHECK_RESULT
     expected_tables = ["users", "assets", "cloverleaf_scores", "revenue_splits", "blockchain_transactions"]
@@ -288,6 +319,7 @@ def auto_check_and_build_schema() -> Dict[str, Any]:
 
     try:
         with conn.cursor() as cur:
+            cur.execute("SET statement_timeout = 10000; SET lock_timeout = 5000;")
             cur.execute(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
             )
@@ -459,18 +491,7 @@ def get_db_status_api() -> Dict[str, Any]:
 def init_db_endpoint(
     authorization: Optional[str] = Header(None, alias="Authorization"),
 ) -> Dict[str, Any]:
-    """
-    Initialize the database schema for an authenticated administrator.
-    
-    Parameters:
-        authorization (Optional[str]): Bearer token identifying the administrator.
-    
-    Returns:
-        Dict[str, Any]: The schema initialization status and diagnostic details.
-    
-    Raises:
-        HTTPException: If authentication is missing or invalid, or the token does not identify an administrator.
-    """
+    """Execute docs/schema.sql DDL script to initialise database schema and tables (Admin only)."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
