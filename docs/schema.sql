@@ -66,3 +66,5 @@ CREATE INDEX IF NOT EXISTS idx_cloverleaf_asset_id ON cloverleaf_scores(asset_id
 CREATE INDEX IF NOT EXISTS idx_blockchain_tx_id ON blockchain_transactions(transaction_id);
 CREATE INDEX IF NOT EXISTS idx_blockchain_sync_state ON blockchain_transactions(sync_state);
 CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_state ON blockchain_transactions(timestamp, sync_state);
+CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_asset ON blockchain_transactions(timestamp, asset_symbol);
+CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_account ON blockchain_transactions(timestamp, account_id);

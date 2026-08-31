@@ -5,7 +5,7 @@ Implements MPC (Multi-Party Computation) threshold quorums and HSM-backed
 vault tiering (Hot, Warm, Cold) using pure Python domain constructs.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 
 

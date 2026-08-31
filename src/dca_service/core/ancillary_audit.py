@@ -7,7 +7,7 @@ alongside SOC-2 compliant immutable structured audit logging.
 
 import copy
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -28,7 +28,7 @@ class AuditLogger:
     def log(self, event_id: str, action: str, actor_id: str, details: dict[str, Any]) -> AuditEvent:
         event = AuditEvent(
             event_id=event_id,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             action=action,
             actor_id=actor_id,
             details=copy.deepcopy(details)
