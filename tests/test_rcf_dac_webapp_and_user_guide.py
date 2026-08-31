@@ -19,6 +19,25 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _extract_frontmatter_dict(content: str) -> dict[str, str]:
+    lines = content.splitlines()
+    assert lines and lines[0].strip() == "---", "Expected opening '---' frontmatter delimiter"
+    closing_idx = -1
+    for idx in range(1, len(lines)):
+        if lines[idx].strip() == "---":
+            closing_idx = idx
+            break
+    assert closing_idx != -1, "Expected closing '---' frontmatter delimiter"
+
+    frontmatter = {}
+    for line in lines[1:closing_idx]:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and ":" in stripped:
+            k, v = stripped.split(":", 1)
+            frontmatter[k.strip()] = v.strip().strip("'\"")
+    return frontmatter
+
+
 class TestRcfDacJsAppEngine:
     def test_file_exists(self):
         assert JS_APP.is_file()
@@ -82,16 +101,16 @@ class TestOWASPAuthorizationFrameworkDoc:
 
     def test_okf_v02_frontmatter_present(self):
         content = _read(OWASP_AUTH_DOC)
-        assert content.startswith("---")
-        assert 'okf_version: "0.2"' in content
-        assert 'type: "explanation"' in content
-        assert 'language: "en-GB"' in content
+        frontmatter = _extract_frontmatter_dict(content)
+        assert frontmatter.get("okf_version") == "0.2"
+        assert frontmatter.get("type") == "explanation"
+        assert frontmatter.get("language") == "en-GB"
 
     def test_documents_owasp_recommendations(self):
         content = _read(OWASP_AUTH_DOC)
         assert "Enforce Least Privileges" in content
         assert "Deny by Default" in content
-        assert "Superuser SQL-Only Password Reset Restriction" in content
+        assert "Superuser Startup Seeding & SQL-Only Password Reset Restriction" in content
 
 
 class TestSuperuserResetHowToDoc:
@@ -100,10 +119,10 @@ class TestSuperuserResetHowToDoc:
 
     def test_okf_v02_frontmatter_present(self):
         content = _read(SUPERUSER_RESET_DOC)
-        assert content.startswith("---")
-        assert 'okf_version: "0.2"' in content
-        assert 'type: "how-to"' in content
-        assert 'language: "en-GB"' in content
+        frontmatter = _extract_frontmatter_dict(content)
+        assert frontmatter.get("okf_version") == "0.2"
+        assert frontmatter.get("type") == "how-to"
+        assert frontmatter.get("language") == "en-GB"
 
     def test_contains_superuser_reset_sql_and_env_instructions(self):
         content = _read(SUPERUSER_RESET_DOC)

@@ -37,8 +37,8 @@ Broken Access Control (OWASP Top 10 A01:2021) represents one of the most severe 
 
 1. **Strict Role-Based & Attribute-Based Access Control (RBAC/ABAC)** across institutional roles (`superuser`, `admin`, `auditor`, `operator`, `investor`, `user`).
 2. **Deny-by-Default Execution** failing closed on missing, malformed, or unverified JWT tokens.
-3. **Direct SQL Database Mandate for Superuser Password Resets**, enforcing strict separation of administrative privileges and blocking web-based superuser credential modification.
-4. **Cryptographic IDOR Prevention** using W3C Decentralised Identifiers (`did:univ:...`) and SHA-256 evidence digests instead of guessable sequential primary keys.
+3. **Direct SQL Database Mandate for Superuser Password Resets**, enforcing strict separation of administrative privileges and blocking web-based superuser credential modification. Environment configuration (`SUPERUSER_INITIAL_PASSWORD`) serves solely for initial startup seeding via `get_or_create_initial_password()` and `seed_initial_accounts()`, while runtime superuser password resets via web API endpoints are rejected with HTTP 403.
+4. **Guessability Mitigation & Object-Level Authorization** using W3C Decentralised Identifiers (`did:univ:...`) and SHA-256 evidence digests to prevent parameter tampering, paired with explicit server-side object-level authorization checks before object access or registration.
 
 ---
 
@@ -51,7 +51,7 @@ Broken Access Control (OWASP Top 10 A01:2021) represents one of the most severe 
 | **3** | **Validate Permissions on Every Request** | Stateless HMAC-SHA256 JWT validation executed on every request requiring authentication. Claims checked include expiration (`exp`), issuer (`iss`), audience (`aud`), role (`role`), and accredited investor status (`accredited_investor`). |
 | **4** | **Review Authorization Logic & Custom Implementation** | Custom cryptographically sound JWT verification routine using constant-time comparisons (`hmac.compare_digest`) to prevent timing side-channel attacks during signature and password hash verification. |
 | **5** | **Prefer ABAC & ReBAC over RBAC** | Combines role hierarchy with dynamic contextual attributes (e.g., NDA execution state for investor data room access, DID ownership, and TimescaleDB transactional outbox state). |
-| **6** | **Prevent IDOR & Guessable Lookup IDs** | Eliminates sequential integer primary keys in public interfaces. Objects are referenced via immutable W3C DIDs (`did:univ:asset-9f82a1`), UUIDv4 identifiers, or SHA-256 evidence hashes (`sha256:...`). |
+| **6** | **Guessability Mitigation & Object-Level Authorization** | Eliminates sequential integer primary keys in public interfaces. Objects are referenced via immutable W3C DIDs (`did:univ:asset-9f82a1`), UUIDv4 identifiers, or SHA-256 evidence hashes (`sha256:...`). Opaque identifiers mitigate guessability but do not replace authorization; explicit server-side object-level checks are performed prior to each lookup in `/api/register-asset`, `/api/register-user`, and `/api/investor-assets`. |
 | **7** | **Enforce Authorization Checks on Static Resources** | Confidential data room payloads, evidence vault documentation, and administrative UI dashboards require valid session credentials and role-specific Bearer tokens. |
 | **8** | **Verify Authorization Checks in Right Location** | Authorization enforcement is anchored strictly server-side in FastAPI route dependencies (`extract_current_user_payload`), independent of client-side browser controls. |
 | **9** | **Exit Safely when Authorization Checks Fail** | Sanitised exception handling returning structured HTTP error payloads without exposing internal stack traces, environment variables, or database secrets. |
@@ -62,8 +62,8 @@ Broken Access Control (OWASP Top 10 A01:2021) represents one of the most severe 
 
 ## 🔒 Deep Dive: Core Authorization Controls
 
-### 1. Superuser SQL-Only Password Reset Restriction
-To prevent web application compromise from escalating to total superuser takeover, the system enforces a strict security restriction in `src/dca_service/web_app.py`:
+### 1. Superuser Startup Seeding & SQL-Only Password Reset Restriction
+To prevent web application compromise from escalating to total superuser takeover, `SUPERUSER_INITIAL_PASSWORD` is used exclusively for startup initialization during system boot via `get_or_create_initial_password()` and `seed_initial_accounts()`. Runtime credential modifications targeting the superuser account via API endpoints are rejected in `src/dca_service/web_app.py`:
 
 ```python
 # Superuser protection mandate: Superuser password CAN ONLY be reset by direct SQL command

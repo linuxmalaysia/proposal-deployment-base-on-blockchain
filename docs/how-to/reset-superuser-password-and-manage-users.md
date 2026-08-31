@@ -42,14 +42,14 @@ In compliance with the **OWASP Authorization Framework** and platform security p
 
 Operators can reset the superuser password using either of two supported methods:
 
-### Method A: Environment Variable Configuration (Recommended for Render.com Deployments)
+### Method A: Environment Variable Startup Seeding (Recommended for Deployment Initialization)
 
 1. Access your Render.com Web Service Dashboard (or local `/etc/secrets/.env` file).
 2. Add or update the environment variable `SUPERUSER_INITIAL_PASSWORD`:
    ```bash
    SUPERUSER_INITIAL_PASSWORD="YourSecureSuperuserPassword2026!"
    ```
-3. Restart or redeploy the Web Service. The platform will automatically seed `dca_sys_root` with the configured password.
+3. Restart or redeploy the Web Service. During system boot, `get_or_create_initial_password("superuser")` and `seed_initial_accounts()` populate `ACCOUNT_REGISTRY` for `dca_sys_root` with the configured password hash.
 
 ---
 
@@ -68,13 +68,18 @@ If direct PostgreSQL database access is available (via `psql` or Supabase SQL Ed
    "
    ```
 
-2. Execute the following SQL statement against your PostgreSQL database:
+2. Execute the targeted SQL statement against your PostgreSQL database targeting exactly `dca_sys_root`:
    ```sql
-   -- Update or insert users/accounts record for dca_sys_root
+   -- Update password_hash for exactly the dca_sys_root superuser account
    UPDATE users
-   SET role = 'superuser',
-       email = 'superuser@rcf-dac.univ.edu.my'
-   WHERE did LIKE 'did:univ:acct-%' AND role = 'superuser';
+   SET password_hash = 'scrypt$GENERATED_SALT$GENERATED_HASH'
+   WHERE username = 'dca_sys_root' AND role = 'superuser';
+   ```
+
+3. Verify that exactly 1 row was updated:
+   ```sql
+   -- Confirm exactly 1 row updated for dca_sys_root
+   SELECT username, role, email FROM users WHERE username = 'dca_sys_root' AND role = 'superuser';
    ```
 
 ---
@@ -87,7 +92,7 @@ If direct PostgreSQL database access is available (via `psql` or Supabase SQL Ed
    - **Username:** `dca_sys_root`
    - **Password:** `YourSecureSuperuserPassword2026!`
 3. Click **Sign In**.
-4. Upon successful authentication, a JWT Bearer token is issued and stored in browser storage (`localStorage`), automatically redirecting you to `/user-management`.
+4. Upon successful authentication, an HMAC-SHA256 signed JWT Bearer token is issued. For browser sessions, the token is passed in the `Authorization: Bearer <token>` header (or stored in protected session cookies / backend-for-frontend pattern in production environments), redirecting you to `/user-management`.
 
 ---
 
