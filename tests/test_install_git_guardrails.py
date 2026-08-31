@@ -65,17 +65,19 @@ class TestSummaryAutoGenerationStep:
         summary_script.parent.mkdir(parents=True, exist_ok=True)
         summary_script.write_text("# dummy script\n", encoding="utf-8")
 
-        fake_run = _RecordingSubprocessRun(returncodes=[0, 0])
+        fake_run = _RecordingSubprocessRun(returncodes=[0, 0, 0, 0])
         monkeypatch.setattr(subprocess, "run", fake_run)
 
         result = igg_module.run_pre_commit_checks()
 
         assert result == 0
-        assert len(fake_run.calls) == 2
+        assert len(fake_run.calls) == 4
         assert fake_run.calls[0]["args"] == ["uv", "run", "python", str(summary_script)]
         assert fake_run.calls[0]["cwd"] == tmp_path
-        assert fake_run.calls[1]["args"] == ["uv", "run", "pytest"]
-        assert fake_run.calls[1]["cwd"] == tmp_path
+        assert fake_run.calls[1]["args"] == ["uv", "run", "ruff", "check", "src/"]
+        assert fake_run.calls[2]["args"] == ["uv", "run", "mypy", "src/"]
+        assert fake_run.calls[3]["args"] == ["uv", "run", "pytest"]
+        assert fake_run.calls[3]["cwd"] == tmp_path
 
         captured = capsys.readouterr()
         assert "Auto-generating SUMMARY.md index" in captured.out
@@ -109,15 +111,16 @@ class TestSummaryAutoGenerationStep:
         # Note: tools/generate_summary.py is deliberately not created.
         (tmp_path / "tools").mkdir(parents=True, exist_ok=True)
 
-        fake_run = _RecordingSubprocessRun(returncodes=[0])
+        fake_run = _RecordingSubprocessRun(returncodes=[0, 0, 0])
         monkeypatch.setattr(subprocess, "run", fake_run)
 
         result = igg_module.run_pre_commit_checks()
 
         assert result == 0
-        # Only the final pytest invocation should occur; the generation step is skipped.
-        assert len(fake_run.calls) == 1
-        assert fake_run.calls[0]["args"] == ["uv", "run", "pytest"]
+        assert len(fake_run.calls) == 3
+        assert fake_run.calls[0]["args"] == ["uv", "run", "ruff", "check", "src/"]
+        assert fake_run.calls[1]["args"] == ["uv", "run", "mypy", "src/"]
+        assert fake_run.calls[2]["args"] == ["uv", "run", "pytest"]
 
         captured = capsys.readouterr()
         assert "Auto-generating SUMMARY.md index" not in captured.out

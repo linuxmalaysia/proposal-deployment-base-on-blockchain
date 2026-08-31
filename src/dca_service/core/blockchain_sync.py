@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum, auto
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 
 class SyncState(Enum):
@@ -32,14 +32,14 @@ class TimeSeriesTransactionEntry:
     transaction_id: str
     account_id: str
     asset_symbol: str
-    amount: Union[Decimal, float]
+    amount: Decimal | float
     timestamp: datetime
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     sync_state: SyncState = SyncState.DB_RECORDED
-    block_id: Optional[int] = None
-    tx_hash: Optional[str] = None
+    block_id: int | None = None
+    tx_hash: str | None = None
     retry_count: int = 0
-    failure_reason: Optional[str] = None
+    failure_reason: str | None = None
 
 
 @dataclass
@@ -50,7 +50,7 @@ class HypertableChunkInfo:
     range_end: datetime
     record_count: int
     state: HypertableChunkState = HypertableChunkState.ACTIVE_UNCOMPRESSED
-    compressed_size_bytes: Optional[int] = None
+    compressed_size_bytes: int | None = None
 
 
 @dataclass

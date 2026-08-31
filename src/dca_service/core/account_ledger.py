@@ -7,17 +7,14 @@ and strict balance tracking.
 
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Dict, List
 
 
 class ComminglingError(Exception):
     """Raised when an action violates client asset segregation policies."""
-    pass
 
 
 class InsufficientBalanceError(Exception):
     """Raised when an account withdrawal exceeds available balance."""
-    pass
 
 
 @dataclass
@@ -46,7 +43,7 @@ class SubAccount:
 class SegregatedLedger:
     ledger_id: str
     client_id: str
-    sub_accounts: Dict[str, SubAccount] = field(default_factory=dict)
+    sub_accounts: dict[str, SubAccount] = field(default_factory=dict)
 
     def get_or_create_sub_account(self, sub_account_id: str, asset_symbol: str) -> SubAccount:
         if sub_account_id in self.sub_accounts:

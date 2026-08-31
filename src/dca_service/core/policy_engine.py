@@ -7,12 +7,10 @@ and destination address allowlists.
 
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Set, List, Collection
 
 
 class PolicyViolationError(Exception):
     """Raised when a proposed transaction violates policy rules."""
-    pass
 
 
 @dataclass
@@ -22,7 +20,7 @@ class TransactionProposal:
     destination_address: str
     amount: Decimal
     asset_symbol: str
-    signers: List[str] = field(default_factory=list)
+    signers: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.amount <= Decimal("0.0"):
@@ -47,12 +45,12 @@ class PolicyRule:
     max_amount_per_tx: Decimal
     daily_velocity_limit: Decimal
     required_approvers_count: int
-    allowlisted_addresses: Set[str] = field(default_factory=set)
-    authorized_signers: Set[str] = field(default_factory=set)
-    authenticated_signers: Set[str] = field(default_factory=set)
+    allowlisted_addresses: set[str] = field(default_factory=set)
+    authorized_signers: set[str] = field(default_factory=set)
+    authenticated_signers: set[str] = field(default_factory=set)
     current_daily_accumulated: Decimal = Decimal("0.0")
 
-    def evaluate(self, proposal: TransactionProposal, verified_authenticated_signers: Set[str] | None = None) -> None:
+    def evaluate(self, proposal: TransactionProposal, verified_authenticated_signers: set[str] | None = None) -> None:
         """Evaluate a proposal against policy parameters. Raises PolicyViolationError if invalid."""
         # 1. Allowlist Check
         if self.allowlisted_addresses and proposal.destination_address not in self.allowlisted_addresses:

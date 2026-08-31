@@ -8,7 +8,6 @@ Governed by DSOM Protocol // OKF v0.2 Standard // Concentric Clean Architecture.
 from __future__ import annotations
 
 import base64
-from contextlib import asynccontextmanager
 import hashlib
 import hmac
 import json
@@ -16,12 +15,13 @@ import math
 import os
 import time
 import uuid
-from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+from contextlib import asynccontextmanager
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
-from fastapi import FastAPI, Header, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Header, HTTPException, status
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -55,7 +55,7 @@ def load_secrets_from_env_files() -> None:
 load_secrets_from_env_files()
 
 # Helper to extract secret key from string or JSON-object format (e.g. for SUPABASE_SECRET_KEYS)
-def parse_secret_key_env(val: Optional[str]) -> Optional[str]:
+def parse_secret_key_env(val: str | None) -> str | None:
     if not val:
         return None
     val = val.strip()
@@ -88,14 +88,94 @@ EXPECTED_ISSUER = "https://auth.rcf-dac.univ.edu.my"
 EXPECTED_AUDIENCE = "rcf-dac-data-room"
 
 # In-memory storage for demonstration / web service operation
-USER_REGISTRY: Dict[str, Dict[str, Any]] = {}
-ASSET_REGISTRY: Dict[str, Dict[str, Any]] = {}
-LAST_SCHEMA_AUTO_CHECK_RESULT: Optional[Dict[str, Any]] = None
-SCHEMA_BACKGROUND_TASK: Optional[Any] = None
+USER_REGISTRY: dict[str, dict[str, Any]] = {}
+ASSET_REGISTRY: dict[str, dict[str, Any]] = {}
+ACCOUNT_REGISTRY: dict[str, dict[str, Any]] = {}
+LAST_SCHEMA_AUTO_CHECK_RESULT: dict[str, Any] | None = None
+SCHEMA_BACKGROUND_TASK: Any | None = None
+
+# Password Hashing & Initial Accounts Setup
+PASSWORD_SALT = "rcf_dac_rbac_salt_2026"
+
+
+def hash_password(password: str, salt: str = PASSWORD_SALT) -> str:
+    """Hash password using SHA-256 with static salt for RBAC account verification."""
+    return hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
+
+
+# Initial System Account Credentials
+INITIAL_ACCOUNTS = [
+    {
+        "username": "dca_sys_root",
+        "password": "SuperRoot#2026!Secured",
+        "role": "superuser",
+        "name": "System Superuser (Sudo Auditor)",
+        "dept": "Security & Governance",
+        "email": "superuser@rcf-dac.univ.edu.my",
+    },
+    {
+        "username": "dca_admin_mgr",
+        "password": "AdminMgr#2026!Control",
+        "role": "admin",
+        "name": "System Administrator",
+        "dept": "IT Infrastructure",
+        "email": "admin@rcf-dac.univ.edu.my",
+    },
+    {
+        "username": "dca_auditor_01",
+        "password": "Auditor#2026!Review",
+        "role": "auditor",
+        "name": "Lead Compliance Auditor",
+        "dept": "Risk & Compliance",
+        "email": "auditor@rcf-dac.univ.edu.my",
+    },
+    {
+        "username": "dca_operator_01",
+        "password": "Operator#2026!RunOps",
+        "role": "operator",
+        "name": "DCA System Operator",
+        "dept": "DCA Operations",
+        "email": "operator@rcf-dac.univ.edu.my",
+    },
+    {
+        "username": "dca_investor_01",
+        "password": "Investor#2026!Invest",
+        "role": "investor",
+        "name": "Accredited Venture Partner",
+        "dept": "Investment Office",
+        "email": "investor@rcf-dac.univ.edu.my",
+    },
+]
+
+
+def seed_initial_accounts() -> None:
+    """Initialise and populate initial system user accounts with hashed passwords."""
+    print("========================================================================")
+    print("🔑 GENERATED SYSTEM ACCOUNTS & INITIAL PASSWORDS (SESSION CONSOLE ONLY):")
+    print("========================================================================")
+    for acct in INITIAL_ACCOUNTS:
+        u = acct["username"]
+        p = acct["password"]
+        r = acct["role"]
+        print(f"  • User: {u:<16} | Role: {r:<10} | Password: {p}")
+        ACCOUNT_REGISTRY[u] = {
+            "username": u,
+            "password_hash": hash_password(p),
+            "role": r,
+            "name": acct["name"],
+            "dept": acct["dept"],
+            "email": acct["email"],
+            "did": f"did:univ:acct-{hashlib.sha256(u.encode()).hexdigest()[:12]}",
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+    print("========================================================================")
+
+
+seed_initial_accounts()
 
 # DB Status Diagnostic Cache Configuration & State
 DB_STATUS_CACHE_TTL: float = float(os.environ.get("DB_STATUS_CACHE_TTL", "5.0"))
-_DB_STATUS_CACHE: Optional[Dict[str, Any]] = None
+_DB_STATUS_CACHE: dict[str, Any] | None = None
 _DB_STATUS_CACHE_TIMESTAMP: float = 0.0
 
 RevenueType = Literal["royalties", "licensing", "equity", "dividend"]
@@ -117,6 +197,24 @@ def base64url_decode(encoded_str: str) -> bytes:
 
 # --- Pydantic Request Models ---
 
+class LoginRequest(BaseModel):
+    username: str = Field(..., description="System account username")
+    password: str = Field(..., description="User account password")
+
+
+class CreateUserRequest(BaseModel):
+    username: str = Field(..., description="Unique system username")
+    password: str = Field(..., description="User account password")
+    name: str = Field(..., description="Full Name and Title")
+    role: str = Field(..., description="User role (admin, auditor, operator, investor, user)")
+    dept: str = Field(..., description="Faculty or Centre of Excellence")
+    email: EmailStr = Field(..., description="Institutional Email Address")
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str = Field(..., description="New account password")
+
+
 class UserRegistrationRequest(BaseModel):
     name: str = Field(..., description="Full Name and Title")
     role: str = Field(..., description="Institutional Role")
@@ -129,8 +227,8 @@ class AssetRegistrationRequest(BaseModel):
     trl: int = Field(..., ge=1, le=9, description="Technology Readiness Level (1-9)")
     abstract: str = Field(..., description="Scientific Abstract & Innovation Summary")
     file_name: str = Field(..., description="Evidentiary File Reference Name")
-    file_content: Optional[str] = Field(None, description="Raw file payload or base64 representation")
-    content_encoding: Optional[ContentEncoding] = Field(
+    file_content: str | None = Field(None, description="Raw file payload or base64 representation")
+    content_encoding: ContentEncoding | None = Field(
         None, description="Explicit content encoding: base64, raw, or text"
     )
 
@@ -156,14 +254,15 @@ class RevenueSplitRequest(BaseModel):
     @field_validator("amount")
     @classmethod
     def validate_max_two_decimal_places(cls, v: Decimal) -> Decimal:
-        if v.as_tuple().exponent < -2:
+        exp = v.as_tuple().exponent
+        if isinstance(exp, int) and exp < -2:
             raise ValueError("Monetary amount cannot have more than two decimal places.")
         return v
 
 
 # --- API Endpoints ---
 
-def _safe_auto_check_and_build_schema() -> Dict[str, Any]:
+def _safe_auto_check_and_build_schema() -> dict[str, Any]:
     """Fail-safe wrapper ensuring no background thread exception escapes unhandled."""
     try:
         return auto_check_and_build_schema()
@@ -217,7 +316,7 @@ if ASSETS_DIR.exists():
 
 
 @app.get("/health")
-def health_check() -> Dict[str, str]:
+def health_check() -> dict[str, str]:
     """Health check endpoint for Render service monitoring."""
     return {"status": "ok", "service": "rcf-dac-web-app", "version": "0.1.0"}
 
@@ -231,8 +330,9 @@ def get_postgresql_connection():
     	status (str): A success or error message describing the connection result.
     """
     try:
-        import psycopg
         import urllib.parse
+
+        import psycopg
     except ImportError:
         return None, "psycopg driver not installed"
 
@@ -264,7 +364,7 @@ def get_postgresql_connection():
         return None, f"PostgreSQL connection error: {exc}"
 
 
-def initialize_database_schema() -> Dict[str, Any]:
+def initialize_database_schema() -> dict[str, Any]:
     """
     Execute docs/schema.sql DDL script against PostgreSQL database to create schema and tables.
 
@@ -296,7 +396,7 @@ def initialize_database_schema() -> Dict[str, Any]:
         return {"success": False, "message": f"Failed to execute schema DDL: {exc}"}
 
 
-def auto_check_and_build_schema() -> Dict[str, Any]:
+def auto_check_and_build_schema() -> dict[str, Any]:
     """
     Fail-safe automatic schema check and table build routine for application deployment on Render.com.
 
@@ -381,7 +481,7 @@ def auto_check_and_build_schema() -> Dict[str, Any]:
 
 
 
-def check_database_connection(bypass_cache: bool = False) -> Dict[str, Any]:
+def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
     """
     Check PostgreSQL connectivity, verify expected public tables, and test the Supabase authentication API.
     Uses in-memory TTL caching to minimize database round-trips under high-concurrency polling unless bypassed.
@@ -504,15 +604,437 @@ def check_database_connection(bypass_cache: bool = False) -> Dict[str, Any]:
 
 
 @app.get("/api/db-status")
-def get_db_status_api(bypass_cache: bool = False, force: bool = False) -> Dict[str, Any]:
+def get_db_status_api(bypass_cache: bool = False, force: bool = False) -> dict[str, Any]:
     """Return database connection status, network latency, and schema verification in JSON."""
     return check_database_connection(bypass_cache=bypass_cache or force)
 
 
+# --- RBAC User Management & Authentication Endpoints ---
+
+@app.post("/api/login")
+def login_endpoint(req: LoginRequest) -> dict[str, Any]:
+    """Authenticate system account credentials and return signed JWT session token."""
+    account = ACCOUNT_REGISTRY.get(req.username)
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed. Invalid username or password.",
+        )
+
+    expected_hash = hash_password(req.password)
+    if not hmac.compare_digest(account["password_hash"], expected_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed. Invalid username or password.",
+        )
+
+    role = account["role"]
+    token = create_system_jwt(username=account["username"], role=role)
+
+    return {
+        "message": "Authentication successful",
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "username": account["username"],
+            "role": account["role"],
+            "name": account["name"],
+            "dept": account["dept"],
+            "email": account["email"],
+            "did": account["did"],
+        },
+    }
+
+
+@app.get("/login", response_class=HTMLResponse)
+def serve_login_page() -> HTMLResponse:
+    """Serve interactive user login HTML page."""
+    html_content = """<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <title>System Login | RCF & DAC Platform</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+  <div class="container" style="max-width: 500px; margin: 4rem auto; padding: 0 1rem;">
+    <p style="margin-bottom: 1.5rem;"><a href="/">&larr; Return to RCF & DAC Homepage</a></p>
+
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <h1>🔐 RCF & DAC System Login</h1>
+      <p style="color: #666;">Enter your institutional credentials to access RBAC features</p>
+    </div>
+
+    <div id="alertBox" style="display: none; padding: 0.8rem 1rem; border-radius: 4px; margin-bottom: 1rem;"></div>
+
+    <div class="card" style="background: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; padding: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+      <form id="loginForm">
+        <div style="margin-bottom: 1.2rem;">
+          <label style="display: block; font-weight: bold; margin-bottom: 0.4rem;" for="username">Username:</label>
+          <input type="text" id="username" name="username" required style="width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; font-weight: bold; margin-bottom: 0.4rem;" for="password">Password:</label>
+          <input type="password" id="password" name="password" required style="width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+        </div>
+
+        <button type="submit" style="width: 100%; background: #0066cc; color: white; padding: 0.8rem; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertBox = document.getElementById('alertBox');
+      alertBox.style.display = 'none';
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      try {
+        const resp = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await resp.json();
+
+        if (resp.ok) {
+          localStorage.setItem('rcf_dac_jwt', data.access_token);
+          localStorage.setItem('rcf_dac_user', JSON.stringify(data.user));
+          alertBox.style.background = '#d4edda';
+          alertBox.style.color = '#155724';
+          alertBox.innerText = 'Login successful! Redirecting...';
+          alertBox.style.display = 'block';
+
+          setTimeout(() => {
+            if (['admin', 'superuser'].includes(data.user.role)) {
+              window.location.href = '/user-management';
+            } else {
+              window.location.href = '/';
+            }
+          }, 1000);
+        } else {
+          alertBox.style.background = '#f8d7da';
+          alertBox.style.color = '#721c24';
+          alertBox.innerText = data.detail || 'Login failed.';
+          alertBox.style.display = 'block';
+        }
+      } catch (err) {
+        alertBox.style.background = '#f8d7da';
+        alertBox.style.color = '#721c24';
+        alertBox.innerText = 'Network error during login.';
+        alertBox.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>"""
+    return HTMLResponse(content=html_content)
+
+
+@app.get("/api/users")
+def list_system_users(
+    authorization: str | None = Header(None, alias="Authorization"),
+) -> dict[str, Any]:
+    """List all registered system user accounts (Admin & Superuser only)."""
+    payload = extract_current_user_payload(authorization)
+    role = payload.get("role", "")
+    if role not in ("admin", "superuser"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Access restricted to Admin or Superuser roles.",
+        )
+
+    users_list = []
+    for acct in ACCOUNT_REGISTRY.values():
+        users_list.append({
+            "username": acct["username"],
+            "role": acct["role"],
+            "name": acct["name"],
+            "dept": acct["dept"],
+            "email": acct["email"],
+            "did": acct["did"],
+            "created_at": acct.get("created_at"),
+            "superuser_protected": acct["role"] == "superuser",
+        })
+
+    return {
+        "users": users_list,
+        "total": len(users_list),
+        "requested_by": payload.get("sub"),
+    }
+
+
+@app.post("/api/users", status_code=status.HTTP_201_CREATED)
+def create_system_user(
+    req: CreateUserRequest,
+    authorization: str | None = Header(None, alias="Authorization"),
+) -> dict[str, Any]:
+    """Create a new system user account (Admin only; cannot create superuser)."""
+    payload = extract_current_user_payload(authorization)
+    caller_role = payload.get("role", "")
+
+    if caller_role != "admin" and not (caller_role == "superuser" and payload.get("admin")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Administrator role required to create user accounts.",
+        )
+
+    if req.role.lower() == "superuser":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Superuser accounts cannot be created via API. They require direct database SQL creation.",
+        )
+
+    if req.username in ACCOUNT_REGISTRY:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"User account '{req.username}' already exists.",
+        )
+
+    did_hash = hashlib.sha256(f"{req.username}-{time.time()}".encode()).hexdigest()[:12]
+    new_user = {
+        "username": req.username,
+        "password_hash": hash_password(req.password),
+        "role": req.role.lower(),
+        "name": req.name,
+        "dept": req.dept,
+        "email": req.email,
+        "did": f"did:univ:acct-{did_hash}",
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    ACCOUNT_REGISTRY[req.username] = new_user
+
+    return {
+        "message": f"User account '{req.username}' successfully created.",
+        "user": {
+            "username": new_user["username"],
+            "role": new_user["role"],
+            "name": new_user["name"],
+            "dept": new_user["dept"],
+            "email": new_user["email"],
+            "did": new_user["did"],
+        },
+    }
+
+
+@app.post("/api/users/{username}/reset-password")
+def reset_user_password(
+    username: str,
+    req: ResetPasswordRequest,
+    authorization: str | None = Header(None, alias="Authorization"),
+) -> dict[str, Any]:
+    """
+    Reset password for specified user account.
+    Superuser password CANNOT be reset via API; it requires direct database SQL command.
+    """
+    payload = extract_current_user_payload(authorization)
+    caller_role = payload.get("role", "")
+
+    if caller_role not in ("admin", "superuser"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Administrator or Superuser role required for password reset.",
+        )
+
+    target_acct = ACCOUNT_REGISTRY.get(username)
+    if not target_acct:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User account '{username}' not found.",
+        )
+
+    # Superuser protection mandate: Superuser password CAN ONLY be reset by direct SQL command
+    if target_acct["role"] == "superuser":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "SECURITY RESTRICTION: Superuser account password CANNOT be reset via API/web interface. "
+                "Superuser password can ONLY be reset via direct PostgreSQL database SQL command."
+            ),
+        )
+
+    target_acct["password_hash"] = hash_password(req.new_password)
+    return {
+        "message": f"Password for user '{username}' successfully reset.",
+        "username": username,
+        "reset_by": payload.get("sub"),
+    }
+
+
+@app.delete("/api/users/{username}")
+def delete_system_user(
+    username: str,
+    authorization: str | None = Header(None, alias="Authorization"),
+) -> dict[str, Any]:
+    """Delete specified user account (Admin only; cannot delete superuser)."""
+    payload = extract_current_user_payload(authorization)
+    caller_role = payload.get("role", "")
+
+    if caller_role != "admin" and not (caller_role == "superuser" and payload.get("admin")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Administrator role required to delete accounts.",
+        )
+
+    target_acct = ACCOUNT_REGISTRY.get(username)
+    if not target_acct:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User account '{username}' not found.",
+        )
+
+    if target_acct["role"] == "superuser":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="SECURITY RESTRICTION: Superuser account cannot be deleted via API.",
+        )
+
+    del ACCOUNT_REGISTRY[username]
+    return {
+        "message": f"User account '{username}' successfully deleted.",
+        "deleted_by": payload.get("sub"),
+    }
+
+
+@app.get("/user-management", response_class=HTMLResponse)
+def serve_user_management_page() -> HTMLResponse:
+    """Serve interactive User Management Interface (Admin & Superuser only)."""
+    html_content = """<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <title>User Management Interface | RCF & DAC Platform</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+  <div class="container" style="max-width: 1000px; margin: 2rem auto; padding: 0 1rem;">
+    <p style="margin-bottom: 1.5rem;"><a href="/">&larr; Return to RCF & DAC Homepage</a></p>
+
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <h1>👥 Institutional User Management Dashboard</h1>
+      <p style="color: #666;">RBAC Controlled Account Administration & Governance Interface</p>
+    </div>
+
+    <div id="unauthAlert" style="display: none; background: #f8d7da; color: #721c24; padding: 1.5rem; border-radius: 6px; text-align: center; margin-bottom: 2rem;">
+      <h3>⛔ Access Denied</h3>
+      <p>This interface is restricted strictly to Administrator and Superuser roles.</p>
+      <a href="/login" class="btn" style="background: #0066cc; color: white; padding: 0.6rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 1rem;">Go to Login Page</a>
+    </div>
+
+    <div id="adminContent" style="display: none;">
+      <div class="card" style="background: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <h3>📋 System Registered Users</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+          <thead>
+            <tr style="border-bottom: 2px solid #dee2e6; text-align: left;">
+              <th style="padding: 0.6rem;">Username</th>
+              <th style="padding: 0.6rem;">Name</th>
+              <th style="padding: 0.6rem;">Role</th>
+              <th style="padding: 0.6rem;">Department</th>
+              <th style="padding: 0.6rem;">W3C DID</th>
+              <th style="padding: 0.6rem;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="userTableBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function loadUsers() {
+      const token = localStorage.getItem('rcf_dac_jwt');
+      const unauthAlert = document.getElementById('unauthAlert');
+      const adminContent = document.getElementById('adminContent');
+
+      if (!token) {
+        unauthAlert.style.display = 'block';
+        return;
+      }
+
+      try {
+        const resp = await fetch('/api/users', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!resp.ok) {
+          unauthAlert.style.display = 'block';
+          return;
+        }
+
+        const data = await resp.json();
+        adminContent.style.display = 'block';
+
+        const tbody = document.getElementById('userTableBody');
+        tbody.innerHTML = '';
+
+        data.users.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.style.borderBottom = '1px solid #e9ecef';
+
+          let actionBtn = '';
+          if (u.role === 'superuser') {
+            actionBtn = '<span style="color: #6c757d; font-size: 0.85rem; font-style: italic;">🔒 SQL-Only Reset</span>';
+          } else {
+            actionBtn = `<button onclick="promptReset('${u.username}')" style="background: #dc3545; color: white; border: none; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer;">Reset Password</button>`;
+          }
+
+          tr.innerHTML = `
+            <td style="padding: 0.6rem;"><strong>${u.username}</strong></td>
+            <td style="padding: 0.6rem;">${u.name}</td>
+            <td style="padding: 0.6rem;"><span style="background: #e9ecef; padding: 0.2rem 0.5rem; border-radius: 12px; font-weight: bold;">${u.role}</span></td>
+            <td style="padding: 0.6rem;">${u.dept}</td>
+            <td style="padding: 0.6rem;"><code>${u.did}</code></td>
+            <td style="padding: 0.6rem;">${actionBtn}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        unauthAlert.style.display = 'block';
+      }
+    }
+
+    async function promptReset(username) {
+      const newPassword = prompt(`Enter new password for ${username}:`);
+      if (!newPassword) return;
+
+      const token = localStorage.getItem('rcf_dac_jwt');
+      try {
+        const resp = await fetch(`/api/users/${username}/reset-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ new_password: newPassword })
+        });
+        const resData = await resp.json();
+        if (resp.ok) {
+          alert(`Password for ${username} reset successfully.`);
+        } else {
+          alert(`Error: ${resData.detail}`);
+        }
+      } catch (e) {
+        alert('Failed to reset password.');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadUsers);
+  </script>
+</body>
+</html>"""
+    return HTMLResponse(content=html_content)
+
+
 @app.post("/api/init-db")
 def init_db_endpoint(
-    authorization: Optional[str] = Header(None, alias="Authorization"),
-) -> Dict[str, Any]:
+    authorization: str | None = Header(None, alias="Authorization"),
+) -> dict[str, Any]:
     """Execute docs/schema.sql DDL script to initialise database schema and tables (Admin only)."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
@@ -630,7 +1152,7 @@ def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTM
 
 
 @app.post("/api/register-user", status_code=status.HTTP_201_CREATED)
-def register_user(req: UserRegistrationRequest) -> Dict[str, Any]:
+def register_user(req: UserRegistrationRequest) -> dict[str, Any]:
     """Mint W3C Decentralised Identifier (DID) and register institutional user."""
     unique_nonce = uuid.uuid4()
     seed_str = f"{req.name}-{req.role}-{req.dept}-{time.time()}-{unique_nonce}"
@@ -654,7 +1176,7 @@ def register_user(req: UserRegistrationRequest) -> Dict[str, Any]:
 
 
 @app.post("/api/register-asset", status_code=status.HTTP_201_CREATED)
-def register_asset(req: AssetRegistrationRequest) -> Dict[str, Any]:
+def register_asset(req: AssetRegistrationRequest) -> dict[str, Any]:
     """Register research asset and generate SHA-256 evidence vault hash."""
     if req.file_content is not None:
         if req.content_encoding == "base64":
@@ -697,7 +1219,7 @@ def register_asset(req: AssetRegistrationRequest) -> Dict[str, Any]:
 
 
 @app.post("/api/calculate-cloverleaf")
-def calculate_cloverleaf(req: CloverleafScoreRequest) -> Dict[str, Any]:
+def calculate_cloverleaf(req: CloverleafScoreRequest) -> dict[str, Any]:
     """Calculate Cloverleaf Market Readiness Score (MRS) (>180 qualification target)."""
     total_score = req.tech + req.market + req.comm + req.mgmt
     max_score = 260
@@ -726,7 +1248,7 @@ def calculate_cloverleaf(req: CloverleafScoreRequest) -> Dict[str, Any]:
 
 
 @app.post("/api/calculate-revenue")
-def calculate_revenue(req: RevenueSplitRequest) -> Dict[str, Any]:
+def calculate_revenue(req: RevenueSplitRequest) -> dict[str, Any]:
     """Calculate IP policy revenue-split matrix across institutional stakeholders."""
     amount = max(Decimal("0.00"), req.amount)
     rev_type = req.revenue_type.lower()
@@ -762,13 +1284,13 @@ def calculate_revenue(req: RevenueSplitRequest) -> Dict[str, Any]:
 
     remainder = amount - total_allocated
     if remainder != Decimal("0.00"):
-        target_idx = 3 if percentages[3] > Decimal("0") else 0
+        target_idx = 3 if percentages[3] > Decimal(0) else 0
         allocations[target_idx] += remainder
 
     splits = [
         {
             "stakeholder": name,
-            "percentage": str((pct * Decimal("100")).quantize(Decimal("0.1"))),
+            "percentage": str((pct * Decimal(100)).quantize(Decimal("0.1"))),
             "amount_myr": str(alloc.quantize(Decimal("0.01"))),
             "amount_minor_units": int(alloc * 100),
         }
@@ -783,9 +1305,34 @@ def calculate_revenue(req: RevenueSplitRequest) -> Dict[str, Any]:
     }
 
 
+def create_system_jwt(
+    username: str,
+    role: str,
+    exp_delta: float = 3600.0,
+    secret: bytes = INVESTOR_JWT_SECRET,
+) -> str:
+    """Generate a signed HMAC-SHA256 JWT for system user session authentication."""
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {
+        "sub": username,
+        "username": username,
+        "role": role,
+        "admin": role in ("admin", "superuser"),
+        "accredited_investor": True,
+        "iss": EXPECTED_ISSUER,
+        "aud": EXPECTED_AUDIENCE,
+        "exp": int(time.time() + exp_delta),
+    }
+    header_b64 = base64url_encode(json.dumps(header, separators=(",", ":")).encode())
+    payload_b64 = base64url_encode(json.dumps(payload, separators=(",", ":")).encode())
+    signing_input = f"{header_b64}.{payload_b64}".encode()
+    sig_b64 = base64url_encode(hmac.new(secret, signing_input, hashlib.sha256).digest())
+    return f"{header_b64}.{payload_b64}.{sig_b64}"
+
+
 def verify_investor_bearer_token(
     token: str, secret: bytes = INVESTOR_JWT_SECRET
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Perform cryptographic HMAC-SHA256 verification and claims check on investor Bearer tokens.
     Rejects opaque, malformed, unsigned, forged, expired, non-dict, or missing claim tokens.
@@ -872,10 +1419,22 @@ def verify_investor_bearer_token(
     return payload
 
 
+def extract_current_user_payload(authorization: str | None) -> dict[str, Any]:
+    """Helper to extract and verify Bearer token payload from Authorization header."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Missing or invalid Bearer token header.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = authorization.split("Bearer ", 1)[1].strip()
+    return verify_investor_bearer_token(token)
+
+
 @app.get("/api/investor-assets")
 def get_investor_assets(
-    authorization: Optional[str] = Header(None, alias="Authorization"),
-) -> Dict[str, Any]:
+    authorization: str | None = Header(None, alias="Authorization"),
+) -> dict[str, Any]:
     """Retrieve NDA-gated data room listings for accredited investors."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(

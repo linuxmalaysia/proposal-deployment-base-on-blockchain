@@ -82,6 +82,20 @@ def run_pre_commit_checks() -> int:
         print("❌ Pre-commit guardrails failed. Please fix OKF frontmatter issues.")
         return 1
 
+    # Run Ruff linter
+    print("🧹 Running Ruff linting check...")
+    ruff_result = subprocess.run(["uv", "run", "ruff", "check", "src/"], cwd=repo_root)
+    if ruff_result.returncode != 0:
+        print("❌ Pre-commit guardrails failed: Ruff lint check failed.")
+        return ruff_result.returncode
+
+    # Run Mypy static type checker
+    print("🔍 Running Mypy type check...")
+    mypy_result = subprocess.run(["uv", "run", "mypy", "src/"], cwd=repo_root)
+    if mypy_result.returncode != 0:
+        print("❌ Pre-commit guardrails failed: Mypy type check failed.")
+        return mypy_result.returncode
+
     # Run tests via pytest
     print("🧪 Running Pytest test suite...")
     test_result = subprocess.run(["uv", "run", "pytest"], cwd=repo_root)
