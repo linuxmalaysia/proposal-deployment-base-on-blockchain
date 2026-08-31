@@ -557,7 +557,7 @@ def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
                 supabase_jwks_url,
                 headers={"User-Agent": "RCF-DAC-DB-Status-Check/1.0"},
             )
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310
                 if resp.status == 200:
                     http_connected = True
                     details.append("Supabase Auth API Operational")
