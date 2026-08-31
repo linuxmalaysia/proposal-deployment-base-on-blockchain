@@ -227,7 +227,12 @@ def get_postgresql_connection():
 
 
 def initialize_database_schema() -> Dict[str, Any]:
-    """Execute docs/schema.sql DDL script against PostgreSQL database to create schema and tables."""
+    """
+    Execute docs/schema.sql DDL script against PostgreSQL database to create schema and tables.
+
+    Returns:
+        Dict[str, Any]: Execution status dictionary containing success boolean and descriptive message.
+    """
     schema_file = BASE_DIR / "docs" / "schema.sql"
     if not schema_file.exists():
         return {"success": False, "message": "docs/schema.sql file missing"}
@@ -255,8 +260,13 @@ def initialize_database_schema() -> Dict[str, Any]:
 def auto_check_and_build_schema() -> Dict[str, Any]:
     """
     Fail-safe automatic schema check and table build routine for application deployment on Render.com.
+
     Inspects PostgreSQL information_schema.tables for existing application schema tables, maintaining
     existing data, and automatically executing DDL schema statements if missing tables are detected.
+
+    Returns:
+        Dict[str, Any]: Execution status dictionary containing success boolean, message string,
+        db_connected status boolean, tables_created list, and missing_tables list.
     """
     expected_tables = ["users", "assets", "cloverleaf_scores", "revenue_splits", "blockchain_transactions"]
     conn, msg = get_postgresql_connection()

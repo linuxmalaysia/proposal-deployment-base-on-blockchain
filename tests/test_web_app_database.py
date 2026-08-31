@@ -284,6 +284,7 @@ def test_status_endpoints_do_not_expose_configured_secret_names_or_values(
 def test_auto_check_and_build_schema_builds_missing_tables(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify auto_check_and_build_schema executes DDL schema initialization when missing tables exist."""
     connection, cursor = make_connection([("users",)])
     monkeypatch.setattr(
         web_app,
@@ -310,6 +311,7 @@ def test_auto_check_and_build_schema_builds_missing_tables(
 def test_auto_check_and_build_schema_skips_when_all_tables_exist(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify auto_check_and_build_schema skips DDL schema initialization when all required tables exist."""
     connection, cursor = make_connection(
         [
             ("users",),
@@ -339,6 +341,7 @@ def test_auto_check_and_build_schema_skips_when_all_tables_exist(
 def test_auto_check_and_build_schema_handles_connection_failure_failsafely(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify auto_check_and_build_schema handles database connection errors fail-safely without raising."""
     monkeypatch.setattr(
         web_app,
         "get_postgresql_connection",
@@ -355,6 +358,7 @@ def test_auto_check_and_build_schema_handles_connection_failure_failsafely(
 def test_lifespan_startup_triggers_auto_check_and_build_schema_failsafely(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify FastAPI lifespan startup context manager triggers schema auto-check fail-safely on app boot."""
     mock_auto = MagicMock(side_effect=RuntimeError("Database temporarily unreachable"))
     monkeypatch.setattr(web_app, "auto_check_and_build_schema", mock_auto)
 
