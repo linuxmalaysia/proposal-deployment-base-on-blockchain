@@ -70,6 +70,33 @@ def test_playwright_db_status_rendering(page: Page, live_server: str):
     page.screenshot(path="docs/screenshots/playwright_db_status.png", full_page=True)
 
 
+def test_playwright_guest_modules_are_hidden_until_read_filter_selected(
+    page: Page, live_server: str
+):
+    """Guests should start with no operational modules and may explicitly preview them."""
+    page.goto(f"{live_server}/")
+
+    guest_notice = page.locator("#guestNoticeCard")
+    module_panels = page.locator(".role-view-panel")
+
+    expect(guest_notice).to_be_visible()
+    expect(module_panels).to_have_count(4)
+    for index in range(module_panels.count()):
+        expect(module_panels.nth(index)).to_be_hidden()
+
+    page.locator(".role-select-btn[data-role='all']").click()
+
+    expect(guest_notice).to_be_hidden()
+    for index in range(module_panels.count()):
+        expect(module_panels.nth(index)).to_be_visible()
+
+    page.locator(".role-select-btn[data-role='my-role']").click()
+
+    expect(guest_notice).to_be_visible()
+    for index in range(module_panels.count()):
+        expect(module_panels.nth(index)).to_be_hidden()
+
+
 def test_playwright_cloverleaf_mrs_score_and_revenue_split_workflows(page: Page, live_server: str):
     """E2E test for Cloverleaf quantitative MRS calculations and IP policy revenue split matrix interactive workflows."""
     page.goto(f"{live_server}/")
