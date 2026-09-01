@@ -8,7 +8,9 @@ topics:
   - "task-tracking"
   - "memory-palace"
   - "okf"
-description: "Chronological task ledger tracking current objectives"
+  - "antigravity"
+  - "agent-skills"
+description: "Chronological task ledger tracking current objectives and active project state"
 resource: "file:///.agents/brain/task.md"
 sources:
   - ".agents/AGENTS.md"
@@ -24,10 +26,10 @@ language: "en-GB"
 
 ## Project Identity
 - **Project Name:** Digital Custody Asset (DCA) as a Service Platform
-- **Architecture:** Clean Architecture + DSOM Protocol
+- **Architecture:** Clean Architecture + DSOM Protocol + Google Antigravity Agent Skills
 - **Runtime:** Python 3.12+ managed via `uv`
 
-## Current Phase: End of Day (EOD) Knowledge & Spatial Memory Persistence
+## Current Phase: Google Antigravity + Jules Integration & Agent Skills Matrix
 
 ### Completed Tasks
 
@@ -51,7 +53,8 @@ language: "en-GB"
 - [x] Author SOP guide `docs/how-to/sop-knowledge-first-discovery.md` detailing the 3-step local discovery flow and OKF context preservation rules.
 - [x] Enforce Strict Role-Based Access Control (RBAC) and Module Access Isolation in `src/dca_service/web_app.py` and `docs/role_module_permissions.json`.
 - [x] Update triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and regenerate `SUMMARY.md`.
-- [x] Complete End of Day (EOD) spatial memory synchronization, skill updating, and knowledge retention across `.agents/brain/` adhering to DSOM protocol.
+- [x] Create 38 Google Antigravity-compatible Agent Skill modules in `.agents/skills/` representing all Jules operational and domain knowledge from day 0 till present.
+- [x] Complete End of Day (EOD) and Start of Day (SOD) spatial memory synchronization across `.agents/brain/` adhering to DSOM protocol.
 - [x] Verify complete test suite (1161 tests passing) and pre-commit guardrails via `tools/install_git_guardrails.py`.
 
 ### Pending Tasks
