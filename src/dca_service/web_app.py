@@ -88,6 +88,51 @@ INVESTOR_JWT_SECRET = _jwt_secret_env.encode()
 EXPECTED_ISSUER = "https://auth.rcf-dac.univ.edu.my"
 EXPECTED_AUDIENCE = "rcf-dac-data-room"
 
+# Shared system-role allowlist
+SYSTEM_ROLES = {"admin", "superuser", "operator", "auditor", "investor", "user"}
+
+# Module Access Control Mapping & Persistence
+PERMISSIONS_FILE = BASE_DIR / "docs" / "role_module_permissions.json"
+
+DEFAULT_MODULE_PERMISSIONS: dict[str, list[str]] = {
+    "module_1": ["admin"],       # User Registration & W3C DID Minting (Admin ONLY)
+    "module_2": ["operator"],    # Research Asset Registration & Cryptographic Evidence Vault
+    "module_3": ["operator"],    # Commercialisation Assessment: Cloverleaf Scoring Engine
+    "module_4": ["investor"],    # Investor Dashboard & RCF Capital Deployment Matchmaker
+    "module_5": ["investor"],    # Impact Measurement Platform: Revenue Distribution Calculator
+}
+
+
+def load_role_module_permissions() -> dict[str, list[str]]:
+    """Load persisted role-module permissions from durable JSON storage if present."""
+    if PERMISSIONS_FILE.exists() and PERMISSIONS_FILE.is_file():
+        try:
+            data = json.loads(PERMISSIONS_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                res = {k: list(v) for k, v in DEFAULT_MODULE_PERMISSIONS.items()}
+                for k, v in data.items():
+                    if isinstance(v, list) and k in res:
+                        if k == "module_1":
+                            res["module_1"] = ["admin"]
+                        else:
+                            res[k] = [str(r).lower().strip() for r in v if isinstance(r, str)]
+                return res
+        except Exception:
+            pass
+    return {k: list(v) for k, v in DEFAULT_MODULE_PERMISSIONS.items()}
+
+
+def save_role_module_permissions(permissions: dict[str, list[str]]) -> None:
+    """Save validated role-module permissions to durable JSON storage."""
+    try:
+        PERMISSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        PERMISSIONS_FILE.write_text(json.dumps(permissions, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+ROLE_MODULE_PERMISSIONS: dict[str, list[str]] = load_role_module_permissions()
+
 # In-memory storage for demonstration / web service operation
 USER_REGISTRY: dict[str, dict[str, Any]] = {}
 ASSET_REGISTRY: dict[str, dict[str, Any]] = {}
@@ -356,6 +401,13 @@ class UserRegistrationRequest(BaseModel):
     role: str = Field(..., description="Institutional Role")
     dept: str = Field(..., description="Faculty or Centre of Excellence")
     email: EmailStr = Field(..., description="Institutional Email Address")
+
+
+class RoleAssignmentUpdateRequest(BaseModel):
+    module_permissions: dict[str, list[str]] = Field(
+        ...,
+        description="Dictionary mapping module IDs (module_1 to module_5) to lists of allowed roles.",
+    )
 
 
 class AssetRegistrationRequest(BaseModel):
@@ -1027,9 +1079,9 @@ def serve_user_management_page() -> HTMLResponse:
     </div>
 
     <div id="adminContent" style="display: none;">
-      <!-- MODULE 1: User Identity & W3C DID Registration -->
-      <div class="card" style="background: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-        <h3 style="color: #0066cc; margin-top: 0;">1. User Registration & W3C Decentralised Identifier (DID) Minting</h3>
+      <!-- MODULE 1: User Identity & W3C DID Registration (Admin ONLY) -->
+      <div id="module1Card" class="card" style="background: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: none;">
+        <h3 style="color: #0066cc; margin-top: 0;">1. User Registration & W3C Decentralised Identifier (DID) Minting <span style="background: #0066cc; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; vertical-align: middle;">ADMIN ONLY</span></h3>
         <p style="color: #495057;">Every researcher, principal investigator, and administrative officer receives a permanent W3C DID stored in PostgreSQL 16.</p>
 
         <form id="user-reg-form">
@@ -1063,8 +1115,14 @@ def serve_user_management_page() -> HTMLResponse:
         <div id="user-reg-output" style="display:none; margin-top: 1.5rem;"></div>
       </div>
 
+      <div id="module1SuperNotice" class="card" style="background: #fff3cd; border: 1px solid #ffeba2; border-left: 4px solid #ffc107; border-radius: 8px; padding: 1.2rem; margin-bottom: 2rem; display: none;">
+        <h4 style="margin-top: 0; color: #856404;">🔒 Module 1 (User Registration & DID Minting) Notice</h4>
+        <p style="margin: 0; color: #856404;">Module 1 is restricted strictly to <strong>Admin</strong> role. Superuser account can manage user listings and create admin accounts below, but cannot mint DIDs or access operational modules.</p>
+      </div>
+
       <div class="card" style="background: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-        <h3>➕ Create New System User</h3>
+        <h3 id="createUserTitle">➕ Create New System User</h3>
+        <p id="createUserRoleNotice" style="color: #6c757d; font-size: 0.9rem; margin-bottom: 1rem;"></p>
         <div id="createUserAlert" style="display: none; padding: 0.8rem; border-radius: 4px; margin-bottom: 1rem;"></div>
         <form id="createUserForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
           <div>
@@ -1082,10 +1140,6 @@ def serve_user_management_page() -> HTMLResponse:
           <div>
             <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newRole">Role:</label>
             <select id="newRole" name="role" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-              <option value="operator">operator</option>
-              <option value="admin">admin</option>
-              <option value="auditor">auditor</option>
-              <option value="investor">investor</option>
             </select>
           </div>
           <div>
@@ -1142,7 +1196,7 @@ def serve_user_management_page() -> HTMLResponse:
       const form = document.getElementById('user-reg-form');
       if (!form) return;
 
-      form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const name = document.getElementById('reg-fullname').value.trim() || 'Dr. Aris Roslan';
@@ -1150,12 +1204,28 @@ def serve_user_management_page() -> HTMLResponse:
         const dept = document.getElementById('reg-dept').value.trim() || 'Faculty of Engineering & Innovation';
         const email = document.getElementById('reg-email').value.trim() || 'aris@university.edu.my';
 
-        const hashSeed = `${name}-${role}-${dept}-${Date.now()}`;
-        const did = `did:univ:${simpleHash(hashSeed).substring(0, 16)}`;
+      const token = localStorage.getItem('rcf_dac_jwt');
 
-        const userRecord = { name, role, dept, email, did, timestamp: new Date().toISOString() };
+      try {
+        const resp = await fetch('/api/register-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ name, role, dept, email })
+        });
+
+        const resData = await resp.json();
+
+        if (!resp.ok) {
+          alert(`Registration Error (${resp.status}): ${resData.detail || 'Access denied.'}`);
+          return;
+        }
+
+        const userRecord = resData.user;
         let savedSuccessfully = false;
-
         try {
           localStorage.setItem('rcf_dac_user_registration', JSON.stringify(userRecord));
           savedSuccessfully = true;
@@ -1165,6 +1235,9 @@ def serve_user_management_page() -> HTMLResponse:
         }
 
         renderRegistrationResult(userRecord, savedSuccessfully);
+        } catch (err) {
+        alert(`Network error during DID registration: ${err}`);
+        }
       });
     }
 
@@ -1230,6 +1303,12 @@ def serve_user_management_page() -> HTMLResponse:
       const token = localStorage.getItem('rcf_dac_jwt');
       const unauthAlert = document.getElementById('unauthAlert');
       const adminContent = document.getElementById('adminContent');
+      const module1Card = document.getElementById('module1Card');
+      const module1SuperNotice = document.getElementById('module1SuperNotice');
+      const newRoleSelect = document.getElementById('newRole');
+      const createUserRoleNotice = document.getElementById('createUserRoleNotice');
+
+      if (module1Card) module1Card.style.display = 'none';
 
       try {
         const resp = await fetch('/api/users', {
@@ -1246,6 +1325,29 @@ def serve_user_management_page() -> HTMLResponse:
         const data = await resp.json();
         adminContent.style.display = 'block';
         unauthAlert.style.display = 'none';
+
+        const callerRole = data.caller_role || 'admin';
+
+        if (callerRole === 'admin') {
+          if (module1Card) module1Card.style.display = 'block';
+          if (module1SuperNotice) module1SuperNotice.style.display = 'none';
+          if (createUserRoleNotice) createUserRoleNotice.innerText = 'As Admin, you can create user accounts for any operational role (operator, auditor, investor) or additional Admin accounts, but NOT Superuser.';
+          if (newRoleSelect) {
+            newRoleSelect.innerHTML = `
+              <option value="operator">operator</option>
+              <option value="admin">admin</option>
+              <option value="auditor">auditor</option>
+              <option value="investor">investor</option>
+            `;
+          }
+        } else if (callerRole === 'superuser') {
+          if (module1Card) module1Card.style.display = 'none';
+          if (module1SuperNotice) module1SuperNotice.style.display = 'block';
+          if (createUserRoleNotice) createUserRoleNotice.innerText = 'SECURITY RESTRICTION: As Superuser, you can ONLY create user accounts with "admin" role. Superuser cannot create any other role.';
+          if (newRoleSelect) {
+            newRoleSelect.innerHTML = `<option value="admin">admin</option>`;
+          }
+        }
 
         const tbody = document.getElementById('userTableBody');
         tbody.innerHTML = '';
@@ -1518,8 +1620,21 @@ def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTM
 
 
 @app.post("/api/register-user", status_code=status.HTTP_201_CREATED)
-def register_user(req: UserRegistrationRequest) -> dict[str, Any]:
-    """Mint W3C Decentralised Identifier (DID) and register institutional user."""
+def register_user(
+    req: UserRegistrationRequest,
+    request: Request,
+    authorization: str | None = Header(None, alias="Authorization"),
+    rcf_dac_jwt: str | None = Cookie(None),
+) -> dict[str, Any]:
+    """Mint W3C Decentralised Identifier (DID) and register institutional user (Admin ONLY)."""
+    payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
+    role = payload.get("role", "")
+    if role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. User registration and W3C DID minting is restricted strictly to Administrator role.",
+        )
+
     unique_nonce = uuid.uuid4()
     seed_str = f"{req.name}-{req.role}-{req.dept}-{time.time()}-{unique_nonce}"
     did_hash = hashlib.sha256(seed_str.encode()).hexdigest()[:16]
@@ -1542,8 +1657,16 @@ def register_user(req: UserRegistrationRequest) -> dict[str, Any]:
 
 
 @app.post("/api/register-asset", status_code=status.HTTP_201_CREATED)
-def register_asset(req: AssetRegistrationRequest) -> dict[str, Any]:
+def register_asset(
+    req: AssetRegistrationRequest,
+    request: Request,
+    authorization: str | None = Header(None, alias="Authorization"),
+    rcf_dac_jwt: str | None = Cookie(None),
+) -> dict[str, Any]:
     """Register research asset and generate SHA-256 evidence vault hash."""
+    payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
+    check_module_access("module_2", payload, is_mutation=True)
+
     if req.file_content is not None:
         if req.content_encoding == "base64":
             try:
@@ -1587,8 +1710,16 @@ def register_asset(req: AssetRegistrationRequest) -> dict[str, Any]:
 
 
 @app.post("/api/calculate-cloverleaf")
-def calculate_cloverleaf(req: CloverleafScoreRequest) -> dict[str, Any]:
+def calculate_cloverleaf(
+    req: CloverleafScoreRequest,
+    request: Request,
+    authorization: str | None = Header(None, alias="Authorization"),
+    rcf_dac_jwt: str | None = Cookie(None),
+) -> dict[str, Any]:
     """Calculate Cloverleaf Market Readiness Score (MRS) (>180 qualification target)."""
+    payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
+    check_module_access("module_3", payload, is_mutation=True)
+
     total_score = req.tech + req.market + req.comm + req.mgmt
     max_score = 260
     is_qualified = total_score > 180
@@ -1616,8 +1747,16 @@ def calculate_cloverleaf(req: CloverleafScoreRequest) -> dict[str, Any]:
 
 
 @app.post("/api/calculate-revenue")
-def calculate_revenue(req: RevenueSplitRequest) -> dict[str, Any]:
+def calculate_revenue(
+    req: RevenueSplitRequest,
+    request: Request,
+    authorization: str | None = Header(None, alias="Authorization"),
+    rcf_dac_jwt: str | None = Cookie(None),
+) -> dict[str, Any]:
     """Calculate IP policy revenue-split matrix across institutional stakeholders."""
+    payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
+    check_module_access("module_5", payload, is_mutation=True)
+
     amount = max(Decimal("0.00"), req.amount)
     rev_type = req.revenue_type.lower()
 
@@ -1702,7 +1841,7 @@ def verify_investor_bearer_token(
     token: str, secret: bytes = INVESTOR_JWT_SECRET
 ) -> dict[str, Any]:
     """
-    Perform cryptographic HMAC-SHA256 verification and claims check on investor Bearer tokens.
+    Perform cryptographic HMAC-SHA256 verification and claims check on system Bearer tokens.
     Rejects opaque, malformed, unsigned, forged, expired, non-dict, or missing claim tokens.
     """
     if not token or not isinstance(token, str):
@@ -1778,14 +1917,55 @@ def verify_investor_bearer_token(
             detail="Authorisation failed. Missing or invalid token audience ('aud').",
         )
 
-    # If role is system admin/superuser, allow token verification without accredited_investor claim
-    if not payload.get("accredited_investor") and not payload.get("admin") and payload.get("role") not in ("admin", "superuser"):
+    # If role is system role, allow token verification without accredited_investor claim
+    user_role = payload.get("role", "")
+    if not payload.get("accredited_investor") and not payload.get("admin") and user_role not in ("admin", "superuser", "operator", "auditor", "investor", "user"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Authorisation failed. Missing required 'accredited_investor' claim.",
         )
 
     return payload
+
+
+def check_module_access(
+    module_id: str,
+    payload: dict[str, Any],
+    is_mutation: bool = False,
+) -> None:
+    """
+    Enforce RBAC and module isolation rules:
+    - Admin and Superuser roles CANNOT access operational modules (module_2 to module_5).
+    - Auditor role has read-only access to operational modules (blocked on mutation actions).
+    - Other roles are checked against ROLE_MODULE_PERMISSIONS[module_id].
+    """
+    role = payload.get("role", "").lower()
+    if not role:
+        if payload.get("admin"):
+            role = "admin"
+        elif payload.get("accredited_investor"):
+            role = "investor"
+
+    if role in ("admin", "superuser"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Authorisation failed. Admin and Superuser roles cannot access operational module '{module_id}'. Please log in with a role-specific account.",
+        )
+
+    if role == "auditor":
+        if is_mutation:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Authorisation failed. Auditor role has read-only access to module '{module_id}' and cannot perform mutate actions.",
+            )
+        return
+
+    allowed_roles = ROLE_MODULE_PERMISSIONS.get(module_id, [])
+    if role not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Authorisation failed. Role '{role}' is not assigned to access module '{module_id}'.",
+        )
 
 
 def extract_current_user_payload(
@@ -1843,6 +2023,67 @@ def list_system_users(
         "users": users_list,
         "total": len(users_list),
         "requested_by": payload.get("sub"),
+        "caller_role": role,
+    }
+
+
+@app.get("/api/role-assignments")
+def get_role_assignments(
+    request: Request,
+    authorization: str | None = Header(None, alias="Authorization"),
+    rcf_dac_jwt: str | None = Cookie(None),
+) -> dict[str, Any]:
+    """Get current module-to-role access assignment mappings (Admin & Superuser)."""
+    payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
+    role = payload.get("role", "")
+    if role not in ("admin", "superuser"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Access restricted to Admin or Superuser roles.",
+        )
+    return {
+        "module_permissions": ROLE_MODULE_PERMISSIONS,
+        "requested_by": payload.get("sub"),
+    }
+
+
+@app.post("/api/role-assignments")
+def update_role_assignments(
+    req: RoleAssignmentUpdateRequest,
+    request: Request,
+    authorization: str | None = Header(None, alias="Authorization"),
+    rcf_dac_jwt: str | None = Cookie(None),
+    x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
+) -> dict[str, Any]:
+    """Update role-to-module access permissions (Admin ONLY)."""
+    verify_csrf_and_origin(request, x_csrf_token)
+    payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
+    role = payload.get("role", "")
+    if role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authorisation failed. Administrator role required to update role-to-module assignments.",
+        )
+
+    for mod_id, roles_list in req.module_permissions.items():
+        if mod_id not in ROLE_MODULE_PERMISSIONS:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid module ID '{mod_id}'. Allowed modules: module_1, module_2, module_3, module_4, module_5.",
+            )
+        # Ensure module_1 is ALWAYS restricted to admin
+        if mod_id == "module_1":
+            ROLE_MODULE_PERMISSIONS["module_1"] = ["admin"]
+        else:
+            cleaned_roles = [r.lower().strip() for r in roles_list if isinstance(r, str)]
+            ROLE_MODULE_PERMISSIONS[mod_id] = cleaned_roles
+
+    save_role_module_permissions(ROLE_MODULE_PERMISSIONS)
+
+    return {
+        "message": "Role-to-module assignment mappings updated successfully.",
+        "module_permissions": ROLE_MODULE_PERMISSIONS,
+        "updated_by": payload.get("sub"),
     }
 
 
@@ -1853,21 +2094,39 @@ def create_system_user(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """Create a new system user account (Admin only; cannot create superuser)."""
+    """
+    Create a new system user account:
+    - Admin can create users for any role EXCEPT superuser.
+    - Superuser can ONLY create user accounts with admin role (cannot create any other role).
+    """
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
-    caller_role = payload.get("role", "")
+    caller_role = payload.get("role", "").lower()
+    target_role = req.role.lower().strip()
 
-    if caller_role != "admin" and not (caller_role == "superuser" and payload.get("admin")):
+    if target_role not in SYSTEM_ROLES:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authorisation failed. Administrator role required to create user accounts.",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unsupported role '{target_role}'. Allowed system roles: {', '.join(sorted(SYSTEM_ROLES))}.",
         )
 
-    if req.role.lower() == "superuser":
+    if caller_role not in ("admin", "superuser"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Superuser accounts cannot be created via API. They require direct database SQL creation.",
+            detail="Authorisation failed. Administrator or Superuser role required to create user accounts.",
         )
+
+    if caller_role == "admin":
+        if target_role == "superuser":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Authorisation failed. Admin cannot create superuser accounts. Superuser accounts require direct database SQL creation.",
+            )
+    elif caller_role == "superuser":
+        if target_role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Authorisation failed. Superuser can ONLY create accounts with 'admin' role, not any other role.",
+            )
 
     if req.username in ACCOUNT_REGISTRY:
         raise HTTPException(
@@ -1879,7 +2138,7 @@ def create_system_user(
     new_user = {
         "username": req.username,
         "password_hash": hash_password(req.password),
-        "role": req.role.lower(),
+        "role": target_role,
         "name": req.name,
         "dept": req.dept,
         "email": req.email,
@@ -1889,7 +2148,7 @@ def create_system_user(
     ACCOUNT_REGISTRY[req.username] = new_user
 
     return {
-        "message": f"User account '{req.username}' successfully created.",
+        "message": f"User account '{req.username}' successfully created with role '{target_role}'.",
         "user": {
             "username": new_user["username"],
             "role": new_user["role"],
@@ -2015,11 +2274,7 @@ def get_investor_assets(
     global _INVESTOR_ASSETS_CACHE, _INVESTOR_ASSETS_CACHE_TIMESTAMP
 
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
-    if payload.get("role") and payload.get("role") != "investor":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authorisation failed. Accredited investor role required.",
-        )
+    check_module_access("module_4", payload, is_mutation=False)
 
     now = time.time()
     if not bypass_cache and _INVESTOR_ASSETS_CACHE is not None and (now - _INVESTOR_ASSETS_CACHE_TIMESTAMP) < INVESTOR_ASSETS_CACHE_TTL:

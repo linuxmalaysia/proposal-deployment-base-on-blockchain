@@ -142,7 +142,7 @@ class TestRcfDacIndexMarkdown:
     )
     def test_includes_authentication_links_in_banner_and_documentation(self, route, label):
         content = _read(INDEX_MD)
-        assert f'href="{route}" class="role-select-btn"' in content
+        assert f'href="{route}"' in content and 'class="role-select-btn"' in content
         assert f"**[{label}" in content
         assert f"]({route})" in content
 

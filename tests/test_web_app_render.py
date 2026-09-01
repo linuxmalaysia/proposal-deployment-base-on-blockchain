@@ -68,20 +68,24 @@ def test_health_check_endpoint():
     assert data["service"] == "rcf-dac-web-app"
 
 
+from dca_service.web_app import create_system_jwt
+
+
 def test_user_registration_endpoint_and_unique_did_generation():
+    admin_jwt = create_system_jwt("dca_admin_mgr", "admin")
     payload = {
         "name": "Prof. Dr. Harisfazillah Jamel",
         "role": "Lead Principal Investigator (PI)",
         "dept": "Centre of Excellence in DeepTech & Nanotechnology",
         "email": "harisfazillah@university.edu.my",
     }
-    # First registration
-    res1 = client.post("/api/register-user", json=payload)
+    # First registration with Admin JWT
+    res1 = client.post("/api/register-user", json=payload, headers={"Authorization": f"Bearer {admin_jwt}"})
     assert res1.status_code == 201
     did1 = res1.json()["user"]["did"]
 
     # Second registration with identical payload
-    res2 = client.post("/api/register-user", json=payload)
+    res2 = client.post("/api/register-user", json=payload, headers={"Authorization": f"Bearer {admin_jwt}"})
     assert res2.status_code == 201
     did2 = res2.json()["user"]["did"]
 
@@ -92,6 +96,7 @@ def test_user_registration_endpoint_and_unique_did_generation():
 
 
 def test_asset_registration_base64_explicit_encoding():
+    operator_jwt = create_system_jwt("dca_operator_01", "operator")
     raw_content = b"raw_laboratory_binary_data_stream_content_12345"
     b64_content = base64.b64encode(raw_content).decode("utf-8")
     expected_digest = f"sha256:{hashlib.sha256(raw_content).hexdigest()}"
@@ -104,13 +109,14 @@ def test_asset_registration_base64_explicit_encoding():
         "file_content": b64_content,
         "content_encoding": "base64",
     }
-    response = client.post("/api/register-asset", json=payload)
+    response = client.post("/api/register-asset", json=payload, headers={"Authorization": f"Bearer {operator_jwt}"})
     assert response.status_code == 201
     data = response.json()
     assert data["asset"]["sha256_digest"] == expected_digest
 
 
 def test_asset_registration_invalid_base64_rejected():
+    operator_jwt = create_system_jwt("dca_operator_01", "operator")
     payload = {
         "title": "Graphene Battery Cell",
         "trl": 3,
@@ -119,11 +125,12 @@ def test_asset_registration_invalid_base64_rejected():
         "file_content": "invalid_base64_content_!!!",
         "content_encoding": "base64",
     }
-    response = client.post("/api/register-asset", json=payload)
+    response = client.post("/api/register-asset", json=payload, headers={"Authorization": f"Bearer {operator_jwt}"})
     assert response.status_code == 422
 
 
 def test_asset_registration_fallback_when_content_none():
+    operator_jwt = create_system_jwt("dca_operator_01", "operator")
     payload = {
         "title": "Graphene Battery Cell",
         "trl": 3,
@@ -132,15 +139,16 @@ def test_asset_registration_fallback_when_content_none():
         "file_content": None,
     }
     expected_digest = f"sha256:{hashlib.sha256(b'report.pdf').hexdigest()}"
-    response = client.post("/api/register-asset", json=payload)
+    response = client.post("/api/register-asset", json=payload, headers={"Authorization": f"Bearer {operator_jwt}"})
     assert response.status_code == 201
     data = response.json()
     assert data["asset"]["sha256_digest"] == expected_digest
 
 
 def test_cloverleaf_score_calculator_qualified():
+    operator_jwt = create_system_jwt("dca_operator_01", "operator")
     payload = {"tech": 48, "market": 65, "comm": 46, "mgmt": 44}
-    response = client.post("/api/calculate-cloverleaf", json=payload)
+    response = client.post("/api/calculate-cloverleaf", json=payload, headers={"Authorization": f"Bearer {operator_jwt}"})
     assert response.status_code == 200
     data = response.json()
     assert data["total_score"] == 203
@@ -149,8 +157,9 @@ def test_cloverleaf_score_calculator_qualified():
 
 
 def test_cloverleaf_score_calculator_under_qualified():
+    operator_jwt = create_system_jwt("dca_operator_01", "operator")
     payload = {"tech": 20, "market": 30, "comm": 20, "mgmt": 20}
-    response = client.post("/api/calculate-cloverleaf", json=payload)
+    response = client.post("/api/calculate-cloverleaf", json=payload, headers={"Authorization": f"Bearer {operator_jwt}"})
     assert response.status_code == 200
     data = response.json()
     assert data["total_score"] == 90
@@ -159,8 +168,9 @@ def test_cloverleaf_score_calculator_under_qualified():
 
 
 def test_revenue_split_calculator_decimal_fixed_point_format():
+    investor_jwt = create_system_jwt("dca_investor_01", "investor")
     payload = {"amount": "500000.00", "revenue_type": "licensing"}
-    response = client.post("/api/calculate-revenue", json=payload)
+    response = client.post("/api/calculate-revenue", json=payload, headers={"Authorization": f"Bearer {investor_jwt}"})
     assert response.status_code == 200
     data = response.json()
     assert data["total_ingested_myr"] == "500000.00"
@@ -432,13 +442,18 @@ def test_connection_pool_metrics_and_high_throughput_caching():
     assert res_cached.json().get("cached") is True
 
     # 4. Register new asset -> invalidates cache
+    operator_jwt = create_system_jwt("dca_operator_01", "operator")
     asset_payload = {
         "title": "Graphene Quantum Dot Sensor",
         "trl": 4,
         "abstract": "Ultra-sensitive biosensor array",
         "file_name": "sensor.pdf",
     }
-    res_reg = client.post("/api/register-asset", json=asset_payload)
+    res_reg = client.post(
+        "/api/register-asset",
+        json=asset_payload,
+        headers={"Authorization": f"Bearer {operator_jwt}"},
+    )
     assert res_reg.status_code == 201
 
     # Call after registration (cache invalidated, fresh response)

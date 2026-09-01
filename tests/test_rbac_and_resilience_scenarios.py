@@ -11,11 +11,15 @@ import copy
 import hashlib
 import hmac
 import json
+import os
 import time
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
+
 from fastapi.testclient import TestClient
 from dca_service.web_app import (
     ACCOUNT_REGISTRY,
@@ -23,6 +27,7 @@ from dca_service.web_app import (
     EXPECTED_ISSUER,
     INVESTOR_JWT_SECRET,
     RATE_LIMIT_BUCKETS,
+    ROLE_MODULE_PERMISSIONS,
     app,
     base64url_encode,
     check_database_connection,
@@ -36,17 +41,19 @@ client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
-def isolate_account_registry():
+def isolate_account_registry(monkeypatch):
     """
-    Isolate account and rate-limit state for each test.
-    
-    Restores the account registry after the test and clears rate-limit buckets before and after it runs.
+    Isolate account, environment, role module permissions, and rate-limit state for each test.
     """
-    original = copy.deepcopy(ACCOUNT_REGISTRY)
+    monkeypatch.setenv("INVESTOR_JWT_SECRET", TEST_JWT_SECRET.decode())
+    original_accounts = copy.deepcopy(ACCOUNT_REGISTRY)
+    original_permissions = copy.deepcopy(ROLE_MODULE_PERMISSIONS)
     RATE_LIMIT_BUCKETS.clear()
     yield
     ACCOUNT_REGISTRY.clear()
-    ACCOUNT_REGISTRY.update(original)
+    ACCOUNT_REGISTRY.update(original_accounts)
+    ROLE_MODULE_PERMISSIONS.clear()
+    ROLE_MODULE_PERMISSIONS.update(original_permissions)
     RATE_LIMIT_BUCKETS.clear()
 
 
@@ -107,8 +114,9 @@ def test_jwt_extended_claims_edge_cases():
     assert res_nan.status_code == 403
     assert "numeric" in res_nan.json()["detail"].lower()
 
-    # 3. Missing 'sub' or empty claims -> Handled cleanly
+    # 3. Valid investor token missing sub claim
     payload_no_sub = {
+        "role": "investor",
         "iss": EXPECTED_ISSUER,
         "aud": EXPECTED_AUDIENCE,
         "exp": int(time.time() + 3600),
@@ -232,6 +240,97 @@ def test_admin_user_management_crud_and_rbac():
     res_delete = client.delete("/api/users/test_operator_99", headers={"Authorization": f"Bearer {admin_jwt}"})
     assert res_delete.status_code == 200
     assert "test_operator_99" not in ACCOUNT_REGISTRY
+
+
+def test_strict_rbac_module_isolation_and_role_assignment():
+    """Comprehensive test suite for module isolation, role assignments, and admin vs superuser permissions."""
+    admin_jwt = create_system_jwt(username="dca_admin_mgr", role="admin")
+    super_jwt = create_system_jwt(username="dca_sys_root", role="superuser")
+    operator_jwt = create_system_jwt(username="dca_operator_01", role="operator")
+    investor_jwt = create_system_jwt(username="dca_investor_01", role="investor")
+    auditor_jwt = create_system_jwt(username="dca_auditor_01", role="auditor")
+
+    # A. User creation rules: Admin vs Superuser
+    # Admin creates superuser -> 403 Forbidden
+    res_admin_super = client.post(
+        "/api/users",
+        json={"username": "super2", "password": "p", "name": "Super2", "role": "superuser", "dept": "Sec", "email": "s2@univ.edu.my"},
+        headers={"Authorization": f"Bearer {admin_jwt}"},
+    )
+    assert res_admin_super.status_code == 403
+
+    # Superuser creates non-admin (e.g. operator) -> 403 Forbidden
+    res_super_op = client.post(
+        "/api/users",
+        json={"username": "op_new", "password": "p", "name": "OpNew", "role": "operator", "dept": "Ops", "email": "op@univ.edu.my"},
+        headers={"Authorization": f"Bearer {super_jwt}"},
+    )
+    assert res_super_op.status_code == 403
+
+    # Superuser creates admin -> 201 Created
+    res_super_admin = client.post(
+        "/api/users",
+        json={"username": "admin_new", "password": "p", "name": "AdminNew", "role": "admin", "dept": "IT", "email": "adnew@univ.edu.my"},
+        headers={"Authorization": f"Bearer {super_jwt}"},
+    )
+    assert res_super_admin.status_code == 201
+
+    # B. Module 1: Admin ONLY W3C DID registration
+    # Admin registers user -> 201
+    res_m1_admin = client.post(
+        "/api/register-user",
+        json={"name": "Dr. PI", "role": "PI", "dept": "Eng", "email": "pi@univ.edu.my"},
+        headers={"Authorization": f"Bearer {admin_jwt}"},
+    )
+    assert res_m1_admin.status_code == 201
+
+    # Operator registers user -> 403
+    res_m1_op = client.post(
+        "/api/register-user",
+        json={"name": "Dr. PI", "role": "PI", "dept": "Eng", "email": "pi@univ.edu.my"},
+        headers={"Authorization": f"Bearer {operator_jwt}"},
+    )
+    assert res_m1_op.status_code == 403
+
+    # C. Operational Module Access Restrictions for Admin & Superuser
+    # Admin attempting to access Module 2 (asset registration) -> 403
+    res_m2_admin = client.post(
+        "/api/register-asset",
+        json={"title": "T", "trl": 3, "abstract": "A", "file_name": "f.pdf"},
+        headers={"Authorization": f"Bearer {admin_jwt}"},
+    )
+    assert res_m2_admin.status_code == 403
+
+    # Superuser attempting to access Module 4 (investor assets) -> 403
+    res_m4_super = client.get("/api/investor-assets", headers={"Authorization": f"Bearer {super_jwt}"})
+    assert res_m4_super.status_code == 403
+
+    # D. Role-to-Module Assignments API
+    # Get role assignments
+    res_roles = client.get("/api/role-assignments", headers={"Authorization": f"Bearer {admin_jwt}"})
+    assert res_roles.status_code == 200
+    assert "module_2" in res_roles.json()["module_permissions"]
+
+    # Update role assignments as Admin -> 200
+    res_update = client.post(
+        "/api/role-assignments",
+        json={"module_permissions": {"module_2": ["operator", "researcher"]}},
+        headers={"Authorization": f"Bearer {admin_jwt}", "X-CSRF-Token": "valid"},
+    )
+    assert res_update.status_code == 200
+
+    # E. Auditor Read-Only Access
+    # Auditor attempting mutation (Module 2 asset registration) -> 403
+    res_auditor_m2 = client.post(
+        "/api/register-asset",
+        json={"title": "T", "trl": 3, "abstract": "A", "file_name": "f.pdf"},
+        headers={"Authorization": f"Bearer {auditor_jwt}"},
+    )
+    assert res_auditor_m2.status_code == 403
+
+    # Auditor accessing read endpoint (Module 4 investor assets) -> 200
+    res_auditor_m4 = client.get("/api/investor-assets", headers={"Authorization": f"Bearer {auditor_jwt}"})
+    assert res_auditor_m4.status_code == 200
 
 
 def test_html_login_and_user_management_views():

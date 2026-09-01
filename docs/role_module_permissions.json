@@ -1,0 +1,18 @@
+{
+  "module_1": [
+    "admin"
+  ],
+  "module_2": [
+    "operator",
+    "researcher"
+  ],
+  "module_3": [
+    "operator"
+  ],
+  "module_4": [
+    "investor"
+  ],
+  "module_5": [
+    "investor"
+  ]
+}
