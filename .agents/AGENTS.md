@@ -66,3 +66,8 @@ You are operating as a Senior Systems Architect & Cognitive Digital Twin under t
 ### 8. Atomic Git Hygiene
 
 - Every commit must follow Conventional Commits: `type(scope): description`.
+
+### 9. Local Knowledge-First & Metadata Discovery Mandate
+
+- The AI agent MUST FIRST search local project knowledge in `.agents/brain/` and `docs/` using OKF frontmatter (`topics:` / `description:`) or file inspection before reaching out to remote servers, external deployment nodes, or web search engines.
+- Remote server execution or web search is strictly reserved for applying changes or retrieving live runtime state that is not documented locally within the repository.

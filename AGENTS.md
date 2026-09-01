@@ -40,5 +40,6 @@ Before processing any task or modifying code, you MUST load and obey the soverei
 3. **Clean Architecture:** Domain business logic in `src/dca_service/core/` must have zero external framework dependencies.
 4. **OKF Frontmatter:** All Markdown documentation must start with OKF v0.2 YAML frontmatter.
 5. **Triple-Ledger:** Maintain `README.md`, `CHANGELOG.md`, and `HISTORY.md`.
+6. **Local Knowledge-First:** Always query `.agents/brain/` and `docs/` OKF frontmatter before external calls.
 
 Refer to `.agents/AGENTS.md` for full constitutional laws.

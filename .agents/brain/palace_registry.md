@@ -60,6 +60,7 @@ language: "en-GB"
 - `docs/explanation/research-commercialisation-fund-dac-proposal.md` -> RCF and DAC proposal architecture document.
 - `docs/tutorials/getting-started-dca-dac.md` -> Getting Started Tutorial for DCA/DAC on Percona PostgreSQL.
 - `docs/how-to/install-and-configure-guardrails.md` -> How-To Guide for guardrails and tools.
+- `docs/how-to/sop-knowledge-first-discovery.md` -> SOP for Local Knowledge-First Discovery and OKF context preservation.
 - `docs/reference/dca-dac-api-and-cli-reference.md` -> Core API, CLI, and Data Objects Reference.
 
 ### Tools & Guardrails (`tools/`)

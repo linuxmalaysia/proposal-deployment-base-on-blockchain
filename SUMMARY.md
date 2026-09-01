@@ -42,6 +42,7 @@ language: "en-GB"
 * [Deploying the RCF & DAC Interactive Web Application on Render.com](docs/how-to/deploy-rcf-dac-web-app-on-render.md)
 * [How-To: Install and Configure Repository Guardrails and Documentation Tools](docs/how-to/install-and-configure-guardrails.md)
 * [How to Reset Superuser Password via Environment Configuration & Create Initial Admin Users](docs/how-to/reset-superuser-password-and-manage-users.md)
+* [SOP: Local Knowledge-First Discovery & Context Preservation Protocol](docs/how-to/sop-knowledge-first-discovery.md)
 
 ### Reference
 

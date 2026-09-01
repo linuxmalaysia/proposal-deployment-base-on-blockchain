@@ -174,10 +174,10 @@ class BlockchainNodeAdapter:
         """Compute a deterministic SHA-256 hash for a transaction entry.
         
         Parameters:
-        	entry (TimeSeriesTransactionEntry): Transaction data used to construct the hash.
+            entry (TimeSeriesTransactionEntry): Transaction data used to construct the hash.
         
         Returns:
-        	str: The transaction hash prefixed with ``0x``.
+            str: The transaction hash prefixed with ``0x``.
         """
         if not isinstance(entry.metadata, dict):
             raise TypeError("Metadata must be a dictionary.")
