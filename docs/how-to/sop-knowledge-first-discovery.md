@@ -45,16 +45,19 @@ All project specifications, architectural topologies, data schemas, security gua
 ```
 
 ### Step 1: User Request / Question Intake
+
 Upon receiving an operational task, query, or bug report:
 - Do NOT immediately execute web searches or probe external remote servers.
 - First formulate target keywords based on domain terminology (e.g. `cb-mpc`, `timescaledb`, `httponly-cookies`, `percona`, `render`, `guardrails`).
 
 ### Step 2: Local OKF & Metadata Search
+
 Query local project documentation before looking outside the repository:
 1. Search local OKF frontmatter in `.agents/brain/` and `docs/` for matching `topics:` or `description:` keywords.
 2. Search `.agents/brain/` spatial anchors (`task.md`, `walkthrough.md`, `palace_registry.md`) for current task queue status and session historical context.
 
 ### Step 3: Targeted File Reading
+
 Once relevant documents or source files are identified:
 - Read specific sections or targeted line ranges to preserve token efficiency.
 - Leverage OKF frontmatter metadata (`sources:`, `resource:`) to navigate to related code modules or specifications.
@@ -63,6 +66,6 @@ Once relevant documents or source files are identified:
 
 ## 3. Mandatory Rules & Compliance
 
-1. **Rule (OKF Frontmatter Compliance):** Every Markdown document in the codebase (with the exception of auto-generated indices like `SUMMARY.md`) MUST open on line 1 with `---` and contain valid OKF v0.2 YAML frontmatter with all 13 mandatory fields (`okf_version`, `type`, `title`, `timestamp`, `topics`, `description`, `resource`, `sources`, `generated`, `verified`, `status`, `stale_after`, `language`).
+1. **Rule (OKF Frontmatter Compliance):** Every Markdown document in the codebase MUST open on line 1 with `---` and contain valid OKF v0.2 YAML frontmatter with all 13 mandatory fields (`okf_version`, `type`, `title`, `timestamp`, `topics`, `description`, `resource`, `sources`, `generated`, `verified`, `status`, `stale_after`, `language`).
 2. **Rule (Metadata-First Discovery):** Always search `topics:` and `description:` metadata in `.agents/brain/` and `docs/` before executing web searches or external network calls.
 3. **Rule (Local Single Source of Truth - SSOT):** Local project documentation represents the SSOT for configuration topology, deployment targets, database schemas (`docs/schema.sql`), and policy engine rules. Remote execution is strictly reserved for applying changes or fetching live runtime state not documented locally.

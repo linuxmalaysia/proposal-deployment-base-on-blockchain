@@ -43,7 +43,7 @@ You are operating as a Senior Systems Architect & Cognitive Digital Twin under t
 
 ### 4. Open Knowledge Format (OKF v0.2) Standard
 
-- Every Markdown document must contain valid OKF v0.2 YAML frontmatter conforming to the repository's DSOM profile (`okf_version`, `type`, `title`, `timestamp`, `topics`, `description`, `resource`, `sources`, `generated`, `verified`, `status`, `stale_after`, `language`). Generator-owned files (such as `SUMMARY.md`) are explicitly exempt from the `timestamp` requirement and retain their generator schema (`created`).
+- Every Markdown document must contain valid OKF v0.2 YAML frontmatter conforming to the repository's DSOM profile (`okf_version`, `type`, `title`, `timestamp`, `topics`, `description`, `resource`, `sources`, `generated`, `verified`, `status`, `stale_after`, `language`).
 
 ### 5. Triple-Ledger Synchronization
 

@@ -2,8 +2,20 @@
 okf_version: "0.2"
 type: "summary"
 title: "Documentation Index & Navigation Summary"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-08-25T00:00:00Z"
+topics:
+  - "summary"
+  - "index"
+  - "navigation"
+  - "docs"
+description: "Dynamically generated repository documentation index and navigation map."
+resource: "file:///SUMMARY.md"
+sources:
+  - "README.md"
+generated: "generate_summary.py"
+verified: true
+status: "approved"
+stale_after: "2027-08-25T00:00:00Z"
 language: "en-GB"
 ---
 
