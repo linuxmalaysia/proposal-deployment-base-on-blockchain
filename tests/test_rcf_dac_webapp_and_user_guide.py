@@ -86,6 +86,24 @@ class TestRcfDacJsAppEngine:
         content = _read(JS_APP)
         assert "if (total > 180)" in content
 
+    def test_filters_module_panels_for_the_authenticated_role(self):
+        content = _read(JS_APP)
+        assert "localStorage.getItem('rcf_dac_user')" in content
+        assert "selectedRole === 'my-role'" in content
+        assert "role === 'admin' || role === 'superuser'" in content
+        assert "role === 'auditor'" in content
+        assert "role === 'operator'" in content
+        assert "role === 'investor'" in content
+
+    def test_asset_submission_uses_authenticated_server_response(self):
+        content = _read(JS_APP)
+        assert "fetch('/api/register-asset'" in content
+        assert "localStorage.getItem('rcf_dac_jwt')" in content
+        assert "'Authorization': `Bearer ${token}`" in content
+        assert "credentials: 'same-origin'" in content
+        assert "assetId: asset.asset_id" in content
+        assert "sha256Digest: asset.sha256_digest || localSha256Digest" in content
+
 
 class TestRcfDacUserGuideDoc:
     def test_user_guide_file_exists(self):
