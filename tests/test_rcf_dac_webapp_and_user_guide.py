@@ -160,9 +160,7 @@ class TestRcfDacGuestVisibilityAndLinks:
         assert "guestNotice.style.display = 'none'" in content
 
     def test_all_links_in_index_md_return_http_200(self):
-        import os
         from fastapi.testclient import TestClient
-        os.environ.setdefault("INVESTOR_JWT_SECRET", "test_rcf_dac_jwt_secret_key_2026")
         from dca_service.web_app import app
 
         client = TestClient(app)
