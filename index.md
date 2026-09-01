@@ -58,7 +58,7 @@ Select an institutional stakeholder view below to test registration, asset prove
   </div>
 
   <!-- Guest Authentication Required Notice Card -->
-  <div id="guestNoticeCard" role="alert" aria-live="polite" class="app-module-card" style="display: none; background: #fff3cd; border: 1px solid #ffeba2; border-left: 4px solid #ffc107; padding: 1.5rem; margin-bottom: 1.5rem;">
+  <div id="guestNoticeCard" role="status" aria-live="polite" class="app-module-card" style="display: none; background: #fff3cd; border: 1px solid #ffeba2; border-left: 4px solid #ffc107; padding: 1.5rem; margin-bottom: 1.5rem;">
     <h3 style="margin-top: 0; color: #856404;">🔒 Authentication Required for Operational Modules</h3>
     <p style="color: #856404; margin-bottom: 1rem;">
       You are currently viewing as a guest. Operational modules (Asset Registration, Cloverleaf Assessment, Investor Data Room, and Revenue Calculator) are restricted to registered users with specific assigned institutional roles.

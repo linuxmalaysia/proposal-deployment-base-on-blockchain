@@ -36,7 +36,7 @@ Integrated into the **Deep State of Mind (DSOM) AI Protocol**, this skill empowe
 
 When invoked by prompt triggers such as `"review my UI"`, `"check accessibility"`, or `"audit design"`, the agent executes a structured 4-stage audit workflow:
 
-```
+```text
 ┌────────────────────────┐      ┌────────────────────────┐
 │  1. Skill Discovery    │ ───► │  2. Guideline Fetch    │
 │  (.agents/skills/)     │      │  (Latest Ruleset)      │
@@ -59,27 +59,32 @@ When invoked by prompt triggers such as `"review my UI"`, `"check accessibility"
 ## Core Guideline Categories
 
 ### 1. Accessibility (a11y)
+
 * **Explicit Labeling:** Icon-only buttons MUST possess explicit `aria-label` or `aria-labelledby` attributes. All form controls require matching `<label for="id">` associations.
 * **Semantic Hierarchy:** HTML semantic tags (`<button>`, `<a>`, `<label>`, `<table>`) take absolute priority over generic `<div>` click handlers. Headings follow hierarchical order (`<h1>` through `<h6>`).
 * **Live Updates:** Asynchronous state modifications (toasts, validation warnings, status changes) require `aria-live="polite"` containers.
 * **Media & Anchor Margins:** Decorative icons specify `aria-hidden="true"`. Heading anchors incorporate `scroll-margin-top` for fixed header offset preservation.
 
 ### 2. Focus States & Keyboard Traversal
+
 * **Visible Focus:** Interactive controls enforce visible focus indicators using CSS `:focus-visible` ring parameters or distinct outline styles.
 * **Focus Outline Rules:** Blocking or stripping focus outlines via `outline: none` without a high-contrast focus-visible replacement is explicitly prohibited.
 * **Mouse vs Keyboard:** Use `:focus-visible` over `:focus` to prevent outline rings on standard mouse clicks.
 
 ### 3. Form Control Standards
+
 * **Autocomplete & Names:** Every input field specifies explicit `autocomplete` attributes (`username`, `current-password`, `name`, `email`, or `off` for non-auth controls) and a descriptive `name` property.
 * **Input Types & Modes:** Form fields leverage proper input types (`email`, `tel`, `url`, `number`, `range`) and `inputmode="decimal"` for numeric inputs.
 * **Interaction Protection:** Blocking paste operations (`onPaste` with `preventDefault`) is prohibited.
 * **Spelling Hygiene:** Non-prose fields (emails, usernames, authentication codes) specify `spellcheck="false"`.
 
 ### 4. Animation & Reduced Motion
+
 * **Reduced Motion Honor:** All keyframe animations and structural CSS transitions respect `@media (prefers-reduced-motion: reduce)`.
 * **Compositor Efficiency:** Animations target GPU-accelerated `transform` and `opacity` properties exclusively, avoiding `transition: all`.
 
 ### 5. Typography & Formatting Standards
+
 * **Ellipsis Character:** Standardize on Unicode ellipsis character (`…`) rather than three consecutive periods (`...`).
 * **Numeric Columns:** Tables, financial figures, and latency displays mandate `font-variant-numeric: tabular-nums` to prevent layout shift during updates.
 * **Headline Balance:** Headings enforce `text-wrap: balance` or `text-pretty` to prevent single-word typographical widows.

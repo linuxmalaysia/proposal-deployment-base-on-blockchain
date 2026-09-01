@@ -127,7 +127,8 @@ class TestRcfDacIndexMarkdown:
 
     def test_includes_file_upload_input(self):
         content = _read(INDEX_MD)
-        assert 'id="asset-file"' in content and 'type="file"' in content
+        pattern = r'<input\b[^>]*type=["\']file["\'][^>]*id=["\']asset-file["\']|<input\b[^>]*id=["\']asset-file["\'][^>]*type=["\']file["\']'
+        assert re.search(pattern, content) is not None
 
     def test_includes_parse_block_html_options(self):
         content = _read(INDEX_MD)

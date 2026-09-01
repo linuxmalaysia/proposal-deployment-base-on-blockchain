@@ -1013,6 +1013,8 @@ def serve_login_page() -> HTMLResponse:
 
         if (resp.ok) {
           localStorage.setItem('rcf_dac_user', JSON.stringify(data.user));
+          alertBox.setAttribute('role', 'status');
+          alertBox.setAttribute('aria-live', 'polite');
           alertBox.style.background = '#d4edda';
           alertBox.style.color = '#155724';
           alertBox.innerText = 'Login successful! HttpOnly session established. Redirecting…';
@@ -1026,12 +1028,16 @@ def serve_login_page() -> HTMLResponse:
             }
           }, 1000);
         } else {
+          alertBox.setAttribute('role', 'alert');
+          alertBox.setAttribute('aria-live', 'assertive');
           alertBox.style.background = '#f8d7da';
           alertBox.style.color = '#721c24';
           alertBox.innerText = data.detail || 'Login failed.';
           alertBox.style.display = 'block';
         }
       } catch (err) {
+        alertBox.setAttribute('role', 'alert');
+        alertBox.setAttribute('aria-live', 'assertive');
         alertBox.style.background = '#f8d7da';
         alertBox.style.color = '#721c24';
         alertBox.innerText = 'Network error during login.';
@@ -1489,6 +1495,8 @@ def serve_user_management_page() -> HTMLResponse:
           });
           const resData = await resp.json();
           if (resp.ok) {
+            alertBox.setAttribute('role', 'status');
+            alertBox.setAttribute('aria-live', 'polite');
             alertBox.style.background = '#d4edda';
             alertBox.style.color = '#155724';
             alertBox.innerText = `User account '${username}' created successfully!`;
@@ -1496,12 +1504,16 @@ def serve_user_management_page() -> HTMLResponse:
             createUserForm.reset();
             loadUsers();
           } else {
+            alertBox.setAttribute('role', 'alert');
+            alertBox.setAttribute('aria-live', 'assertive');
             alertBox.style.background = '#f8d7da';
             alertBox.style.color = '#721c24';
             alertBox.innerText = resData.detail || 'Failed to create user.';
             alertBox.style.display = 'block';
           }
         } catch (err) {
+          alertBox.setAttribute('role', 'alert');
+          alertBox.setAttribute('aria-live', 'assertive');
           alertBox.style.background = '#f8d7da';
           alertBox.style.color = '#721c24';
           alertBox.innerText = 'Network error during user creation.';

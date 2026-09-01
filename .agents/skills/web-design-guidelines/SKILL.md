@@ -38,12 +38,15 @@ The `web-design-guidelines` skill enables AI agents (Google Jules and Google Ant
 
 ## Guidelines Source
 
-Latest rules fetched from:
+Fetch fresh guidelines from the commit-pinned and SHA-256 verified source URL before each review:
 `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`
+
+The loading flow verifies the expected cryptographic SHA-256 digest before processing rules and rejects unpinned or digest-mismatched content at runtime.
 
 ## Rules Summary
 
 ### 1. Accessibility (a11y)
+
 - Icon-only buttons need `aria-label`.
 - Form controls need `<label>` (with matching `for` attribute) or `aria-label`.
 - Interactive elements need keyboard event handlers (`onKeyDown`/`onKeyUp`).
@@ -57,6 +60,7 @@ Latest rules fetched from:
 - Meaningful media needs captions, transcripts, or descriptions.
 
 ### 2. Focus States
+
 - Interactive elements need visible focus: `:focus-visible` ring or equivalent outline.
 - Never `outline-none` or `outline: none` without focus replacement.
 - Use `:focus-visible` over `:focus` to avoid focus rings on mouse click.
@@ -64,6 +68,7 @@ Latest rules fetched from:
 - Sticky headers/footers/overlays must not cover focused elements.
 
 ### 3. Forms
+
 - Inputs need `autocomplete` and meaningful `name` attribute.
 - Use correct `type` (`email`, `tel`, `url`, `number`, `range`) and `inputmode`.
 - Never block paste (`onPaste` with `preventDefault`).
@@ -76,6 +81,7 @@ Latest rules fetched from:
 - `autocomplete="off"` on non-auth fields to avoid password manager triggers.
 
 ### 4. Animation
+
 - Honor `prefers-reduced-motion` (provide reduced variant or disable).
 - Animate `transform`/`opacity` only (compositor-friendly).
 - Never `transition: all`—list properties explicitly.
@@ -84,6 +90,7 @@ Latest rules fetched from:
 - Animations interruptible—respond to user input mid-animation.
 
 ### 5. Typography
+
 - Use `…` instead of `...`.
 - Curly quotes `“` `”` over straight quotes `"`.
 - Non-breaking spaces for units and brands: `10&nbsp;MB`, `RM&nbsp;500,000`, `⌘&nbsp;K`.
@@ -92,6 +99,7 @@ Latest rules fetched from:
 - Use `text-wrap: balance` or `text-pretty` on headings.
 
 ### 6. Content Handling & Performance
+
 - Text containers handle long content: `truncate`, `line-clamp-*`, or `overflow-wrap: break-word`.
 - Flex children need `min-w-0` to allow text truncation.
 - Handle empty states—don't render broken UI for empty strings/arrays.
@@ -99,6 +107,7 @@ Latest rules fetched from:
 - Images need explicit `width` and `height` to prevent CLS.
 
 ### 7. Touch & Layout
+
 - `touch-action: manipulation` (prevents double-tap zoom delay).
 - `-webkit-tap-highlight-color` set intentionally.
 - `overscroll-behavior: contain` in modals/drawers/sheets.
@@ -113,13 +122,14 @@ In addition to static file inspection, Google Jules and Google Antigravity lever
 
 Group findings by file in `file:line` format:
 
-```
+```text
 ## src/dca_service/web_app.py
 
 src/dca_service/web_app.py:982 - icon button missing aria-label
 src/dca_service/web_app.py:995 - dynamic alert box missing aria-live="polite"
 src/dca_service/web_app.py:1012 - input missing autocomplete attribute
 ```
+
 
 ---
 
