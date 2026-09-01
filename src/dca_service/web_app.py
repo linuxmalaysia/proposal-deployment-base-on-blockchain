@@ -2270,7 +2270,15 @@ def get_investor_assets(
     rcf_dac_jwt: str | None = Cookie(None),
     bypass_cache: bool = False,
 ) -> dict[str, Any]:
-    """Retrieve NDA-gated data room listings for accredited investors, backed by high-throughput TTL in-memory caching."""
+    """
+    Retrieve data-room listings and assets registered by the current investor.
+    
+    Parameters:
+        bypass_cache (bool): Whether to bypass the cached asset listing.
+    
+    Returns:
+        dict[str, Any]: Data-room assets, user-registered assets, access level, and cache status.
+    """
     global _INVESTOR_ASSETS_CACHE, _INVESTOR_ASSETS_CACHE_TIMESTAMP
 
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
@@ -2318,7 +2326,16 @@ ROOT_DOCS = {"SUMMARY.md", "README.md", "CHANGELOG.md", "HISTORY.md"}
 
 
 def render_markdown_to_html(md_text: str) -> str:
-    """Simple parser to convert index.md markdown elements to clean HTML."""
+    """
+    Convert a limited subset of Markdown and Liquid syntax into HTML.
+    
+    Parameters:
+        md_text (str): Markdown text containing supported headings, links, bold text,
+            horizontal rules, bullet lists, and Liquid tags.
+    
+    Returns:
+        str: HTML-rendered representation of the input text.
+    """
     import re
 
     # Strip Liquid tags like {::options ... /}
@@ -2367,6 +2384,15 @@ def render_markdown_to_html(md_text: str) -> str:
 
 
 def _render_doc_file(doc_file: Path) -> HTMLResponse:
+    """
+    Render a documentation file as an HTML response.
+    
+    Parameters:
+    	doc_file (Path): Documentation file to read and render.
+    
+    Returns:
+    	HTMLResponse: The rendered documentation wrapped in the portal's HTML layout.
+    """
     content = doc_file.read_text(encoding="utf-8")
     if content.startswith("---"):
         parts = content.split("---", 2)
@@ -2406,7 +2432,18 @@ def serve_root_doc(doc_name: str) -> HTMLResponse:
 
 @app.get("/docs/{file_path:path}", response_class=HTMLResponse)
 def serve_docs(file_path: str) -> HTMLResponse:
-    """Serve documentation Markdown files rendered as HTML."""
+    """
+    Serve a documentation Markdown file as an HTML response.
+    
+    Parameters:
+        file_path (str): Documentation path, with or without a `.md` or `.html` extension.
+    
+    Returns:
+        HTMLResponse: The rendered documentation page.
+    
+    Raises:
+        HTTPException: If the requested documentation file does not exist or is outside the permitted documentation directories.
+    """
     target_path = file_path
     if target_path.endswith(".html"):
         target_path = target_path[:-5] + ".md"
