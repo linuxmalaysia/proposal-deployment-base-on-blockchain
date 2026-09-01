@@ -27,7 +27,7 @@ language: "en-GB"
 - **Architecture:** Clean Architecture + DSOM Protocol
 - **Runtime:** Python 3.12+ managed via `uv`
 
-## Current Phase: Percona PostgreSQL & TimescaleDB Blockchain Dual-Write Integration
+## Current Phase: End of Day (EOD) Knowledge & Spatial Memory Persistence
 
 ### Completed Tasks
 
@@ -41,7 +41,6 @@ language: "en-GB"
 - [x] Implement TimescaleDB hypertable persistence adapters & sync service (`src/dca_service/adapters/timescaledb_adapter.py`).
 - [x] Implement test suite (`tests/test_blockchain_sync.py`).
 - [x] Run full test suite verification under `uv run pytest`.
-
 - [x] Design Open-Source MPC Wallet System Architecture using Coinbase `cb-mpc` (`docs/explanation/open-source-mpc-wallet-architecture.md`).
 - [x] Implement HttpOnly, Secure, SameSite cookie session handling and `/api/logout` endpoint in `src/dca_service/web_app.py`.
 - [x] Expand high-throughput in-memory TTL caching and connection pool metrics monitoring (`/api/db-pool-metrics`).
@@ -50,8 +49,10 @@ language: "en-GB"
 - [x] Author Diátaxis explanation guide (`docs/explanation/httponly-cookies-and-connection-pooling.md`) conforming to OKF v0.2 frontmatter with all 13 mandatory fields.
 - [x] Codify Local Knowledge-First & Metadata Discovery Mandate in `.agents/AGENTS.md` and `AGENTS.md`.
 - [x] Author SOP guide `docs/how-to/sop-knowledge-first-discovery.md` detailing the 3-step local discovery flow and OKF context preservation rules.
-- [x] Update spatial memory anchors (`.agents/brain/task.md`, `.agents/brain/walkthrough.md`, `.agents/brain/palace_registry.md`).
+- [x] Enforce Strict Role-Based Access Control (RBAC) and Module Access Isolation in `src/dca_service/web_app.py` and `docs/role_module_permissions.json`.
 - [x] Update triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and regenerate `SUMMARY.md`.
+- [x] Complete End of Day (EOD) spatial memory synchronization, skill updating, and knowledge retention across `.agents/brain/` adhering to DSOM protocol.
+- [x] Verify complete test suite (1161 tests passing) and pre-commit guardrails via `tools/install_git_guardrails.py`.
 
 ### Pending Tasks
 

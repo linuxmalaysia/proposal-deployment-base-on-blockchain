@@ -62,3 +62,11 @@ language: "en-GB"
 - Authored Standard Operating Procedure `docs/how-to/sop-knowledge-first-discovery.md` documenting the 3-step local OKF frontmatter search flow (`topics:` / `description:`) before remote execution or web search.
 - Updated Spatial Memory Palace anchors (`task.md`, `walkthrough.md`, `palace_registry.md`) to sync agent context.
 - Updated triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) using UK English spelling conventions and regenerated `SUMMARY.md`.
+
+## Session Log: 2026-09-01 (RBAC Module Access Control, Skill Update & EOD Persistence)
+
+- Enforced strict Role-Based Access Control (RBAC) and Module Isolation across all 5 operational web application modules in `src/dca_service/web_app.py` and `docs/role_module_permissions.json`.
+- Configured dynamic module-role permission mappings endpoint `/api/role-assignments` with forbidden access for `admin`/`superuser` roles to operational modules (Modules 2-5) and read-only access for `auditor`.
+- Executed End of Day (EOD) spatial memory synchronization, tool/skill audit, and DSOM Deep State of Mind state preservation across `.agents/brain/` (`task.md`, `walkthrough.md`, `palace_registry.md`).
+- Installed Playwright Chromium browser binaries and executed full test suite (`1161 passed`).
+- Verified zero errors and complete guardrail compliance via `tools/install_git_guardrails.py`.
