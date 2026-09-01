@@ -56,42 +56,6 @@ Select an institutional stakeholder view below to test registration, asset prove
     </div>
   </div>
 
-  <!-- MODULE 1: User Identity & W3C DID Registration -->
-  <div class="app-module-card role-view-panel" data-role-view="researcher">
-    <h3>1. User Registration & W3C Decentralised Identifier (DID) Minting</h3>
-    <p>Every researcher, principal investigator, and administrative officer receives a permanent W3C DID stored in PostgreSQL 16.</p>
-
-    <form id="user-reg-form">
-      <div class="form-grid">
-        <div class="form-group">
-          <label for="reg-fullname">Full Name & Title</label>
-          <input type="text" id="reg-fullname" value="Prof. Dr. Harisfazillah Jamel" placeholder="e.g. Dr. Jane Doe" required>
-        </div>
-        <div class="form-group">
-          <label for="reg-role">Institutional Role</label>
-          <select id="reg-role">
-            <option value="Lead Principal Investigator (PI)">Lead Principal Investigator (PI)</option>
-            <option value="Chancellor's Research Chair">Chancellor's Research Chair</option>
-            <option value="Technology Transfer Officer (TTO)">Technology Transfer Officer (TTO)</option>
-            <option value="Deputy Vice-Chancellor (Research)">Deputy Vice-Chancellor (Research)</option>
-            <option value="Accredited VC Partner">Accredited VC Partner</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="reg-dept">Faculty / CoE</label>
-          <input type="text" id="reg-dept" value="Centre of Excellence in DeepTech & Nanotechnology" placeholder="e.g. Faculty of Engineering">
-        </div>
-        <div class="form-group">
-          <label for="reg-email">Institutional Email</label>
-          <input type="email" id="reg-email" value="harisfazillah@university.edu.my" placeholder="email@univ.edu.my" required>
-        </div>
-      </div>
-      <button type="submit" class="btn">Mint Identity & Register User</button>
-    </form>
-
-    <div id="user-reg-output" style="display:none;"></div>
-  </div>
-
   <!-- MODULE 2: Asset Registration & Evidence Vault Upload -->
   <div class="app-module-card role-view-panel" data-role-view="researcher">
     <h3>2. Research Asset Registration & Cryptographic Evidence Vault</h3>

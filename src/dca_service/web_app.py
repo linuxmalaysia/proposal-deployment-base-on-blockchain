@@ -250,6 +250,57 @@ class ConnectionPoolMetrics:
 
 
 DB_POOL_METRICS = ConnectionPoolMetrics()
+ASYNC_DB_POOL: Any = None
+
+
+async def init_async_connection_pool() -> Any:
+    """
+    Initialize and open the asynchronous PostgreSQL connection pool when database configuration is available.
+    
+    Returns:
+        Any: The opened connection pool, or `None` when configuration is unavailable or initialization fails.
+    """
+    global ASYNC_DB_POOL
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        pooler_host = os.environ.get("SUPABASE_POOLER_HOST") or os.environ.get("SUPABASE_DB_HOST")
+        supabase_url = os.environ.get("SUPABASE_URL", "")
+        db_pass = os.environ.get("SUPABASE_DB_PASSWORD", "")
+        if pooler_host and supabase_url and db_pass:
+            import urllib.parse
+            project_ref = supabase_url.replace("https://", "").replace("http://", "").split(".")[0]
+            db_user = f"postgres.{project_ref}" if "." not in pooler_host else "postgres"
+            encoded_pass = urllib.parse.quote_plus(db_pass)
+            database_url = f"postgresql://{db_user}:{encoded_pass}@{pooler_host}:5432/postgres?sslmode=require"
+
+    if database_url:
+        try:
+            from psycopg_pool import AsyncConnectionPool
+            pool = AsyncConnectionPool(
+                conninfo=database_url,
+                min_size=1,
+                max_size=DB_POOL_METRICS.max_pool_size,
+                open=False,
+            )
+            await pool.open()
+            ASYNC_DB_POOL = pool
+            return pool
+        except Exception:
+            ASYNC_DB_POOL = None
+            return None
+    return None
+
+
+async def close_async_connection_pool() -> None:
+    """Close async connection pool gracefully."""
+    global ASYNC_DB_POOL
+    if ASYNC_DB_POOL is not None:
+        try:
+            await ASYNC_DB_POOL.close()
+        except Exception:
+            pass
+        finally:
+            ASYNC_DB_POOL = None
 
 
 def close_postgresql_connection(conn: Any) -> None:
@@ -365,15 +416,21 @@ def _safe_auto_check_and_build_schema() -> dict[str, Any]:
 
 
 @asynccontextmanager
-async def lifespan(app_instance: FastAPI):
+async def lifespan(app_instance: FastAPI) -> Any:
     """
-    FastAPI lifespan context manager ensuring non-blocking schema auto-checking and table building on startup.
+    FastAPI lifespan context manager ensuring non-blocking schema auto-checking,
+    table building, and AsyncConnectionPool lifecycle management on startup and shutdown.
 
     Args:
         app_instance (FastAPI): The active FastAPI web application instance.
     """
     global SCHEMA_BACKGROUND_TASK
     import asyncio
+    try:
+        await init_async_connection_pool()
+    except Exception:
+        pass
+
     try:
         SCHEMA_BACKGROUND_TASK = asyncio.create_task(asyncio.to_thread(_safe_auto_check_and_build_schema))
     except Exception:
@@ -387,6 +444,40 @@ async def lifespan(app_instance: FastAPI):
         except Exception:
             pass
 
+    try:
+        await close_async_connection_pool()
+    except Exception:
+        pass
+
+
+# --- Rate Limiting Storage & Middleware ---
+
+RATE_LIMIT_BUCKETS: dict[str, list[float]] = {}
+
+
+def is_rate_limited(client_ip: str, max_requests: int = 10, window_seconds: float = 60.0) -> bool:
+    """
+    Determine whether a client has exceeded the request limit within a rolling time window.
+    
+    Parameters:
+        client_ip (str): Client identifier used to track request timestamps.
+        max_requests (int): Maximum number of requests allowed in the window.
+        window_seconds (float): Duration of the rolling window in seconds.
+    
+    Returns:
+        bool: `true` if the client has reached the request limit, `false` otherwise.
+    """
+    now = time.time()
+    timestamps = RATE_LIMIT_BUCKETS.get(client_ip, [])
+    # Retain only timestamps within the rolling window
+    timestamps = [t for t in timestamps if now - t < window_seconds]
+    if len(timestamps) >= max_requests:
+        RATE_LIMIT_BUCKETS[client_ip] = timestamps
+        return True
+    timestamps.append(now)
+    RATE_LIMIT_BUCKETS[client_ip] = timestamps
+    return False
+
 
 # Initialise FastAPI web application instance with lifespan context
 app = FastAPI(
@@ -395,6 +486,25 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next: Any) -> Any:
+    """
+    Apply request-rate limits to authentication and user-management endpoints.
+    
+    Returns:
+    	Response from the downstream handler, or an HTTP 429 response when the client exceeds 10 requests within 60 seconds.
+    """
+    rate_limited_paths = ["/api/login", "/api/users"]
+    if any(request.url.path.startswith(p) for p in rate_limited_paths):
+        client_ip = request.client.host if request.client else "127.0.0.1"
+        if is_rate_limited(f"{client_ip}:{request.url.path}", max_requests=10, window_seconds=60.0):
+            return Response(
+                content=json.dumps({"detail": "Too many requests. Rate limit exceeded. Please try again later."}),
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                media_type="application/json",
+            )
+    return await call_next(request)
 
 if ASSETS_DIR.exists():
     app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
@@ -406,13 +516,14 @@ def health_check() -> dict[str, str]:
     return {"status": "ok", "service": "rcf-dac-web-app", "version": "0.1.0"}
 
 
-def get_postgresql_connection():
+def get_postgresql_connection() -> tuple[Any, str]:
     """
-    Establish a PostgreSQL connection using configured credentials and SSL verification.
-
+    Establish a PostgreSQL connection using the configured database settings.
+    
     Returns:
-        connection (psycopg.Connection or None): The PostgreSQL connection on success, or `None` when the driver, configuration, certificate, or connection is unavailable.
-        status (str): A success or error message describing the connection result.
+        tuple[Any, str]: The connection and a status message. The connection is
+        `None` when the driver, configuration, certificate, or connection is
+        unavailable.
     """
     try:
         import urllib.parse
@@ -885,7 +996,11 @@ def serve_login_page() -> HTMLResponse:
 
 @app.get("/user-management", response_class=HTMLResponse)
 def serve_user_management_page() -> HTMLResponse:
-    """Serve interactive User Management Interface (Admin & Superuser only)."""
+    """
+    Render the interactive user-management dashboard.
+    
+    The page provides role-protected account administration, user listing, password resets, logout, and browser-based DID registration.
+    """
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -912,6 +1027,42 @@ def serve_user_management_page() -> HTMLResponse:
     </div>
 
     <div id="adminContent" style="display: none;">
+      <!-- MODULE 1: User Identity & W3C DID Registration -->
+      <div class="card" style="background: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <h3 style="color: #0066cc; margin-top: 0;">1. User Registration & W3C Decentralised Identifier (DID) Minting</h3>
+        <p style="color: #495057;">Every researcher, principal investigator, and administrative officer receives a permanent W3C DID stored in PostgreSQL 16.</p>
+
+        <form id="user-reg-form">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+            <div>
+              <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="reg-fullname">Full Name & Title</label>
+              <input type="text" id="reg-fullname" value="Prof. Dr. Harisfazillah Jamel" placeholder="e.g. Dr. Jane Doe" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            <div>
+              <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="reg-role">Institutional Role</label>
+              <select id="reg-role" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                <option value="Lead Principal Investigator (PI)">Lead Principal Investigator (PI)</option>
+                <option value="Chancellor's Research Chair">Chancellor's Research Chair</option>
+                <option value="Technology Transfer Officer (TTO)">Technology Transfer Officer (TTO)</option>
+                <option value="Deputy Vice-Chancellor (Research)">Deputy Vice-Chancellor (Research)</option>
+                <option value="Accredited VC Partner">Accredited VC Partner</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="reg-dept">Faculty / CoE</label>
+              <input type="text" id="reg-dept" value="Centre of Excellence in DeepTech & Nanotechnology" placeholder="e.g. Faculty of Engineering" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            <div>
+              <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="reg-email">Institutional Email</label>
+              <input type="email" id="reg-email" value="harisfazillah@university.edu.my" placeholder="email@univ.edu.my" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
+          </div>
+          <button type="submit" style="background: #0066cc; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Mint Identity & Register User</button>
+        </form>
+
+        <div id="user-reg-output" style="display:none; margin-top: 1.5rem;"></div>
+      </div>
+
       <div class="card" style="background: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
         <h3>➕ Create New System User</h3>
         <div id="createUserAlert" style="display: none; padding: 0.8rem; border-radius: 4px; margin-bottom: 1rem;"></div>
@@ -972,6 +1123,109 @@ def serve_user_management_page() -> HTMLResponse:
   </div>
 
   <script>
+    function simpleHash(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0;
+      }
+      return Math.abs(hash).toString(16).padStart(8, '0') + Math.abs(hash * 31).toString(16).padStart(8, '0');
+    }
+
+    function escapeHtml(text) {
+      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    function initRegistrationForm() {
+      const form = document.getElementById('user-reg-form');
+      if (!form) return;
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const name = document.getElementById('reg-fullname').value.trim() || 'Dr. Aris Roslan';
+        const role = document.getElementById('reg-role').value;
+        const dept = document.getElementById('reg-dept').value.trim() || 'Faculty of Engineering & Innovation';
+        const email = document.getElementById('reg-email').value.trim() || 'aris@university.edu.my';
+
+        const hashSeed = `${name}-${role}-${dept}-${Date.now()}`;
+        const did = `did:univ:${simpleHash(hashSeed).substring(0, 16)}`;
+
+        const userRecord = { name, role, dept, email, did, timestamp: new Date().toISOString() };
+        let savedSuccessfully = false;
+
+        try {
+          localStorage.setItem('rcf_dac_user_registration', JSON.stringify(userRecord));
+          savedSuccessfully = true;
+        } catch (err) {
+          console.warn('LocalStorage unavailable:', err);
+          savedSuccessfully = false;
+        }
+
+        renderRegistrationResult(userRecord, savedSuccessfully);
+      });
+    }
+
+    function renderRegistrationResult(userRecord, savedSuccessfully = true) {
+      const outputBox = document.getElementById('user-reg-output');
+      if (outputBox) {
+        if (savedSuccessfully) {
+          outputBox.innerHTML = `
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 6px; padding: 1.25rem;">
+              <h4 style="margin-top: 0; color: #15803d; font-size: 1.1rem;">✅ Identity Registered & W3C DID Minted</h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; margin-bottom: 0.75rem;">
+                <p style="margin: 0;"><strong>Name:</strong> ${escapeHtml(userRecord.name)}</p>
+                <p style="margin: 0;"><strong>Institutional Role:</strong> ${escapeHtml(userRecord.role)}</p>
+                <p style="margin: 0;"><strong>Faculty / Centre:</strong> ${escapeHtml(userRecord.dept)}</p>
+                <p style="margin: 0;"><strong>Email:</strong> ${escapeHtml(userRecord.email)}</p>
+              </div>
+              <div style="background: #1e293b; color: #e2e8f0; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 0.75rem;">
+                <span style="display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem;">W3C Decentralised Identifier (DID):</span>
+                <code style="background: #0f172a; color: #38bdf8; padding: 0.25rem 0.5rem; border-radius: 4px; font-family: monospace; font-size: 1rem;">${escapeHtml(userRecord.did)}</code>
+              </div>
+              <div style="font-size: 0.8rem; color: #64748b;">
+                <span>BROWSER STORAGE PERSISTENCE: Simulated PostgreSQL 16 <code style="background: #e2e8f0; padding: 0.1rem 0.3rem; border-radius: 3px;">users</code> table record (Persisted locally)</span>
+              </div>
+            </div>
+          `;
+        } else {
+          outputBox.innerHTML = `
+            <div style="background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #d97706; border-radius: 6px; padding: 1.25rem;">
+              <h4 style="margin-top: 0; color: #b45309; font-size: 1.1rem;">⚠️ Identity Generated (Persistence Unavailable)</h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; margin-bottom: 0.75rem;">
+                <p style="margin: 0;"><strong>Name:</strong> ${escapeHtml(userRecord.name)}</p>
+                <p style="margin: 0;"><strong>Institutional Role:</strong> ${escapeHtml(userRecord.role)}</p>
+                <p style="margin: 0;"><strong>Faculty / Centre:</strong> ${escapeHtml(userRecord.dept)}</p>
+                <p style="margin: 0;"><strong>Email:</strong> ${escapeHtml(userRecord.email)}</p>
+              </div>
+              <div style="background: #1e293b; color: #e2e8f0; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 0.75rem;">
+                <span style="display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem;">W3C Decentralised Identifier (DID):</span>
+                <code style="background: #0f172a; color: #38bdf8; padding: 0.25rem 0.5rem; border-radius: 4px; font-family: monospace; font-size: 1rem;">${escapeHtml(userRecord.did)}</code>
+              </div>
+              <div style="font-size: 0.8rem; color: #64748b;">
+                <span>BROWSER STORAGE PERSISTENCE: Local storage write failed or unavailable; record not persisted.</span>
+              </div>
+            </div>
+          `;
+        }
+        outputBox.style.display = 'block';
+      }
+    }
+
+    function loadSavedRegistration() {
+      try {
+        const saved = localStorage.getItem('rcf_dac_user_registration');
+        if (saved) {
+          const userRecord = JSON.parse(saved);
+          renderRegistrationResult(userRecord, true);
+        }
+      } catch (err) {
+        console.warn('Could not load saved user registration:', err);
+      }
+    }
+
     async function loadUsers() {
       const token = localStorage.getItem('rcf_dac_jwt');
       const unauthAlert = document.getElementById('unauthAlert');
@@ -1154,7 +1408,11 @@ def serve_user_management_page() -> HTMLResponse:
       });
     }
 
-    document.addEventListener('DOMContentLoaded', loadUsers);
+    document.addEventListener('DOMContentLoaded', () => {
+      loadUsers();
+      initRegistrationForm();
+      loadSavedRegistration();
+    });
   </script>
 </body>
 </html>"""

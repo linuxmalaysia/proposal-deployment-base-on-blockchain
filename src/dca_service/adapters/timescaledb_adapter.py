@@ -160,12 +160,25 @@ class BlockchainNodeAdapter:
     """Adapter simulating a blockchain node RPC connection (BTC / ETH / L2)."""
 
     def __init__(self, current_block: int = 100000):
+        """
+        Initialize the blockchain node adapter with a starting block number.
+        
+        Parameters:
+            current_block (int): Initial block number reported by the adapter.
+        """
         self.current_block = current_block
-        self._on_chain_ledger: dict[str, dict] = {}
+        self._on_chain_ledger: dict[str, dict[str, Any]] = {}
         self.should_fail = False
 
     def compute_tx_hash(self, entry: TimeSeriesTransactionEntry) -> str:
-        """Compute stable transaction hash digest for payload."""
+        """Compute a deterministic SHA-256 hash for a transaction entry.
+        
+        Parameters:
+        	entry (TimeSeriesTransactionEntry): Transaction data used to construct the hash.
+        
+        Returns:
+        	str: The transaction hash prefixed with ``0x``.
+        """
         if not isinstance(entry.metadata, dict):
             raise TypeError("Metadata must be a dictionary.")
 
@@ -182,7 +195,20 @@ class BlockchainNodeAdapter:
         return "0x" + hashlib.sha256(raw_payload.encode("utf-8")).hexdigest()
 
     def broadcast_transaction(self, entry: TimeSeriesTransactionEntry) -> dict[str, str]:
-        """Broadcast transaction to blockchain node."""
+        """
+        Broadcast a transaction to the blockchain node and record its confirmation details.
+        
+        Parameters:
+            entry (TimeSeriesTransactionEntry): Transaction data to broadcast.
+        
+        Returns:
+            dict[str, str]: Transaction hash and assigned block identifier.
+        
+        Raises:
+            RuntimeError: If the blockchain node is configured to fail broadcasts.
+            TypeError: If the transaction metadata is not a dictionary.
+            ValueError: If the metadata contains unsupported or invalid values.
+        """
         if self.should_fail:
             raise RuntimeError("Blockchain node broadcast network error.")
 
@@ -212,7 +238,7 @@ class BlockchainNodeAdapter:
         self._on_chain_ledger[tx_hash] = record
         return {"tx_hash": tx_hash, "block_id": str(self.current_block)}
 
-    def get_on_chain_transaction(self, tx_hash: str) -> dict | None:
+    def get_on_chain_transaction(self, tx_hash: str) -> dict[str, Any] | None:
         """Fetch transaction record from on-chain storage."""
         return self._on_chain_ledger.get(tx_hash)
 
@@ -231,9 +257,20 @@ class DualWriteBlockchainSyncService:
         asset_symbol: str,
         amount: Decimal | float,
         timestamp: datetime,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> TimeSeriesTransactionEntry:
-        """Execute dual-write: write to TimescaleDB first, then broadcast to blockchain."""
+        """
+        Create a transaction record and synchronize it with the blockchain.
+        
+        Parameters:
+            metadata (dict[str, Any] | None): Optional transaction metadata.
+        
+        Returns:
+            TimeSeriesTransactionEntry: The transaction entry after synchronization.
+        
+        Raises:
+            TypeError: If metadata is not a dictionary.
+        """
         raw_metadata = {} if metadata is None else metadata
         if not isinstance(raw_metadata, dict):
             raise TypeError("Metadata must be a dictionary.")

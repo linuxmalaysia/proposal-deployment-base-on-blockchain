@@ -70,39 +70,65 @@ def test_playwright_db_status_rendering(page: Page, live_server: str):
     page.screenshot(path="docs/screenshots/playwright_db_status.png", full_page=True)
 
 
-def test_playwright_interactive_portal_and_forms(page: Page, live_server: str):
-    """Verify portal homepage rendering and interactive form submissions using browser DOM."""
+def test_playwright_cloverleaf_mrs_score_and_revenue_split_workflows(page: Page, live_server: str):
+    """E2E test for Cloverleaf quantitative MRS calculations and IP policy revenue split matrix interactive workflows."""
     page.goto(f"{live_server}/")
     expect(page).to_have_title("RCF & DAC Interactive Web Portal")
 
-    # Select Researcher Role
-    researcher_btn = page.locator(".role-select-btn[data-role='researcher']")
-    if researcher_btn.is_visible():
-        researcher_btn.click()
+    # Select Admin role view to access Module 3 (Cloverleaf) and Module 5 (Revenue Split)
+    admin_role_btn = page.locator(".role-select-btn[data-role='admin']")
+    if admin_role_btn.is_visible():
+        admin_role_btn.click()
 
-    # Submit User Registration Form
-    fullname_input = page.locator("#reg-fullname")
-    if fullname_input.is_visible():
-        fullname_input.fill("Prof. Sarah Chen")
-        page.locator("#reg-dept").fill("Centre for Advanced Materials")
-        page.locator("#reg-email").fill("sarah.chen@univ.edu.my")
-        page.locator("#user-reg-form button[type='submit']").click()
+    # 1. Cloverleaf Score Slider Calculations Workflow
+    score_tech = page.locator("#score-tech")
+    score_market = page.locator("#score-market")
+    score_comm = page.locator("#score-comm")
+    score_mgmt = page.locator("#score-mgmt")
 
-        output = page.locator("#user-reg-output")
-        expect(output).to_be_visible()
-        expect(output).to_contain_text("Identity Registered & W3C DID Minted")
-        expect(output).to_contain_text("did:univ:")
+    if score_tech.is_visible():
+        # Set values that total > 180 (Investment-Ready qualification)
+        score_tech.fill("55")
+        score_market.fill("70")
+        score_comm.fill("50")
+        score_mgmt.fill("50")
 
-    # Interact with Revenue Split Calculator
+        total_display = page.locator("#total-cloverleaf-score")
+        expect(total_display).to_contain_text("225 / 260")
+
+        status_display = page.locator("#cloverleaf-status")
+        expect(status_display).to_contain_text("INVESTMENT-READY")
+
+        # Set values that total <= 180 (Development Required)
+        score_tech.fill("20")
+        score_market.fill("30")
+        score_comm.fill("20")
+        score_mgmt.fill("20")
+        expect(total_display).to_contain_text("90 / 260")
+        expect(status_display).to_contain_text("DEVELOPMENT REQUIRED")
+
+    # 2. IP Policy Revenue-Split Matrix Calculator Workflow
     amount_input = page.locator("#rev-amount")
+    type_select = page.locator("#rev-type")
+    split_body = page.locator("#revenue-split-body")
+
     if amount_input.is_visible():
         amount_input.fill("1000000")
-        type_select = page.locator("#rev-type")
-        type_select.select_option("equity")
-        expect(page.locator("#revenue-split-body")).to_contain_text("RM")
 
-    # Capture interactive submission screenshot
-    page.screenshot(path="docs/screenshots/playwright_portal_interactive.png", full_page=True)
+        # Test Licensing milestone allocation
+        type_select.select_option("licensing")
+        expect(split_body).to_contain_text("RM")
+        expect(split_body).to_contain_text("30.0%")
+        expect(split_body).to_contain_text("20.0%")
+
+        # Test Equity IPO Exit allocation
+        type_select.select_option("equity")
+        expect(split_body).to_contain_text("35.0%")
+        expect(split_body).to_contain_text("10.0%")
+        expect(split_body).to_contain_text("25.0%")
+        expect(split_body).to_contain_text("30.0%")
+
+    page.screenshot(path="docs/screenshots/playwright_cloverleaf_and_revenue_split.png", full_page=True)
 
 
 def test_playwright_login_and_user_creation_workflow(page: Page, live_server: str):
@@ -133,7 +159,20 @@ def test_playwright_login_and_user_creation_workflow(page: Page, live_server: st
     page.locator("#newEmail").fill("alan.turing@rcf-dac.univ.edu.my")
     page.locator("#createUserBtn").click()
 
-    # 5. Verify creation alert and table update
+    # 5. Verify W3C DID Minting form on User Management Dashboard
+    reg_fullname = page.locator("#reg-fullname")
+    expect(reg_fullname).to_be_visible()
+    reg_fullname.fill("Prof. Dr. Alan Turing")
+    page.locator("#reg-dept").fill("Quantum Computing & Cryptography Center")
+    page.locator("#reg-email").fill("alan.turing@univ.edu.my")
+    page.locator("#user-reg-form button[type='submit']").click()
+
+    output = page.locator("#user-reg-output")
+    expect(output).to_be_visible()
+    expect(output).to_contain_text("Identity Registered & W3C DID Minted")
+    expect(output).to_contain_text("did:univ:")
+
+    # 6. Fill and submit administrative user creation form
     alert_box = page.locator("#createUserAlert")
     expect(alert_box).to_be_visible()
     expect(alert_box).to_contain_text("created successfully")

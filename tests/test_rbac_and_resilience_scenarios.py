@@ -22,13 +22,14 @@ from dca_service.web_app import (
     EXPECTED_AUDIENCE,
     EXPECTED_ISSUER,
     INVESTOR_JWT_SECRET,
+    RATE_LIMIT_BUCKETS,
     app,
     base64url_encode,
     check_database_connection,
     create_system_jwt,
     get_postgresql_connection,
     hash_password,
-        verify_password,
+    verify_password,
 )
 
 client = TestClient(app)
@@ -36,11 +37,17 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def isolate_account_registry():
-    """Snapshot and restore ACCOUNT_REGISTRY before and after each test."""
+    """
+    Isolate account and rate-limit state for each test.
+    
+    Restores the account registry after the test and clears rate-limit buckets before and after it runs.
+    """
     original = copy.deepcopy(ACCOUNT_REGISTRY)
+    RATE_LIMIT_BUCKETS.clear()
     yield
     ACCOUNT_REGISTRY.clear()
     ACCOUNT_REGISTRY.update(original)
+    RATE_LIMIT_BUCKETS.clear()
 
 
 # --- Database Reconnect Resilience Tests ---
@@ -122,7 +129,9 @@ def _sign_jwt(header: dict[str, Any], payload: dict[str, Any], secret: bytes = I
 # --- Login & RBAC Scenario Tests ---
 
 def test_rbac_authentication_login_flow(monkeypatch):
-    """Test login API endpoint with valid, invalid, and missing credentials."""
+    """
+    Verify authentication for valid administrator and superuser credentials, invalid passwords, and unknown users.
+    """
     monkeypatch.setenv("ADMIN_INITIAL_PASSWORD", "AdminPass123!")
     monkeypatch.setenv("SUPERUSER_INITIAL_PASSWORD", "SuperPass123!")
     from dca_service.web_app import seed_initial_accounts
@@ -147,6 +156,19 @@ def test_rbac_authentication_login_flow(monkeypatch):
     # 4. Non-existent User
     res_no_user = client.post("/api/login", json={"username": "ghost_user", "password": "Password123!"})
     assert res_no_user.status_code == 401
+
+
+def test_rate_limiting_middleware_brute_force_protection():
+    """Verify rate-limiting middleware blocks excess login attempts after threshold."""
+    # Attempt 10 failed logins (allowed under max_requests=10)
+    for _ in range(10):
+        res = client.post("/api/login", json={"username": "dca_admin_mgr", "password": "WrongPassword"})
+        assert res.status_code == 401
+
+    # 11th request triggers rate limiting 429 Too Many Requests
+    res_blocked = client.post("/api/login", json={"username": "dca_admin_mgr", "password": "WrongPassword"})
+    assert res_blocked.status_code == 429
+    assert "rate limit exceeded" in res_blocked.json()["detail"].lower()
 
 
 def test_superuser_password_reset_protection():
