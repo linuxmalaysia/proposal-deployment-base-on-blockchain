@@ -9,7 +9,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 def get_markdown_title(file_path: Path) -> str:
-    """Extract title from OKF frontmatter or first Markdown heading."""
+    """
+    Extract a Markdown document's title from its OKF frontmatter or first level-one heading.
+    
+    Parameters:
+        file_path (Path): Path to the Markdown file.
+    
+    Returns:
+        str: The extracted title, or a title derived from the filename when no title is found or the file cannot be read.
+    """
     try:
         content = file_path.read_text(encoding="utf-8")
     except Exception:
@@ -38,7 +46,13 @@ def get_markdown_title(file_path: Path) -> str:
     return file_path.stem.replace("-", " ").title()
 
 def generate_summary(gen_datetime: datetime | None = None) -> None:
-    """Generate SUMMARY.md index file with OKF v0.2 YAML frontmatter."""
+    """
+    Generate the repository's SUMMARY.md documentation index with OKF v0.2 YAML frontmatter.
+    
+    Parameters:
+        gen_datetime (datetime | None): Datetime used for the summary timestamp and one-year expiration date. Defaults to the current UTC time.
+    
+    """
     if gen_datetime is None:
         gen_datetime = datetime.now(UTC)
 
