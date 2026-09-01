@@ -60,9 +60,9 @@ When invoked by prompt triggers such as `"review my UI"`, `"check accessibility"
 
 ### 1. Accessibility (a11y)
 
-* **Explicit Labeling:** Icon-only buttons MUST possess explicit `aria-label` or `aria-labelledby` attributes. All form controls require matching `<label for="id">` associations.
+* **Explicit Labeling:** Icon-only buttons MUST possess explicit `aria-label` or `aria-labelledby` attributes. Form controls require explicit labeling via matching `<label for="id">` associations or `aria-label` attributes.
 * **Semantic Hierarchy:** HTML semantic tags (`<button>`, `<a>`, `<label>`, `<table>`) take absolute priority over generic `<div>` click handlers. Headings follow hierarchical order (`<h1>` through `<h6>`).
-* **Live Updates:** Asynchronous state modifications (toasts, validation warnings, status changes) require `aria-live="polite"` containers.
+* **Live Updates:** Non-urgent asynchronous status updates reserve `aria-live="polite"`, whereas critical error messages require assertive handling such as `role="alert"` or `aria-live="assertive"`.
 * **Media & Anchor Margins:** Decorative icons specify `aria-hidden="true"`. Heading anchors incorporate `scroll-margin-top` for fixed header offset preservation.
 
 ### 2. Focus States & Keyboard Traversal

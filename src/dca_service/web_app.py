@@ -957,12 +957,7 @@ def logout_endpoint(
 
 @app.get("/login", response_class=HTMLResponse)
 def serve_login_page() -> HTMLResponse:
-    """
-    Serve the interactive system login page.
-    
-    Returns:
-        HTMLResponse: The rendered login page.
-    """
+    """Serve interactive user login HTML page."""
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -1060,12 +1055,9 @@ def serve_login_page() -> HTMLResponse:
 @app.get("/user-management", response_class=HTMLResponse)
 def serve_user_management_page() -> HTMLResponse:
     """
-    Render the role-protected interactive user-management dashboard.
+    Render the interactive user-management dashboard.
     
-    The dashboard supports user listing, account creation, password resets, logout, and browser-based DID registration.
-    
-    Returns:
-    	HTMLResponse: The rendered user-management dashboard.
+    The page provides role-protected account administration, user listing, password resets, logout, and browser-based DID registration.
     """
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
@@ -1086,7 +1078,7 @@ def serve_user_management_page() -> HTMLResponse:
       <p style="color: #666;">RBAC Controlled Account Administration & Governance Interface</p>
     </div>
 
-    <div id="unauthAlert" role="alert" aria-live="polite" style="display: none; background: #f8d7da; color: #721c24; padding: 1.5rem; border-radius: 6px; text-align: center; margin-bottom: 2rem;">
+    <div id="unauthAlert" role="alert" aria-live="assertive" style="display: none; background: #f8d7da; color: #721c24; padding: 1.5rem; border-radius: 6px; text-align: center; margin-bottom: 2rem;">
       <h3>⛔ Access Denied</h3>
       <p>This interface is restricted strictly to Administrator and Superuser roles.</p>
       <a href="/login" class="btn" style="background: #0066cc; color: white; padding: 0.6rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 1rem;">Go to Login Page</a>

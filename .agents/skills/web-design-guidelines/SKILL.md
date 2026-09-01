@@ -38,10 +38,10 @@ The `web-design-guidelines` skill enables AI agents (Google Jules and Google Ant
 
 ## Guidelines Source
 
-Fetch fresh guidelines from the commit-pinned and SHA-256 verified source URL before each review:
-`https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`
+Fetch fresh guidelines from the commit-pinned source URL before each review:
+`https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/c837803a08d85f818ec06f47dfbb366d2179b068/command.md`
 
-The loading flow verifies the expected cryptographic SHA-256 digest before processing rules and rejects unpinned or digest-mismatched content at runtime.
+The loading flow verifies the expected SHA-256 digest (`704e6bd8b7f8c1f93f1d87f71120002f2324ef2802d515a8c2ef40d43f07a75a`) before processing rules and rejects unpinned or digest-mismatched content at runtime.
 
 ## Rules Summary
 
@@ -49,11 +49,11 @@ The loading flow verifies the expected cryptographic SHA-256 digest before proce
 
 - Icon-only buttons need `aria-label`.
 - Form controls need `<label>` (with matching `for` attribute) or `aria-label`.
-- Interactive elements need keyboard event handlers (`onKeyDown`/`onKeyUp`).
+- Custom interactive controls (non-native clickable elements) need keyboard event handlers (`onKeyDown`/`onKeyUp`), while native `<button>` and `<a>` elements already provide keyboard support.
 - Use `<button>` for actions, `<a>`/`<Link>` for navigation (not `<div onClick>`).
 - Images need `alt` (or `alt=""` if decorative).
 - Decorative icons need `aria-hidden="true"`.
-- Async updates (toasts, alert boxes, validation messages) need `aria-live="polite"`.
+- Reserve `aria-live="polite"` for non-urgent status updates, and use assertive handling (`role="alert"` or `aria-live="assertive"`) for critical error messages.
 - Use semantic HTML (`<button>`, `<a>`, `<label>`, `<table>`) before ARIA.
 - Headings hierarchical `<h1>`–`<h6>`; include skip link for main content.
 - `scroll-margin-top` on heading anchors.

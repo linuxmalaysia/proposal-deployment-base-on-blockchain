@@ -159,7 +159,7 @@ def test_playwright_cloverleaf_mrs_score_and_revenue_split_workflows(page: Page,
 
 
 def test_playwright_login_and_user_creation_workflow(page: Page, live_server: str):
-    """Verify administrator login, user creation, W3C DID registration, and logout workflows."""
+    """Automate full login form submission, HttpOnly JWT session token handling, administrative user creation, and logout."""
     # Ensure deterministic password for admin account
     ACCOUNT_REGISTRY["dca_admin_mgr"]["password_hash"] = hash_password("InitPass_admin_2026!")
 
