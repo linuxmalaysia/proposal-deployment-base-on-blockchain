@@ -5,6 +5,7 @@ Scans all documentation Markdown files under docs/ and root-level ledgers,
 generating/updating SUMMARY.md with OKF v0.2 frontmatter.
 """
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 def get_markdown_title(file_path: Path) -> str:
@@ -36,8 +37,18 @@ def get_markdown_title(file_path: Path) -> str:
 
     return file_path.stem.replace("-", " ").title()
 
-def generate_summary() -> None:
-    """Generate SUMMARY.md index file."""
+def generate_summary(gen_datetime: datetime | None = None) -> None:
+    """Generate SUMMARY.md index file with OKF v0.2 YAML frontmatter."""
+    if gen_datetime is None:
+        gen_datetime = datetime.now(UTC)
+
+    timestamp_str = gen_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        stale_dt = gen_datetime.replace(year=gen_datetime.year + 1)
+    except ValueError:
+        stale_dt = gen_datetime.replace(year=gen_datetime.year + 1, day=28)
+    stale_after_str = stale_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
     repo_root = Path(__file__).parent.parent
     summary_path = repo_root / "SUMMARY.md"
 
@@ -53,7 +64,7 @@ def generate_summary() -> None:
         'okf_version: "0.2"',
         'type: "summary"',
         'title: "Documentation Index & Navigation Summary"',
-        'timestamp: "2026-08-25T00:00:00Z"',
+        f'timestamp: "{timestamp_str}"',
         "topics:",
         '  - "summary"',
         '  - "index"',
@@ -66,7 +77,7 @@ def generate_summary() -> None:
         'generated: "generate_summary.py"',
         "verified: true",
         'status: "approved"',
-        'stale_after: "2027-08-25T00:00:00Z"',
+        f'stale_after: "{stale_after_str}"',
         'language: "en-GB"',
         "---",
         "",
