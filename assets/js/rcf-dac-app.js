@@ -15,9 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSavedAssets();
 });
 
-/**
- * Initializes session status display, role-based controls, and module visibility.
- */
+/* -------------------------------------------------------------------------
+   1. Session Check & Role Switcher Logic
+   ------------------------------------------------------------------------- */
 function initRoleSwitcher() {
   const roleButtons = document.querySelectorAll('.role-select-btn');
   const roleViews = document.querySelectorAll('.role-view-panel');
@@ -49,10 +49,6 @@ function initRoleSwitcher() {
 
   const guestNotice = document.getElementById('guestNoticeCard');
 
-  /**
-   * Updates module visibility for the selected role view.
-   * @param {string} selectedRole - The selected role, `all`, or `my-role`.
-   */
   function updateModuleViews(selectedRole) {
     roleViews.forEach(view => {
       const viewRole = view.getAttribute('data-role-view');
