@@ -1,6 +1,7 @@
 """Tests for tools/generate_summary.py (DSOM Documentation Index Generator)."""
 
 import importlib.util
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -80,6 +81,52 @@ class TestGetMarkdownTitle:
 
 
 class TestGenerateSummary:
+    def test_generated_frontmatter_uses_supplied_timestamp_and_all_required_fields(
+        self, gs_module, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(
+            gs_module, "__file__", str(tmp_path / "tools" / "generate_summary.py")
+        )
+
+        gs_module.generate_summary(
+            gen_datetime=datetime(2026, 9, 1, 12, 34, 56, tzinfo=UTC)
+        )
+
+        content = (tmp_path / "SUMMARY.md").read_text(encoding="utf-8")
+        frontmatter = content.split("---", 2)[1]
+        for field in (
+            "okf_version",
+            "type",
+            "title",
+            "timestamp",
+            "topics",
+            "description",
+            "resource",
+            "sources",
+            "generated",
+            "verified",
+            "status",
+            "stale_after",
+            "language",
+        ):
+            assert f"\n{field}:" in frontmatter
+        assert 'timestamp: "2026-09-01T12:34:56Z"' in frontmatter
+        assert 'stale_after: "2027-09-01T12:34:56Z"' in frontmatter
+
+    def test_generated_stale_date_handles_leap_day(self, gs_module, tmp_path, monkeypatch):
+        """A leap-day generation date should expire on 28 February next year."""
+        monkeypatch.setattr(
+            gs_module, "__file__", str(tmp_path / "tools" / "generate_summary.py")
+        )
+
+        gs_module.generate_summary(
+            gen_datetime=datetime(2028, 2, 29, 23, 59, 59, tzinfo=UTC)
+        )
+
+        content = (tmp_path / "SUMMARY.md").read_text(encoding="utf-8")
+        assert 'timestamp: "2028-02-29T23:59:59Z"' in content
+        assert 'stale_after: "2029-02-28T23:59:59Z"' in content
+
     def test_generates_summary_with_root_ledgers_and_docs_sections(self, gs_module, tmp_path, monkeypatch, capsys):
         # Point the module's notion of "repo root" at an isolated tmp_path so this
         # test never touches the real repository's SUMMARY.md or other files.
