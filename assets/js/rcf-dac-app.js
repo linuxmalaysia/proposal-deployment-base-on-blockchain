@@ -47,45 +47,60 @@ function initRoleSwitcher() {
     }
   }
 
-  if (!roleButtons.length) return;
+  const guestNotice = document.getElementById('guestNoticeCard');
 
-  roleButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const selectedRole = btn.getAttribute('data-role');
-      if (!selectedRole) return;
-
-      roleButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-
-      roleViews.forEach(view => {
-        const viewRole = view.getAttribute('data-role-view');
-        if (selectedRole === 'all') {
-          view.style.display = 'block';
-        } else if (selectedRole === 'my-role') {
-          if (!currentUser || !currentUser.role) {
+  function updateModuleViews(selectedRole) {
+    roleViews.forEach(view => {
+      const viewRole = view.getAttribute('data-role-view');
+      if (selectedRole === 'all') {
+        if (guestNotice) guestNotice.style.display = 'none';
+        view.style.display = 'block';
+      } else if (selectedRole === 'my-role') {
+        if (!currentUser || !currentUser.role) {
+          view.style.display = 'none';
+          if (guestNotice) guestNotice.style.display = 'block';
+        } else {
+          if (guestNotice) guestNotice.style.display = 'none';
+          const role = currentUser.role.toLowerCase();
+          if (role === 'admin' || role === 'superuser') {
+            view.style.display = 'none';
+          } else if (role === 'auditor') {
+            view.style.display = 'block';
+          } else if (role === 'operator' && (viewRole === 'researcher' || viewRole === 'admin')) {
+            view.style.display = 'block';
+          } else if (role === 'investor' && viewRole === 'investor') {
             view.style.display = 'block';
           } else {
-            const role = currentUser.role.toLowerCase();
-            if (role === 'admin' || role === 'superuser') {
-              view.style.display = 'none';
-            } else if (role === 'auditor') {
-              view.style.display = 'block';
-            } else if (role === 'operator' && (viewRole === 'researcher' || viewRole === 'admin')) {
-              view.style.display = 'block';
-            } else if (role === 'investor' && viewRole === 'investor') {
-              view.style.display = 'block';
-            } else {
-              view.style.display = 'none';
-            }
+            view.style.display = 'none';
           }
-        } else if (viewRole === selectedRole) {
-          view.style.display = 'block';
-        } else {
-          view.style.display = 'none';
         }
+      } else if (viewRole === selectedRole) {
+        if (guestNotice) guestNotice.style.display = 'none';
+        view.style.display = 'block';
+      } else {
+        view.style.display = 'none';
+      }
+    });
+  }
+
+  if (roleButtons.length) {
+    roleButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const selectedRole = btn.getAttribute('data-role');
+        if (!selectedRole) return;
+
+        roleButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        updateModuleViews(selectedRole);
       });
     });
-  });
+  }
+
+  // Initialise default view based on active button / auth session
+  const activeBtn = document.querySelector('.role-select-btn.active');
+  const initialRole = activeBtn ? activeBtn.getAttribute('data-role') : 'my-role';
+  updateModuleViews(initialRole || 'my-role');
 }
 
 /* -------------------------------------------------------------------------

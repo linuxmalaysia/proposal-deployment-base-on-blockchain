@@ -2314,12 +2314,18 @@ def get_investor_assets(
     return res
 
 
+ROOT_DOCS = {"SUMMARY.md", "README.md", "CHANGELOG.md", "HISTORY.md"}
+
+
 def render_markdown_to_html(md_text: str) -> str:
     """Simple parser to convert index.md markdown elements to clean HTML."""
     import re
 
     # Strip Liquid tags like {::options ... /}
     md_text = re.sub(r"\{::options.*?\/\}", "", md_text)
+
+    # Resolve Liquid relative_url tags e.g. {{ '/docs/explanation/...' | relative_url }} -> /docs/explanation/...
+    md_text = re.sub(r"\{\{\s*['\"](.*?)['\"](?:\s*\|\s*relative_url)?\s*\}\}", r"\1", md_text)
 
     # Convert horizontal rules
     md_text = re.sub(r"^---$", "<hr>", md_text, flags=re.MULTILINE)
@@ -2360,26 +2366,7 @@ def render_markdown_to_html(md_text: str) -> str:
     return "\n".join(html_lines)
 
 
-@app.get("/docs/{file_path:path}", response_class=HTMLResponse)
-def serve_docs(file_path: str) -> HTMLResponse:
-    """Serve documentation Markdown files rendered as HTML."""
-    target_path = file_path
-    if target_path.endswith(".html"):
-        target_path = target_path[:-5] + ".md"
-    elif not target_path.endswith(".md"):
-        target_path = target_path + ".md"
-
-    doc_file = (DOCS_DIR / target_path).resolve()
-
-    # Prevent path traversal outside of DOCS_DIR
-    try:
-        doc_file.relative_to(DOCS_DIR.resolve())
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documentation page not found")
-
-    if not doc_file.exists() or not doc_file.is_file():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documentation page not found")
-
+def _render_doc_file(doc_file: Path) -> HTMLResponse:
     content = doc_file.read_text(encoding="utf-8")
     if content.startswith("---"):
         parts = content.split("---", 2)
@@ -2404,6 +2391,45 @@ def serve_docs(file_path: str) -> HTMLResponse:
 </body>
 </html>"""
     return HTMLResponse(content=html_wrapper)
+
+
+@app.get("/{doc_name}.html", response_class=HTMLResponse)
+def serve_root_doc(doc_name: str) -> HTMLResponse:
+    """Serve root Markdown documentation files (e.g. SUMMARY.html, README.html)."""
+    filename = f"{doc_name}.md"
+    if filename in ROOT_DOCS:
+        doc_file = (BASE_DIR / filename).resolve()
+        if doc_file.exists() and doc_file.is_file():
+            return _render_doc_file(doc_file)
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documentation page not found")
+
+
+@app.get("/docs/{file_path:path}", response_class=HTMLResponse)
+def serve_docs(file_path: str) -> HTMLResponse:
+    """Serve documentation Markdown files rendered as HTML."""
+    target_path = file_path
+    if target_path.endswith(".html"):
+        target_path = target_path[:-5] + ".md"
+    elif not target_path.endswith(".md"):
+        target_path = target_path + ".md"
+
+    if target_path in ROOT_DOCS:
+        doc_file = (BASE_DIR / target_path).resolve()
+        try:
+            doc_file.relative_to(BASE_DIR.resolve())
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documentation page not found")
+    else:
+        doc_file = (DOCS_DIR / target_path).resolve()
+        try:
+            doc_file.relative_to(DOCS_DIR.resolve())
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documentation page not found")
+
+    if not doc_file.exists() or not doc_file.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documentation page not found")
+
+    return _render_doc_file(doc_file)
 
 
 @app.get("/", response_class=HTMLResponse)

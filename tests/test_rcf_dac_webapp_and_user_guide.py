@@ -147,6 +147,123 @@ class TestRcfDacIndexMarkdown:
         assert f"]({route})" in content
 
 
+class TestRcfDacGuestVisibilityAndLinks:
+    def test_guest_notice_card_in_index_md(self):
+        content = _read(INDEX_MD)
+        assert 'id="guestNoticeCard"' in content
+        assert "Authentication Required for Operational Modules" in content
+
+    def test_js_app_updates_guest_notice_visibility(self):
+        content = _read(JS_APP)
+        assert "document.getElementById('guestNoticeCard')" in content
+        assert "guestNotice.style.display = 'block'" in content
+        assert "guestNotice.style.display = 'none'" in content
+
+    def test_js_app_applies_my_role_visibility_during_initialisation(self):
+        content = _read(JS_APP)
+        assert "const initialRole = activeBtn ? activeBtn.getAttribute('data-role') : 'my-role'" in content
+        assert "updateModuleViews(initialRole || 'my-role');" in content
+        assert 'class="role-select-btn active" data-role="my-role"' in _read(INDEX_MD)
+
+    def test_all_links_in_index_md_return_http_200(self, monkeypatch):
+        import secrets
+        monkeypatch.setenv("INVESTOR_JWT_SECRET", secrets.token_hex(32))
+
+        from fastapi.testclient import TestClient
+        from dca_service.web_app import app
+
+        client = TestClient(app)
+        res = client.get("/")
+        assert res.status_code == 200
+
+        hrefs = re.findall(r'href=[\"\'](.*?)[\"\']', res.text)
+        assert len(hrefs) > 0, "Expected href links on index page"
+
+        for href in hrefs:
+            if href.startswith("http") or href.startswith("#"):
+                continue
+            r = client.get(href)
+            assert r.status_code == 200, f"Link {href} returned HTTP {r.status_code}"
+
+    @pytest.mark.parametrize(
+        "liquid_link",
+        [
+            "{{ '/SUMMARY.html' | relative_url }}",
+            '{{ "/docs/tutorials/web-application-user-guide.html" | relative_url }}',
+            "{{'/docs/explanation/architecture-overview.html'|relative_url}}",
+        ],
+    )
+    def test_markdown_renderer_resolves_relative_url_liquid_links(self, liquid_link):
+        from dca_service.web_app import render_markdown_to_html
+
+        expected_path = re.search(r"['\"]([^'\"]+)['\"]", liquid_link).group(1)
+
+        rendered = render_markdown_to_html(f"[Documentation]({liquid_link})")
+
+        assert rendered == f'<a href="{expected_path}">Documentation</a>'
+        assert "{{" not in rendered
+
+    def test_document_renderer_removes_frontmatter_and_wraps_content(self, tmp_path):
+        from dca_service.web_app import _render_doc_file
+
+        document = tmp_path / "guide.md"
+        document.write_text(
+            '---\ntitle: "Hidden metadata"\n---\n\n# Visible heading\n',
+            encoding="utf-8",
+        )
+
+        response = _render_doc_file(document)
+        rendered = response.body.decode("utf-8")
+
+        assert response.status_code == 200
+        assert "Hidden metadata" not in rendered
+        assert "<h1>Visible heading</h1>" in rendered
+        assert '<a href="/">&larr; Return to RCF & DAC Interactive Portal Homepage</a>' in rendered
+
+    @pytest.mark.parametrize("document_name", ["SUMMARY", "README", "CHANGELOG", "HISTORY"])
+    def test_allowlisted_root_document_routes_render_successfully(
+        self, document_name, monkeypatch
+    ):
+        import secrets
+
+        monkeypatch.setenv("INVESTOR_JWT_SECRET", secrets.token_hex(32))
+
+        from fastapi.testclient import TestClient
+        from dca_service.web_app import app
+
+        response = TestClient(app).get(f"/{document_name}.html")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/html")
+        assert "Return to RCF & DAC Interactive Portal Homepage" in response.text
+
+    @pytest.mark.parametrize("document_name", ["AGENTS", "pyproject", "not-present"])
+    def test_root_document_route_rejects_non_allowlisted_files(
+        self, document_name, monkeypatch
+    ):
+        import secrets
+
+        monkeypatch.setenv("INVESTOR_JWT_SECRET", secrets.token_hex(32))
+
+        from fastapi.testclient import TestClient
+        from dca_service.web_app import app
+
+        response = TestClient(app).get(f"/{document_name}.html")
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Documentation page not found"}
+
+    def test_docs_route_rejects_path_traversal_to_root_document(self):
+        from fastapi import HTTPException
+        from dca_service.web_app import serve_docs
+
+        with pytest.raises(HTTPException) as exc_info:
+            serve_docs("../README.html")
+
+        assert exc_info.value.status_code == 404
+        assert exc_info.value.detail == "Documentation page not found"
+
+
 class TestDefaultLayoutAuthenticationNavigation:
     @pytest.mark.parametrize(
         ("route", "top_label", "sidebar_label"),
