@@ -37,7 +37,11 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def isolate_account_registry():
-    """Snapshot and restore ACCOUNT_REGISTRY and RATE_LIMIT_BUCKETS before and after each test."""
+    """
+    Isolate account and rate-limit state for each test.
+    
+    Restores the account registry after the test and clears rate-limit buckets before and after it runs.
+    """
     original = copy.deepcopy(ACCOUNT_REGISTRY)
     RATE_LIMIT_BUCKETS.clear()
     yield
@@ -125,7 +129,9 @@ def _sign_jwt(header: dict[str, Any], payload: dict[str, Any], secret: bytes = I
 # --- Login & RBAC Scenario Tests ---
 
 def test_rbac_authentication_login_flow(monkeypatch):
-    """Test login API endpoint with valid, invalid, and missing credentials."""
+    """
+    Verify authentication for valid administrator and superuser credentials, invalid passwords, and unknown users.
+    """
     monkeypatch.setenv("ADMIN_INITIAL_PASSWORD", "AdminPass123!")
     monkeypatch.setenv("SUPERUSER_INITIAL_PASSWORD", "SuperPass123!")
     from dca_service.web_app import seed_initial_accounts
