@@ -124,6 +124,8 @@ EXPECTED_EXPLANATION_REL_PATH_ORDER = [
     "docs/explanation/rcf-dac-solution-architecture.md",
     "docs/explanation/rcf-dac-technical-data-layer.md",
     "docs/explanation/research-commercialisation-fund-dac-proposal.md",
+    "docs/explanation/web-design-code-improvements.md",
+    "docs/explanation/web-design-guidelines-skill.md",
 ]
 
 

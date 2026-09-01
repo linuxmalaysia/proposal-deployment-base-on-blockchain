@@ -215,3 +215,76 @@ def test_playwright_login_and_user_creation_workflow(page: Page, live_server: st
     logout_btn.click()
     page.wait_for_url(f"{live_server}/login", timeout=5000)
     assert "/login" in page.url
+
+
+def test_playwright_web_design_guidelines_compliance(page: Page, live_server: str):
+    """Verify Web Interface Guidelines & W3C WCAG Accessibility compliance using Playwright E2E."""
+    # 1. Login Page Audit: Form autocompletes, spellcheck, aria-live, aria-labels
+    page.goto(f"{live_server}/login")
+
+    username_input = page.locator("#username")
+    expect(username_input).to_have_attribute("autocomplete", "username")
+    expect(username_input).to_have_attribute("spellcheck", "false")
+    expect(username_input).to_have_attribute("aria-label", "System Username")
+
+    password_input = page.locator("#password")
+    expect(password_input).to_have_attribute("autocomplete", "current-password")
+    expect(password_input).to_have_attribute("aria-label", "System Password")
+
+    alert_box = page.locator("#alertBox")
+    expect(alert_box).to_have_attribute("aria-live", "polite")
+    expect(alert_box).to_have_attribute("role", "alert")
+
+    login_btn = page.locator("#loginForm button[type='submit']")
+    expect(login_btn).to_have_attribute("aria-label", "Sign In")
+
+    # 2. User Management Page Audit (Authed)
+    ACCOUNT_REGISTRY["dca_admin_mgr"]["password_hash"] = hash_password("InitPass_admin_2026!")
+    username_input.fill("dca_admin_mgr")
+    password_input.fill("InitPass_admin_2026!")
+    login_btn.click()
+
+    page.wait_for_url(f"{live_server}/user-management", timeout=5000)
+
+    # Check Logout Button ARIA label
+    expect(page.locator("#logoutBtn")).to_have_attribute("aria-label", "Sign Out")
+
+    # Check User Registration Form accessibility attributes
+    reg_fullname = page.locator("#reg-fullname")
+    expect(reg_fullname).to_have_attribute("autocomplete", "name")
+    expect(reg_fullname).to_have_attribute("aria-label", "Full Name & Title")
+
+    reg_email = page.locator("#reg-email")
+    expect(reg_email).to_have_attribute("autocomplete", "email")
+    expect(reg_email).to_have_attribute("spellcheck", "false")
+
+    reg_output = page.locator("#user-reg-output")
+    expect(reg_output).to_have_attribute("aria-live", "polite")
+
+    # Check Create User Form accessibility attributes
+    new_user = page.locator("#newUsername")
+    expect(new_user).to_have_attribute("autocomplete", "username")
+    expect(new_user).to_have_attribute("spellcheck", "false")
+
+    new_pass = page.locator("#newPassword")
+    expect(new_pass).to_have_attribute("autocomplete", "new-password")
+
+    create_alert = page.locator("#createUserAlert")
+    expect(create_alert).to_have_attribute("aria-live", "polite")
+
+    # 3. Homepage Interactive Module Portal Audit
+    page.goto(f"{live_server}/")
+    page.locator(".role-select-btn[data-role='all']").click()
+
+    # Verify input types and modes
+    rev_amount = page.locator("#rev-amount")
+    expect(rev_amount).to_have_attribute("inputmode", "decimal")
+    expect(rev_amount).to_have_attribute("type", "number")
+
+    # Verify ARIA live status containers
+    expect(page.locator("#cloverleaf-status")).to_have_attribute("aria-live", "polite")
+    expect(page.locator("#asset-reg-output")).to_have_attribute("aria-live", "polite")
+
+    # Take verification screenshot
+    os.makedirs("docs/screenshots", exist_ok=True)
+    page.screenshot(path="docs/screenshots/playwright_guidelines_compliance.png", full_page=True)

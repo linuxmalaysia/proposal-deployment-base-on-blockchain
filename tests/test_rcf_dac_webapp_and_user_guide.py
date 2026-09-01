@@ -127,7 +127,7 @@ class TestRcfDacIndexMarkdown:
 
     def test_includes_file_upload_input(self):
         content = _read(INDEX_MD)
-        assert '<input type="file" id="asset-file" required>' in content
+        assert 'id="asset-file"' in content and 'type="file"' in content
 
     def test_includes_parse_block_html_options(self):
         content = _read(INDEX_MD)

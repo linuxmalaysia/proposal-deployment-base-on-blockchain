@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "summary"
 title: "Documentation Index & Navigation Summary"
-timestamp: "2026-09-01T15:05:04Z"
+timestamp: "2026-09-01T20:19:02Z"
 topics:
   - "summary"
   - "index"
@@ -15,7 +15,7 @@ sources:
 generated: "generate_summary.py"
 verified: true
 status: "approved"
-stale_after: "2027-09-01T15:05:04Z"
+stale_after: "2027-09-01T20:19:02Z"
 language: "en-GB"
 ---
 
@@ -47,6 +47,8 @@ language: "en-GB"
 * [RCF & DAC Proposal: 3. Proposed Solution Architecture](docs/explanation/rcf-dac-solution-architecture.md)
 * [RCF & DAC Proposal: 4. Technical Architecture & Data Layer](docs/explanation/rcf-dac-technical-data-layer.md)
 * [Research Commercialisation Fund (RCF) & Digital Asset Custodian (DAC) Architecture Proposal](docs/explanation/research-commercialisation-fund-dac-proposal.md)
+* [Project Web Interface & Accessibility Improvement Plan](docs/explanation/web-design-code-improvements.md)
+* [Web Interface Guidelines & AI Agent Skill Architecture](docs/explanation/web-design-guidelines-skill.md)
 
 ### How To
 

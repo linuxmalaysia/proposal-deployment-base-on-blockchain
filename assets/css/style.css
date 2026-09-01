@@ -625,3 +625,55 @@ th {
   color: #ffffff;
   text-decoration: none;
 }
+
+/* -------------------------------------------------------------------------
+   Web Interface Guidelines & Accessibility (a11y) Enhancements
+   ------------------------------------------------------------------------- */
+
+/* Visible Focus States for Keyboard Traversal */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.role-select-btn:focus-visible {
+  outline: 2px solid #0066cc !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.25) !important;
+}
+
+/* Tabular Numbers for Metrics, Figures, and Scores */
+.score-number,
+.latency-display,
+table th,
+table td,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Heading Anchor Scroll Margin & Typography Balance */
+h1, h2, h3, h4, h5, h6 {
+  scroll-margin-top: 2rem;
+  text-wrap: balance;
+}
+
+/* Touch Action Manipulation for Instant Mobile Response */
+button,
+input,
+select,
+textarea,
+.btn,
+.role-select-btn {
+  touch-action: manipulation;
+}
+
+/* Reduced Motion Override Rules */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

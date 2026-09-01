@@ -974,21 +974,21 @@ def serve_login_page() -> HTMLResponse:
       <p style="color: #666;">Enter your institutional credentials to access RBAC features</p>
     </div>
 
-    <div id="alertBox" style="display: none; padding: 0.8rem 1rem; border-radius: 4px; margin-bottom: 1rem;"></div>
+    <div id="alertBox" role="alert" aria-live="polite" style="display: none; padding: 0.8rem 1rem; border-radius: 4px; margin-bottom: 1rem;"></div>
 
     <div class="card" style="background: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; padding: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
       <form id="loginForm">
         <div style="margin-bottom: 1.2rem;">
           <label style="display: block; font-weight: bold; margin-bottom: 0.4rem;" for="username">Username:</label>
-          <input type="text" id="username" name="username" required style="width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+          <input type="text" id="username" name="username" autocomplete="username" spellcheck="false" required aria-label="System Username" style="width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
         </div>
 
         <div style="margin-bottom: 1.5rem;">
           <label style="display: block; font-weight: bold; margin-bottom: 0.4rem;" for="password">Password:</label>
-          <input type="password" id="password" name="password" required style="width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+          <input type="password" id="password" name="password" autocomplete="current-password" required aria-label="System Password" style="width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
         </div>
 
-        <button type="submit" style="width: 100%; background: #0066cc; color: white; padding: 0.8rem; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Sign In</button>
+        <button type="submit" aria-label="Sign In" style="width: 100%; background: #0066cc; color: white; padding: 0.8rem; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Sign In</button>
       </form>
     </div>
   </div>
@@ -1015,7 +1015,7 @@ def serve_login_page() -> HTMLResponse:
           localStorage.setItem('rcf_dac_user', JSON.stringify(data.user));
           alertBox.style.background = '#d4edda';
           alertBox.style.color = '#155724';
-          alertBox.innerText = 'Login successful! HttpOnly session established. Redirecting...';
+          alertBox.innerText = 'Login successful! HttpOnly session established. Redirecting…';
           alertBox.style.display = 'block';
 
           setTimeout(() => {
@@ -1064,7 +1064,7 @@ def serve_user_management_page() -> HTMLResponse:
   <div class="container" style="max-width: 1000px; margin: 2rem auto; padding: 0 1rem;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
       <p style="margin: 0;"><a href="/">&larr; Return to RCF & DAC Homepage</a></p>
-      <button id="logoutBtn" style="background: #6c757d; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: bold;">Sign Out</button>
+      <button id="logoutBtn" aria-label="Sign Out" style="background: #6c757d; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: bold;">Sign Out</button>
     </div>
 
     <div style="text-align: center; margin-bottom: 2rem;">
@@ -1072,7 +1072,7 @@ def serve_user_management_page() -> HTMLResponse:
       <p style="color: #666;">RBAC Controlled Account Administration & Governance Interface</p>
     </div>
 
-    <div id="unauthAlert" style="display: none; background: #f8d7da; color: #721c24; padding: 1.5rem; border-radius: 6px; text-align: center; margin-bottom: 2rem;">
+    <div id="unauthAlert" role="alert" aria-live="polite" style="display: none; background: #f8d7da; color: #721c24; padding: 1.5rem; border-radius: 6px; text-align: center; margin-bottom: 2rem;">
       <h3>⛔ Access Denied</h3>
       <p>This interface is restricted strictly to Administrator and Superuser roles.</p>
       <a href="/login" class="btn" style="background: #0066cc; color: white; padding: 0.6rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 1rem;">Go to Login Page</a>
@@ -1088,11 +1088,11 @@ def serve_user_management_page() -> HTMLResponse:
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
             <div>
               <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="reg-fullname">Full Name & Title</label>
-              <input type="text" id="reg-fullname" value="Prof. Dr. Harisfazillah Jamel" placeholder="e.g. Dr. Jane Doe" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+              <input type="text" id="reg-fullname" name="fullname" autocomplete="name" value="Prof. Dr. Harisfazillah Jamel" placeholder="e.g. Dr. Jane Doe" required aria-label="Full Name & Title" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             </div>
             <div>
               <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="reg-role">Institutional Role</label>
-              <select id="reg-role" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+              <select id="reg-role" name="role" aria-label="Institutional Role" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
                 <option value="Lead Principal Investigator (PI)">Lead Principal Investigator (PI)</option>
                 <option value="Chancellor's Research Chair">Chancellor's Research Chair</option>
                 <option value="Technology Transfer Officer (TTO)">Technology Transfer Officer (TTO)</option>
@@ -1102,17 +1102,17 @@ def serve_user_management_page() -> HTMLResponse:
             </div>
             <div>
               <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="reg-dept">Faculty / CoE</label>
-              <input type="text" id="reg-dept" value="Centre of Excellence in DeepTech & Nanotechnology" placeholder="e.g. Faculty of Engineering" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+              <input type="text" id="reg-dept" name="dept" autocomplete="organization" value="Centre of Excellence in DeepTech & Nanotechnology" placeholder="e.g. Faculty of Engineering" aria-label="Faculty / CoE" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             </div>
             <div>
               <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="reg-email">Institutional Email</label>
-              <input type="email" id="reg-email" value="harisfazillah@university.edu.my" placeholder="email@univ.edu.my" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+              <input type="email" id="reg-email" name="email" autocomplete="email" spellcheck="false" value="harisfazillah@university.edu.my" placeholder="email@univ.edu.my" required aria-label="Institutional Email" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             </div>
           </div>
-          <button type="submit" style="background: #0066cc; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Mint Identity & Register User</button>
+          <button type="submit" aria-label="Mint Identity & Register User" style="background: #0066cc; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Mint Identity & Register User</button>
         </form>
 
-        <div id="user-reg-output" style="display:none; margin-top: 1.5rem;"></div>
+        <div id="user-reg-output" role="status" aria-live="polite" style="display:none; margin-top: 1.5rem;"></div>
       </div>
 
       <div id="module1SuperNotice" class="card" style="background: #fff3cd; border: 1px solid #ffeba2; border-left: 4px solid #ffc107; border-radius: 8px; padding: 1.2rem; margin-bottom: 2rem; display: none;">
@@ -1123,35 +1123,35 @@ def serve_user_management_page() -> HTMLResponse:
       <div class="card" style="background: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
         <h3 id="createUserTitle">➕ Create New System User</h3>
         <p id="createUserRoleNotice" style="color: #6c757d; font-size: 0.9rem; margin-bottom: 1rem;"></p>
-        <div id="createUserAlert" style="display: none; padding: 0.8rem; border-radius: 4px; margin-bottom: 1rem;"></div>
+        <div id="createUserAlert" role="alert" aria-live="polite" style="display: none; padding: 0.8rem; border-radius: 4px; margin-bottom: 1rem;"></div>
         <form id="createUserForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
           <div>
             <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newUsername">Username:</label>
-            <input type="text" id="newUsername" name="username" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            <input type="text" id="newUsername" name="username" autocomplete="username" spellcheck="false" required aria-label="Username" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
           </div>
           <div>
             <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newPassword">Password:</label>
-            <input type="password" id="newPassword" name="password" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            <input type="password" id="newPassword" name="password" autocomplete="new-password" required aria-label="Password" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
           </div>
           <div>
             <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newName">Full Name:</label>
-            <input type="text" id="newName" name="name" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            <input type="text" id="newName" name="name" autocomplete="name" required aria-label="Full Name" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
           </div>
           <div>
             <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newRole">Role:</label>
-            <select id="newRole" name="role" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            <select id="newRole" name="role" required aria-label="Role" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             </select>
           </div>
           <div>
             <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newDept">Department:</label>
-            <input type="text" id="newDept" name="dept" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            <input type="text" id="newDept" name="dept" autocomplete="organization" required aria-label="Department" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
           </div>
           <div>
             <label style="display: block; font-weight: bold; margin-bottom: 0.2rem;" for="newEmail">Email:</label>
-            <input type="email" id="newEmail" name="email" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            <input type="email" id="newEmail" name="email" autocomplete="email" spellcheck="false" required aria-label="Email" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
           </div>
           <div style="grid-column: span 2;">
-            <button type="submit" id="createUserBtn" style="background: #28a745; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Create User Account</button>
+            <button type="submit" id="createUserBtn" aria-label="Create User Account" style="background: #28a745; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Create User Account</button>
           </div>
         </form>
       </div>
@@ -1583,11 +1583,11 @@ def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTM
         </tr>
         <tr>
           <td style="padding: 0.5rem 0;"><strong>Round-Trip Latency:</strong></td>
-          <td style="padding: 0.5rem 0;"><strong>{db_info['latency_ms']} ms</strong> {cache_indicator}</td>
+          <td style="padding: 0.5rem 0;"><strong class="tabular-nums">{db_info['latency_ms']} ms</strong> {cache_indicator}</td>
         </tr>
         <tr>
           <td style="padding: 0.5rem 0;"><strong>Checked Timestamp:</strong></td>
-          <td style="padding: 0.5rem 0;">{db_info['timestamp']}</td>
+          <td style="padding: 0.5rem 0;" class="tabular-nums">{db_info['timestamp']}</td>
         </tr>
       </table>
     </div>
@@ -1610,8 +1610,8 @@ def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTM
     </div>
 
     <div style="text-align: center; margin-top: 2rem; margin-bottom: 3rem;">
-      <a href="/db-status?bypass_cache=true" class="btn" style="background: #0066cc; color: white; padding: 0.8rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">🔄 Re-test Database Connection</a>
-      <a href="/api/db-status" target="_blank" class="btn" style="background: #6c757d; color: white; padding: 0.8rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold; margin-left: 1rem;">View JSON API Endpoint</a>
+      <a href="/db-status?bypass_cache=true" class="btn" aria-label="Re-test Database Connection" style="background: #0066cc; color: white; padding: 0.8rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold;">🔄 Re-test Database Connection</a>
+      <a href="/api/db-status" target="_blank" class="btn" aria-label="View JSON API Endpoint" style="background: #6c757d; color: white; padding: 0.8rem 1.5rem; border-radius: 4px; text-decoration: none; font-weight: bold; margin-left: 1rem;">View JSON API Endpoint</a>
     </div>
   </div>
 </body>

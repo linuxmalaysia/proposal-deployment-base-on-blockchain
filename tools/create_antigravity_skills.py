@@ -728,6 +728,24 @@ Guarantees clean separation of business logic from external frameworks.
 - `src/dca_service/core/` entities must have ZERO third-party library dependencies.
 - Storage drivers, HTTP frameworks, and external APIs must be isolated in `src/dca_service/adapters/`.
 """
+    },
+    {
+        "dir": "web-design-guidelines",
+        "name": "web-design-guidelines",
+        "title": "Vercel Web Interface Guidelines UI Review Skill",
+        "topics": ["web-design-guidelines", "ui-ux", "accessibility", "a11y", "antigravity"],
+        "description": "Review UI code for Web Interface Guidelines compliance, accessibility standards, focus management, forms, typography, and UX principles.",
+        "content": """# Vercel Web Interface Guidelines UI Review Skill
+
+## Overview
+
+Review UI code for Web Interface Guidelines compliance.
+
+## Features
+
+- Evaluates web interfaces against accessibility, focus states, forms, animation, and typography rules.
+- Integrates with Playwright E2E browser automation for dynamic DOM inspection.
+"""
     }
 ]
 
