@@ -147,6 +147,38 @@ class TestRcfDacIndexMarkdown:
         assert f"]({route})" in content
 
 
+class TestRcfDacGuestVisibilityAndLinks:
+    def test_guest_notice_card_in_index_md(self):
+        content = _read(INDEX_MD)
+        assert 'id="guestNoticeCard"' in content
+        assert "Authentication Required for Operational Modules" in content
+
+    def test_js_app_updates_guest_notice_visibility(self):
+        content = _read(JS_APP)
+        assert "document.getElementById('guestNoticeCard')" in content
+        assert "guestNotice.style.display = 'block'" in content
+        assert "guestNotice.style.display = 'none'" in content
+
+    def test_all_links_in_index_md_return_http_200(self):
+        import os
+        from fastapi.testclient import TestClient
+        os.environ.setdefault("INVESTOR_JWT_SECRET", "test_rcf_dac_jwt_secret_key_2026")
+        from dca_service.web_app import app
+
+        client = TestClient(app)
+        res = client.get("/")
+        assert res.status_code == 200
+
+        hrefs = re.findall(r'href=[\"\'](.*?)[\"\']', res.text)
+        assert len(hrefs) > 0, "Expected href links on index page"
+
+        for href in hrefs:
+            if href.startswith("http") or href.startswith("#"):
+                continue
+            r = client.get(href)
+            assert r.status_code == 200, f"Link {href} returned HTTP {r.status_code}"
+
+
 class TestDefaultLayoutAuthenticationNavigation:
     @pytest.mark.parametrize(
         ("route", "top_label", "sidebar_label"),
