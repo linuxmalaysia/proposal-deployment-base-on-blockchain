@@ -45,26 +45,26 @@ Select an institutional stakeholder view below to test registration, asset prove
       <h3>👥 Institutional Role & Module Access Portal</h3>
       <p>All modules require system login. Log in with specific role credentials to access assigned operational modules.</p>
     </div>
-    <div id="portalSessionBanner" style="margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.9rem;">
+    <div id="portalSessionBanner" role="status" aria-live="polite" style="margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.9rem;">
       <!-- Populated by rcf-dac-app.js based on auth session -->
     </div>
     <div class="role-btn-group">
-      <button type="button" class="role-select-btn active" data-role="my-role">👤 My Role Modules</button>
-      <button type="button" class="role-select-btn" data-role="all">🌐 All Modules (Read Filter)</button>
-      <a href="/login" class="role-select-btn" style="background:#0066cc; color:white; text-decoration:none;">🔐 System Login</a>
-      <a href="/user-management" id="btnUserMgmt" class="role-select-btn" style="background:#6c757d; color:white; text-decoration:none; display:none;">👥 User Management</a>
-      <a href="/db-status" class="role-select-btn" style="background:#28a745; color:white; text-decoration:none;">🔌 DB Connection Status</a>
+      <button type="button" class="role-select-btn active" data-role="my-role" aria-label="Show My Role Modules">👤 My Role Modules</button>
+      <button type="button" class="role-select-btn" data-role="all" aria-label="Show All Modules Read Filter">🌐 All Modules (Read Filter)</button>
+      <a href="/login" class="role-select-btn" aria-label="System Login" style="background:#0066cc; color:white; text-decoration:none;">🔐 System Login</a>
+      <a href="/user-management" id="btnUserMgmt" class="role-select-btn" aria-label="User Management Dashboard" style="background:#6c757d; color:white; text-decoration:none; display:none;">👥 User Management</a>
+      <a href="/db-status" class="role-select-btn" aria-label="Database Connection Status" style="background:#28a745; color:white; text-decoration:none;">🔌 DB Connection Status</a>
     </div>
   </div>
 
   <!-- Guest Authentication Required Notice Card -->
-  <div id="guestNoticeCard" class="app-module-card" style="display: none; background: #fff3cd; border: 1px solid #ffeba2; border-left: 4px solid #ffc107; padding: 1.5rem; margin-bottom: 1.5rem;">
+  <div id="guestNoticeCard" role="status" aria-live="polite" class="app-module-card" style="display: none; background: #fff3cd; border: 1px solid #ffeba2; border-left: 4px solid #ffc107; padding: 1.5rem; margin-bottom: 1.5rem;">
     <h3 style="margin-top: 0; color: #856404;">🔒 Authentication Required for Operational Modules</h3>
     <p style="color: #856404; margin-bottom: 1rem;">
       You are currently viewing as a guest. Operational modules (Asset Registration, Cloverleaf Assessment, Investor Data Room, and Revenue Calculator) are restricted to registered users with specific assigned institutional roles.
     </p>
     <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-      <a href="/login" class="btn" style="background: #0066cc; color: white; text-decoration: none; font-weight: bold; padding: 0.5rem 1rem; border-radius: 4px;">🔐 Click Here to Login</a>
+      <a href="/login" class="btn" aria-label="Click Here to Login" style="background: #0066cc; color: white; text-decoration: none; font-weight: bold; padding: 0.5rem 1rem; border-radius: 4px;">🔐 Click Here to Login</a>
       <span style="color: #856404; font-size: 0.9rem;">or select <strong>"🌐 All Modules (Read Filter)"</strong> above to preview module interfaces.</span>
     </div>
   </div>
@@ -78,11 +78,11 @@ Select an institutional stakeholder view below to test registration, asset prove
       <div class="form-grid">
         <div class="form-group">
           <label for="asset-title">Research Project / Prototype Title</label>
-          <input type="text" id="asset-title" value="Graphene-Enhanced Solid State Lithium-Air Battery Cell" required>
+          <input type="text" id="asset-title" name="asset_title" autocomplete="off" value="Graphene-Enhanced Solid State Lithium-Air Battery Cell" required aria-label="Research Project / Prototype Title">
         </div>
         <div class="form-group">
           <label for="asset-trl">Initial Technology Readiness Level (TRL)</label>
-          <select id="asset-trl">
+          <select id="asset-trl" name="asset_trl" aria-label="Initial Technology Readiness Level">
             <option value="1">TRL 1 - Basic Principles Observed</option>
             <option value="2">TRL 2 - Technology Concept Formulated</option>
             <option value="3" selected>TRL 3 - Experimental Proof of Concept (RCF Kickstart Eligible)</option>
@@ -94,17 +94,17 @@ Select an institutional stakeholder view below to test registration, asset prove
         </div>
         <div class="form-group">
           <label for="asset-file">Evidentiary File Upload</label>
-          <input type="file" id="asset-file" required>
+          <input type="file" id="asset-file" name="asset_file" required aria-label="Evidentiary File Upload">
         </div>
       </div>
       <div class="form-group" style="margin-bottom: 1rem;">
         <label for="asset-abstract">Abstract & Scientific Innovation Summary</label>
-        <textarea id="asset-abstract" rows="2">Energy density exceeding 650 Wh/kg with 1,500 cycle life validated under laboratory simulated conditions.</textarea>
+        <textarea id="asset-abstract" name="asset_abstract" rows="2" aria-label="Abstract & Scientific Innovation Summary">Energy density exceeding 650 Wh/kg with 1,500 cycle life validated under laboratory simulated conditions.</textarea>
       </div>
-      <button type="submit" class="btn">Register Asset & Generate SHA-256 Evidence Hash</button>
+      <button type="submit" class="btn" aria-label="Register Asset & Generate SHA-256 Evidence Hash">Register Asset & Generate SHA-256 Evidence Hash</button>
     </form>
 
-    <div id="asset-reg-output" style="display:none;"></div>
+    <div id="asset-reg-output" role="status" aria-live="polite" style="display:none;"></div>
   </div>
 
   <!-- MODULE 3: Cloverleaf Quantitative Scoring Engine -->
@@ -117,7 +117,7 @@ Select an institutional stakeholder view below to test registration, asset prove
         <span>1. Technology Strengths (Max 60 Pts) [Min Target: 42]</span>
         <span id="val-tech">48 / 60</span>
       </div>
-      <input type="range" id="score-tech" class="range-slider" min="0" max="60" value="48">
+      <input type="range" id="score-tech" name="score_tech" class="range-slider" min="0" max="60" value="48" aria-label="Technology Strengths Score">
     </div>
 
     <div class="slider-container">
@@ -125,7 +125,7 @@ Select an institutional stakeholder view below to test registration, asset prove
         <span>2. Market Attractiveness (Max 80 Pts) [Min Target: 55]</span>
         <span id="val-market">65 / 80</span>
       </div>
-      <input type="range" id="score-market" class="range-slider" min="0" max="80" value="65">
+      <input type="range" id="score-market" name="score_market" class="range-slider" min="0" max="80" value="65" aria-label="Market Attractiveness Score">
     </div>
 
     <div class="slider-container">
@@ -133,7 +133,7 @@ Select an institutional stakeholder view below to test registration, asset prove
         <span>3. Commercialisation Avenues (Max 60 Pts) [Min Target: 42]</span>
         <span id="val-comm">46 / 60</span>
       </div>
-      <input type="range" id="score-comm" class="range-slider" min="0" max="60" value="46">
+      <input type="range" id="score-comm" name="score_comm" class="range-slider" min="0" max="60" value="46" aria-label="Commercialisation Avenues Score">
     </div>
 
     <div class="slider-container">
@@ -141,13 +141,13 @@ Select an institutional stakeholder view below to test registration, asset prove
         <span>4. Management & Execution Support (Max 60 Pts) [Min Target: 41]</span>
         <span id="val-mgmt">44 / 60</span>
       </div>
-      <input type="range" id="score-mgmt" class="range-slider" min="0" max="60" value="44">
+      <input type="range" id="score-mgmt" name="score_mgmt" class="range-slider" min="0" max="60" value="44" aria-label="Management & Execution Support Score">
     </div>
 
     <div class="score-display-box">
       <div>COMPOSITE CLOVERLEAF MARKET READINESS SCORE (MRS)</div>
       <div class="score-number" id="total-cloverleaf-score">203 / 260</div>
-      <div id="cloverleaf-status"></div>
+      <div id="cloverleaf-status" role="status" aria-live="polite"></div>
     </div>
   </div>
 
@@ -174,7 +174,7 @@ Select an institutional stakeholder view below to test registration, asset prove
           <td><strong>203 / 260</strong></td>
           <td>Tier 1 PoC Grant (RM 150,000)</td>
           <td><span style="color:#10b981; font-weight:bold;">Cleared for Fund</span></td>
-          <td><button type="button" class="btn" onclick="alert('NDA executed. Opening encrypted data room payload...');">Access Data Room</button></td>
+          <td><button type="button" class="btn" aria-label="Access Data Room" onclick="alert('NDA executed. Opening encrypted data room payload…');">Access Data Room</button></td>
         </tr>
         <tr>
           <td><code>did:univ:asset-4b12c8</code><br>AI Diagnostic Bio-Chip Array</td>
@@ -182,7 +182,7 @@ Select an institutional stakeholder view below to test registration, asset prove
           <td><strong>218 / 260</strong></td>
           <td>Tier 2 Co-Investment VC (RM 2.5M)</td>
           <td><span style="color:#10b981; font-weight:bold;">Cleared for Fund</span></td>
-          <td><button type="button" class="btn" onclick="alert('Term sheet request submitted to RCF Steering Committee.');">Request Term Sheet</button></td>
+          <td><button type="button" class="btn" aria-label="Request Term Sheet" onclick="alert('Term sheet request submitted to RCF Steering Committee.');">Request Term Sheet</button></td>
         </tr>
       </tbody>
     </table>
@@ -196,11 +196,11 @@ Select an institutional stakeholder view below to test registration, asset prove
     <div class="form-grid">
       <div class="form-group">
         <label for="rev-amount">Total Ingested Revenue (MYR)</label>
-        <input type="number" id="rev-amount" value="500000" step="10000">
+        <input type="number" id="rev-amount" name="rev_amount" autocomplete="off" inputmode="decimal" value="500000" step="10000" aria-label="Total Ingested Revenue (MYR)">
       </div>
       <div class="form-group">
         <label for="rev-type">Revenue Stream Type</label>
-        <select id="rev-type">
+        <select id="rev-type" name="rev_type" aria-label="Revenue Stream Type">
           <option value="royalties">Running Patent Royalties (33.3% / 33.3% / 33.4%)</option>
           <option value="licensing" selected>Licensing Milestone Fees (30% / 20% / 30% / 20% RCF)</option>
           <option value="equity">Spin-off Equity IPO Exit (35% / 10% / 25% / 30% RCF)</option>
