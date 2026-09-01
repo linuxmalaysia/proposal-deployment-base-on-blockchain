@@ -24,17 +24,22 @@ name: "fastapi-lifespan-schema-builder"
 # FastAPI Lifespan Automatic Schema Builder Skill
 
 ## Overview
+
 Executes non-destructive schema initialization during FastAPI application startup.
 
 ## Details
+
 - Lifespan context manager: `auto_check_and_build_schema`.
 - Source DDL: `docs/schema.sql`.
 - Fail-safe error handling prevents startup crashes during temporary database outages.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

@@ -24,16 +24,21 @@ name: "fastapi-uvicorn-render-config"
 # FastAPI Web Service Deployment via uv & Uvicorn on Render Skill
 
 ## Overview
+
 Configures web application runtime environment on Render.com.
 
 ## Configuration
+
 - Build command: `uv sync`.
 - Start command: `uv run uvicorn src.dca_service.web_app:app --host 0.0.0.0 --port $PORT`.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

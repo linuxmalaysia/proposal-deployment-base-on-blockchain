@@ -24,9 +24,11 @@ name: "jules-context-memory"
 # Jules Memory Enablement and Context Loading Skill
 
 ## Overview
+
 This skill governs how Google Jules and Google Antigravity persist and restore context from past interaction sessions using `.agents/brain/` spatial memory anchors.
 
 ## Operational Workflow
+
 1. At start-of-day (SOD), read `.agents/brain/task.md`, `.agents/brain/walkthrough.md`, and `.agents/brain/palace_registry.md`.
 2. Extract historical session decisions, active backlog, and repository asset locations.
 3. Inject past context memories into active reasoning prior to taking actions.
@@ -34,8 +36,11 @@ This skill governs how Google Jules and Google Antigravity persist and restore c
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

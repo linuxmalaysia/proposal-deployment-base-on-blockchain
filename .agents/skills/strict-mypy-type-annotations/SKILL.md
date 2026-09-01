@@ -24,17 +24,22 @@ name: "strict-mypy-type-annotations"
 # Strict Mypy Type Annotation Enforcement Skill
 
 ## Overview
-Mandates 100% type annotation coverage using `mypy --strict`.
+
+Mandates 100% type annotation coverage using `uv run mypy --strict src/`.
 
 ## Enforcement Scope
+
 - `src/dca_service/adapters/` (storage and framework adapters).
 - `src/dca_service/web_app.py` (FastAPI application layer).
 - Mandatory use of `from __future__ import annotations` across Python files.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

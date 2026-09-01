@@ -24,16 +24,21 @@ name: "supabase-api-key-parsing"
 # Multi-Format Supabase Environment Key Parsing Skill
 
 ## Overview
+
 Ensures resilient environment key loading in `src/dca_service/web_app.py`.
 
 ## Formats Handled
+
 - Keys: `SUPABASE_SECRET_KEY`, `SUPABASE_SECRET_KEYS`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_PUBLISHABLE_KEYS`.
 - Formats: JSON object, JSON array, and raw plain strings.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

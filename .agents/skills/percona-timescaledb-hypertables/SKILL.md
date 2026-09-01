@@ -24,16 +24,21 @@ name: "percona-timescaledb-hypertables"
 # Percona PostgreSQL & TimescaleDB Hypertables Skill
 
 ## Overview
+
 Optimises transaction log performance using Percona Server for PostgreSQL and TimescaleDB extension.
 
 ## Capabilities
+
 - TimescaleDB hypertables for time-series transaction entries.
 - Automated chunk compression and archiving policies.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

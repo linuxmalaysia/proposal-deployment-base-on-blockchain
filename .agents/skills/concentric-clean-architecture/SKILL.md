@@ -24,16 +24,21 @@ name: "concentric-clean-architecture"
 # Concentric Clean Architecture Inward Dependency Skill
 
 ## Overview
+
 Guarantees clean separation of business logic from external frameworks.
 
 ## Inward Rule
+
 - `src/dca_service/core/` entities must have ZERO third-party library dependencies.
 - Storage drivers, HTTP frameworks, and external APIs must be isolated in `src/dca_service/adapters/`.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

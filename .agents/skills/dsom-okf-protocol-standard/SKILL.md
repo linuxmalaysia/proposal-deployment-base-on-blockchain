@@ -24,9 +24,11 @@ name: "dsom-okf-protocol-standard"
 # DSOM Protocol & OKF v0.2 Frontmatter Standard Skill
 
 ## Overview
-Mandates repository-wide metadata standardization under the Deep State of Mind (DSOM) Protocol.
+
+Mandates repository-wide metadata standardisation under the Deep State of Mind (DSOM) Protocol.
 
 ## 13 Mandatory OKF v0.2 Fields
+
 1. `okf_version`
 2. `type`
 3. `title`
@@ -43,8 +45,11 @@ Mandates repository-wide metadata standardization under the Deep State of Mind (
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

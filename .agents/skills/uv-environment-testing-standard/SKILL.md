@@ -24,17 +24,22 @@ name: "uv-environment-testing-standard"
 # uv Environment & Pytest Execution Standard Skill
 
 ## Overview
+
 Mandates consistent virtual environment management via `uv`.
 
 ## Execution Commands
+
 - Test suite: `uv run pytest`.
 - Python scripts: `uv run python <script.py>`.
 - Zero global mutations or direct system `pip` invocations allowed.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

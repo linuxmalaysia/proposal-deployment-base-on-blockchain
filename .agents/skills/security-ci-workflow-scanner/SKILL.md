@@ -24,16 +24,21 @@ name: "security-ci-workflow-scanner"
 # Automated Security CI Workflow & SAST Skill
 
 ## Overview
+
 Enforces automated static security testing and secret detection in `.github/workflows/security.yml`.
 
 ## Tools
+
 - Bandit: Static Application Security Testing (SAST) for Python.
-- Gitleaks: Scanning repository history for hardcoded secrets and credentials.
+- Gitleaks: Uses `gitleaks/gitleaks-action@v3` with `fetch-depth: 0` to scan repository history for hardcoded secrets.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

@@ -24,9 +24,11 @@ name: "root-markdown-restriction"
 # Root-Level Markdown File Restriction Skill
 
 ## Overview
+
 Enforces strict file organization in the repository root.
 
 ## Allowed Root Files
+
 - `README.md`
 - `CHANGELOG.md`
 - `SUMMARY.md`
@@ -35,8 +37,11 @@ Enforces strict file organization in the repository root.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

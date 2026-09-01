@@ -24,17 +24,22 @@ name: "local-knowledge-first-discovery"
 # Local Knowledge-First & OKF Discovery Skill
 
 ## Overview
+
 Codifies the 3-step local discovery workflow before attempting external web searches or remote calls.
 
 ## Discovery Workflow
+
 1. Query OKF frontmatter (`topics:` and `description:`) in `.agents/brain/` and `docs/`.
 2. Inspect local documentation files for relevant domain knowledge.
 3. Proceed to external web searches or remote server calls only if local knowledge is insufficient.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

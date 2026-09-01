@@ -24,9 +24,11 @@ name: "ddl-schema-definitions"
 # Project SQL DDL Schema Definitions Management Skill
 
 ## Overview
+
 Manages canonical database schema DDL inside `docs/schema.sql`.
 
 ## Schema Entities
+
 - `users`: User profiles, DID references, and role assignments.
 - `assets`: Segregated client digital custody assets.
 - `cloverleaf_scores`: Risk assessment metric tables.
@@ -35,8 +37,11 @@ Manages canonical database schema DDL inside `docs/schema.sql`.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

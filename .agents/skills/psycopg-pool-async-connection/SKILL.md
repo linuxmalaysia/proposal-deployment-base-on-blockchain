@@ -24,17 +24,22 @@ name: "psycopg-pool-async-connection"
 # Async PostgreSQL Connection Pooling via psycopg-pool Skill
 
 ## Overview
+
 Manages `psycopg_pool.AsyncConnectionPool` lifecycle within FastAPI application context.
 
 ## Pattern
+
 - Initialise connection pool during FastAPI startup lifespan.
 - Provide clean shutdown and pool cleanup on application teardown.
 - Monitor checkout latency and connection metrics.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

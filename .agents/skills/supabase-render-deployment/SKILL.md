@@ -24,17 +24,22 @@ name: "supabase-render-deployment"
 # Supabase PostgreSQL Deployment on Render.com Skill
 
 ## Overview
+
 Governs cloud database configuration for Render Web Services.
 
 ## Setup
+
 - Key variables: `DATABASE_URL`, `SUPABASE_PROJECT_REF`, Secret Files (`/etc/secrets/`).
 - Enforce SSL mode: `sslmode=require`.
 - `render.yaml` setting: `sync: false` to prevent accidental key commits.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

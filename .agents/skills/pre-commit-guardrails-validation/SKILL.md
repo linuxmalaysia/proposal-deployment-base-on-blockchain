@@ -24,19 +24,24 @@ name: "pre-commit-guardrails-validation"
 # Pre-Commit Guardrails & OKF Validation Skill
 
 ## Overview
+
 Automates pre-commit quality enforcement via `tools/install_git_guardrails.py`.
 
 ## Validation Suite
+
 1. OKF v0.2 frontmatter validation across Markdown files.
-2. Ruff linting (`ruff check src/`).
-3. Mypy type checking (`mypy src/`).
+2. Ruff linting (`uv run ruff check src/`).
+3. Mypy type checking (`uv run mypy src/`).
 4. Pytest suite execution (`uv run pytest`).
 5. SUMMARY.md auto-generation via `tools/generate_summary.py`.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

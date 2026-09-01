@@ -24,16 +24,21 @@ name: "uk-english-spelling-convention"
 # UK English Spelling & Terminology Sovereignty Skill
 
 ## Overview
+
 Enforces linguistic consistency across all project artifacts.
 
 ## Vocabulary Rules
+
 - Use `-ise` endings (e.g. `initialise`, `prioritise`, `customise`).
 - Use UK spellings (e.g. `segregated`, `synchronise`, `behaviour`).
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

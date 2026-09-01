@@ -24,16 +24,21 @@ name: "render-free-tier-setup"
 # Render.com Free Tier Manual Step-by-Step Setup Skill
 
 ## Overview
+
 Navigates platform limitations when deploying under Render Free tier.
 
 ## Instructions
+
 - Use manual Web Service creation instead of automated Blueprint auto-sync.
 - Attach required environment variables manually in Render Dashboard.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

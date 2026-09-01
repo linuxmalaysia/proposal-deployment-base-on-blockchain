@@ -24,17 +24,22 @@ name: "environment-secrets-hygiene"
 # Strict Environment Secrets & Credentials Protection Skill
 
 ## Overview
+
 Guarantees sensitive keys are sanitized across all outputs and documentation.
 
 ## Guidelines
+
 - Never print or render production keys.
 - Use generic placeholders (e.g. `sb_sk_placeholder_123`) in tests and examples.
 - Exclude secret files via `.gitignore`.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

@@ -24,17 +24,22 @@ name: "user-registration-did-minting"
 # User Registration & W3C DID Minting Control Skill
 
 ## Overview
+
 Governs user registration and decentralised identifier (DID) minting permissions.
 
 ## Access Rules
+
 - W3C DID minting (`/api/register-user`) is strictly restricted to the `admin` role.
 - For account creation (`/api/users`), `admin` can create any role EXCEPT `superuser`.
 - The `superuser` role can ONLY create `admin` accounts.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

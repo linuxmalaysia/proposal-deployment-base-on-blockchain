@@ -8,7 +8,7 @@ topics:
   - "authorization"
   - "security"
   - "rbac"
-description: "Implement least privilege, deny by default, IDOR prevention, and W3C DID cryptographic verification."
+description: "Implement least privilege, deny by default, server-side object-level authorization, and W3C DID verification."
 resource: "file:///.agents/skills/owasp-authorization-architecture/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
@@ -24,17 +24,22 @@ name: "owasp-authorization-architecture"
 # OWASP Authorization Cheat Sheet Principles Skill
 
 ## Overview
+
 Enforces OWASP authorization standards across the system.
 
 ## Principles
+
 - Least privilege & deny by default.
-- IDOR prevention via W3C DIDs and cryptographic hashing.
+- Require server-side object-level authorization for every object request, retaining W3C DIDs and cryptographic hashing for identity and integrity controls.
 - Stateless JWT verification and fine-grained ABAC/ReBAC policies.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

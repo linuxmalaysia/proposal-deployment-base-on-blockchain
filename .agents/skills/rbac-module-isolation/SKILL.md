@@ -24,9 +24,11 @@ name: "rbac-module-isolation"
 # Strict RBAC and Operational Module Isolation Skill
 
 ## Overview
+
 Defines role boundaries and module access isolation policies in `src/dca_service/web_app.py` and `docs/role_module_permissions.json`.
 
 ## Core Rules
+
 - Admin and Superuser roles are strictly forbidden from accessing operational modules (Modules 2-5).
 - Operational endpoints require active authentication.
 - Auditor role is granted read-only access to operational modules.
@@ -34,8 +36,11 @@ Defines role boundaries and module access isolation policies in `src/dca_service
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

@@ -24,16 +24,21 @@ name: "jekyll-baseurl-relative-links"
 # Jekyll Liquid Relative URL & Baseurl Resolution Skill
 
 ## Overview
+
 Ensures documentation assets and navigation links render correctly under subpath deployments.
 
 ## Rule
+
 - Always format internal links and asset tags with `| relative_url`.
 - Maintain `baseurl` configuration in `_config.yml`.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

@@ -24,16 +24,21 @@ name: "db-connection-pool-metrics"
 # Database Connection Pool Metrics & Checkout Monitoring Skill
 
 ## Overview
+
 Monitors PostgreSQL database connection pool health and performance.
 
 ## Implementation
+
 - Track metrics using `ConnectionPoolMetrics` in `src/dca_service/web_app.py`.
 - Expose realtime telemetry via `/api/db-pool-metrics`.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

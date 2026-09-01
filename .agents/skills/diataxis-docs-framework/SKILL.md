@@ -24,9 +24,11 @@ name: "diataxis-docs-framework"
 # DiÁtaxis Documentation Framework Adherence Skill
 
 ## Overview
+
 Ensures all system documentation inside `docs/` conforms to the DiÁtaxis framework structure.
 
 ## Directory Structure
+
 - `docs/tutorials/`: Step-by-step learning-oriented guides.
 - `docs/how-to/`: Task-oriented step-by-step instructions.
 - `docs/reference/`: Technical information and API specifications.
@@ -34,8 +36,11 @@ Ensures all system documentation inside `docs/` conforms to the DiÁtaxis framew
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

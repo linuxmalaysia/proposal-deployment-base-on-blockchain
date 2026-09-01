@@ -24,16 +24,21 @@ name: "playwright-e2e-testing"
 # Playwright End-to-End Browser Automation Skill
 
 ## Overview
+
 Manages headless browser test automation for web portal workflows.
 
 ## Features
+
 - E2E tests configured in `tests/test_playwright_e2e.py`.
 - Automates login forms, HttpOnly cookie validation, user registration, and dashboard rendering.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

@@ -24,9 +24,11 @@ name: "multi-platform-docs-deployment"
 # Multi-Platform Documentation Build & Deployment Skill
 
 ## Overview
+
 Supports cross-platform documentation builds and hosting.
 
 ## Target Configurations
+
 - GitHub Pages: `.github/workflows/jekyll-gh-pages.yml`.
 - GitLab Pages: `.gitlab-ci.yml`.
 - GitBook: `.gitbook.yaml`.
@@ -34,8 +36,11 @@ Supports cross-platform documentation builds and hosting.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---

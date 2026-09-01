@@ -8,7 +8,7 @@ topics:
   - "generate-summary"
   - "indexing"
   - "documentation"
-description: "Automatically scan .md files to build and update SUMMARY.md using tools/generate_summary.py."
+description: "Automatically scan docs/ and root ledgers to build and update SUMMARY.md using tools/generate_summary.py."
 resource: "file:///.agents/skills/summary-index-auto-generation/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
@@ -24,16 +24,21 @@ name: "summary-index-auto-generation"
 # Documentation Summary Index Auto-Generation Skill
 
 ## Overview
+
 Maintains automated documentation routing and table of contents.
 
 ## Tool
+
 - Script: `tools/generate_summary.py`.
-- Function: Scans `docs/` and root Markdown files to re-index `SUMMARY.md`.
+- Function: Scans `docs/` and root-level Markdown ledgers to re-index `SUMMARY.md`.
 
 
 ---
+
 ### Deep State of Mind (DSOM) AI Protocol Compliance
+
 * **Protocol Standard:** DSOM AI Protocol v2.4 & OKF v0.2 Specification
 * **Linguistic Standard:** UK English (`initialise`, `prioritise`, `segregated`)
 * **Execution Boundary:** Google Antigravity & Google Jules Synchronised Knowledge Matrix
+
 ---
