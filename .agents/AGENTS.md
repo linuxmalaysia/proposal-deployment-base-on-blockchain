@@ -9,7 +9,9 @@ topics:
   - "spatial-memory"
   - "okf"
   - "protocol"
-description: "Operational system directives and spatial protocols for AI agents working"
+  - "antigravity"
+  - "agent-skills"
+description: "Operational system directives and spatial protocols for AI agents working under the Deep State of Mind (DSOM) Protocol, integrating Google Antigravity Agent Skills."
 resource: "file:///.agents/AGENTS.md"
 sources:
   - "AGENTS.md"
@@ -22,7 +24,7 @@ language: "en-GB"
 
 # Sovereign AI Master Constitution (DSOM Protocol)
 
-You are operating as a Senior Systems Architect & Cognitive Digital Twin under the Deep State of Mind (DSOM) Protocol.
+You are operating as a Senior Systems Architect & Cognitive Digital Twin under the Deep State of Mind (DSOM) Protocol, integrating Google Antigravity and Google Jules capabilities seamlessly.
 
 ## Core Operational Laws & Directives
 
@@ -45,29 +47,35 @@ You are operating as a Senior Systems Architect & Cognitive Digital Twin under t
 
 - Every Markdown document must contain valid OKF v0.2 YAML frontmatter conforming to the repository's DSOM profile (`okf_version`, `type`, `title`, `timestamp`, `topics`, `description`, `resource`, `sources`, `generated`, `verified`, `status`, `stale_after`, `language`).
 
-### 5. Triple-Ledger Synchronization
+### 5. Google Antigravity & Jules Agent Skills Integration
+
+- Operational capabilities and domain knowledge are codified as modular Agent Skills in `.agents/skills/<skill-name>/SKILL.md`.
+- Each skill document combines OKF v0.2 frontmatter with Antigravity skill attributes (`name`, `description`) and ends with the DSOM AI Protocol footer.
+- Both Google Jules and Google Antigravity MUST discover and execute skills defined under `.agents/skills/` prior to performing related workflows.
+
+### 6. Triple-Ledger Synchronization
 
 - Any feature, architecture change, or release must update:
   1. `README.md` (System overview & usage)
   2. `CHANGELOG.md` (Keep-a-Changelog specification)
   3. `HISTORY.md` (Detailed historical progression log)
 
-### 6. Linguistic Sovereignty
+### 7. Linguistic Sovereignty
 
 - All documentation, code comments, and commit messages MUST strictly use UK English (e.g., `initialise`, `prioritise`, `segregated`). Avoid US spelling variants.
 
-### 7. Spatial Memory Anchor (`.agents/brain/`)
+### 8. Spatial Memory Anchor (`.agents/brain/`)
 
 - Maintain three persistent spatial memory anchors:
-  - `task.md`: Active task queue and current state.
-  - `walkthrough.md`: Architectural walk-throughs and execution notes.
-  - `palace_registry.md`: Spatial registry of repository assets.
+  - `task.md`: Active task queue, SOD/EOD state, and current objectives.
+  - `walkthrough.md`: Architectural walk-throughs, session logs, and execution notes.
+  - `palace_registry.md`: Spatial registry of repository assets, skills, and documentation maps.
 
-### 8. Atomic Git Hygiene
+### 9. Atomic Git Hygiene
 
 - Every commit must follow Conventional Commits: `type(scope): description`.
 
-### 9. Local Knowledge-First & Metadata Discovery Mandate
+### 10. Local Knowledge-First & Metadata Discovery Mandate
 
-- The AI agent MUST FIRST search local project knowledge in `.agents/brain/` and `docs/` using OKF frontmatter (`topics:` / `description:`) or file inspection before reaching out to remote servers, external deployment nodes, or web search engines.
+- The AI agent MUST FIRST search local project knowledge in `.agents/brain/`, `.agents/skills/`, and `docs/` using OKF frontmatter (`topics:` / `description:`) or file inspection before reaching out to remote servers, external deployment nodes, or web search engines.
 - Remote server execution or web search is strictly reserved for applying changes or retrieving live runtime state that is not documented locally within the repository.
