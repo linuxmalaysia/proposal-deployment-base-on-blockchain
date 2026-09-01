@@ -2,8 +2,20 @@
 okf_version: "0.2"
 type: "summary"
 title: "Documentation Index & Navigation Summary"
-created: "2026-08-25"
-status: "verified"
+timestamp: "2026-09-01T04:34:15Z"
+topics:
+  - "summary"
+  - "index"
+  - "navigation"
+  - "docs"
+description: "Dynamically generated repository documentation index and navigation map."
+resource: "file:///SUMMARY.md"
+sources:
+  - "README.md"
+generated: "generate_summary.py"
+verified: true
+status: "approved"
+stale_after: "2027-09-01T04:34:15Z"
 language: "en-GB"
 ---
 
@@ -42,6 +54,7 @@ language: "en-GB"
 * [Deploying the RCF & DAC Interactive Web Application on Render.com](docs/how-to/deploy-rcf-dac-web-app-on-render.md)
 * [How-To: Install and Configure Repository Guardrails and Documentation Tools](docs/how-to/install-and-configure-guardrails.md)
 * [How to Reset Superuser Password via Environment Configuration & Create Initial Admin Users](docs/how-to/reset-superuser-password-and-manage-users.md)
+* [SOP: Local Knowledge-First Discovery & Context Preservation Protocol](docs/how-to/sop-knowledge-first-discovery.md)
 
 ### Reference
 

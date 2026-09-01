@@ -55,3 +55,10 @@ language: "en-GB"
 - Extended Playwright E2E browser tests in `tests/test_playwright_e2e.py` to automate full login form submission, HttpOnly session cookie handling, administrative user creation, table rendering, and logout workflow under headless CI.
 - Authored Diátaxis explanation guide `docs/explanation/httponly-cookies-and-connection-pooling.md` conforming to OKF v0.2 frontmatter with all 13 mandatory fields.
 - Updated triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and regenerated `SUMMARY.md`.
+
+## Session Log: 2026-08-30 (Local Knowledge-First Discovery & OKF Context Protocol)
+
+- Codified Rule 9 (Local Knowledge-First & Metadata Discovery Mandate) in `.agents/AGENTS.md` and updated root AI Gateway `AGENTS.md`.
+- Authored Standard Operating Procedure `docs/how-to/sop-knowledge-first-discovery.md` documenting the 3-step local OKF frontmatter search flow (`topics:` / `description:`) before remote execution or web search.
+- Updated Spatial Memory Palace anchors (`task.md`, `walkthrough.md`, `palace_registry.md`) to sync agent context.
+- Updated triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) using UK English spelling conventions and regenerated `SUMMARY.md`.

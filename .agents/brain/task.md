@@ -48,6 +48,9 @@ language: "en-GB"
 - [x] Enforce strict type annotations across core domain modules in `src/dca_service/core/` and update `.gitignore` exclusions.
 - [x] Extend Playwright E2E browser test suite (`tests/test_playwright_e2e.py`) to automate full login form submission, HttpOnly JWT token session handling, administrative user creation, and logout workflows.
 - [x] Author Diátaxis explanation guide (`docs/explanation/httponly-cookies-and-connection-pooling.md`) conforming to OKF v0.2 frontmatter with all 13 mandatory fields.
+- [x] Codify Local Knowledge-First & Metadata Discovery Mandate in `.agents/AGENTS.md` and `AGENTS.md`.
+- [x] Author SOP guide `docs/how-to/sop-knowledge-first-discovery.md` detailing the 3-step local discovery flow and OKF context preservation rules.
+- [x] Update spatial memory anchors (`.agents/brain/task.md`, `.agents/brain/walkthrough.md`, `.agents/brain/palace_registry.md`).
 - [x] Update triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and regenerate `SUMMARY.md`.
 
 ### Pending Tasks

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import os
 import sys
 from types import SimpleNamespace
+from typing import Any, Callable
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -51,6 +53,14 @@ def install_fake_async_pool(
     )
 
 
+def run_in_thread(coro_fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    """Execute an async coroutine function in an isolated background thread."""
+    def runner() -> Any:
+        return asyncio.run(coro_fn(*args, **kwargs))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(runner).result()
+
+
 def test_init_async_pool_opens_explicit_database_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -62,7 +72,7 @@ def test_init_async_pool_opens_explicit_database_url(
     monkeypatch.setenv("SUPABASE_POOLER_HOST", "ignored.example")
     monkeypatch.setattr(web_app.DB_POOL_METRICS, "max_pool_size", 7)
 
-    result = asyncio.run(web_app.init_async_connection_pool())
+    result = run_in_thread(web_app.init_async_connection_pool)
 
     assert result is pool
     assert web_app.ASYNC_DB_POOL is pool
@@ -87,7 +97,7 @@ def test_init_async_pool_builds_url_from_supabase_configuration(
     monkeypatch.setenv("SUPABASE_URL", "https://project-ref.supabase.co")
     monkeypatch.setenv("SUPABASE_DB_PASSWORD", "p@ss word/+")
 
-    result = asyncio.run(web_app.init_async_connection_pool())
+    result = run_in_thread(web_app.init_async_connection_pool)
 
     assert result is pool
     assert pool_factory.call_args.kwargs["conninfo"] == (
@@ -119,7 +129,7 @@ def test_init_async_pool_skips_missing_or_partial_configuration(
     for key, value in configured_values.items():
         monkeypatch.setenv(key, value)
 
-    result = asyncio.run(web_app.init_async_connection_pool())
+    result = run_in_thread(web_app.init_async_connection_pool)
 
     assert result is None
     assert web_app.ASYNC_DB_POOL is None
@@ -139,7 +149,7 @@ def test_init_async_pool_fails_safely_when_opening_raises(
     monkeypatch.setenv("DATABASE_URL", "postgresql://configured.example/app")
     web_app.ASYNC_DB_POOL = object()
 
-    result = asyncio.run(web_app.init_async_connection_pool())
+    result = run_in_thread(web_app.init_async_connection_pool)
 
     assert result is None
     assert web_app.ASYNC_DB_POOL is None
@@ -152,7 +162,7 @@ def test_close_async_pool_always_clears_global_reference(close_error: Exception 
     pool = SimpleNamespace(close=AsyncMock(side_effect=close_error))
     web_app.ASYNC_DB_POOL = pool
 
-    asyncio.run(web_app.close_async_connection_pool())
+    run_in_thread(web_app.close_async_connection_pool)
 
     pool.close.assert_awaited_once_with()
     assert web_app.ASYNC_DB_POOL is None
@@ -181,7 +191,7 @@ def test_lifespan_initialises_and_closes_pool_around_application_use(
         async with web_app.lifespan(web_app.app):
             events.append("serve")
 
-    asyncio.run(exercise_lifespan())
+    run_in_thread(exercise_lifespan)
 
     assert events == ["initialise", "serve", "close"]
 

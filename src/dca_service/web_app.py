@@ -493,7 +493,7 @@ async def rate_limit_middleware(request: Request, call_next: Any) -> Any:
     Apply request-rate limits to authentication and user-management endpoints.
     
     Returns:
-    	Response from the downstream handler, or an HTTP 429 response when the client exceeds 10 requests within 60 seconds.
+        Response from the downstream handler, or an HTTP 429 response when the client exceeds 10 requests within 60 seconds.
     """
     rate_limited_paths = ["/api/login", "/api/users"]
     if any(request.url.path.startswith(p) for p in rate_limited_paths):

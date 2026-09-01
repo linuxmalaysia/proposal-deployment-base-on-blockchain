@@ -42,3 +42,5 @@ language: "en-GB"
 - Enforced strict type annotations and future annotations across all core domain entities in `src/dca_service/core/` and updated `.gitignore` exclusions for test/cache artifacts.
 - Extended Playwright end-to-end browser automation test suite (`tests/test_playwright_e2e.py`) to automate full login form submission, HttpOnly session cookie handling, administrative user creation, table rendering, and logout workflow under headless CI.
 - Authored Diátaxis explanation guide (`docs/explanation/httponly-cookies-and-connection-pooling.md`) conforming to OKF v0.2 frontmatter with all 13 mandatory fields.
+- Codified Rule 9 (Local Knowledge-First & Metadata Discovery Mandate) in `.agents/AGENTS.md` and updated root AI Gateway `AGENTS.md`.
+- Authored Standard Operating Procedure `docs/how-to/sop-knowledge-first-discovery.md` documenting the 3-step local OKF frontmatter search flow (`topics:` / `description:`) before remote execution or web search.

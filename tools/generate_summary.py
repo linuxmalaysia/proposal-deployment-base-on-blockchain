@@ -5,10 +5,19 @@ Scans all documentation Markdown files under docs/ and root-level ledgers,
 generating/updating SUMMARY.md with OKF v0.2 frontmatter.
 """
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 def get_markdown_title(file_path: Path) -> str:
-    """Extract title from OKF frontmatter or first Markdown heading."""
+    """
+    Extract a Markdown document's title from its OKF frontmatter or first level-one heading.
+    
+    Parameters:
+        file_path (Path): Path to the Markdown file.
+    
+    Returns:
+        str: The extracted title, or a title derived from the filename when no title is found or the file cannot be read.
+    """
     try:
         content = file_path.read_text(encoding="utf-8")
     except Exception:
@@ -36,8 +45,24 @@ def get_markdown_title(file_path: Path) -> str:
 
     return file_path.stem.replace("-", " ").title()
 
-def generate_summary() -> None:
-    """Generate SUMMARY.md index file."""
+def generate_summary(gen_datetime: datetime | None = None) -> None:
+    """
+    Generate the repository's SUMMARY.md documentation index with OKF v0.2 YAML frontmatter.
+    
+    Parameters:
+        gen_datetime (datetime | None): Datetime used for the summary timestamp and one-year expiration date. Defaults to the current UTC time.
+    
+    """
+    if gen_datetime is None:
+        gen_datetime = datetime.now(UTC)
+
+    timestamp_str = gen_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        stale_dt = gen_datetime.replace(year=gen_datetime.year + 1)
+    except ValueError:
+        stale_dt = gen_datetime.replace(year=gen_datetime.year + 1, day=28)
+    stale_after_str = stale_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
     repo_root = Path(__file__).parent.parent
     summary_path = repo_root / "SUMMARY.md"
 
@@ -53,8 +78,20 @@ def generate_summary() -> None:
         'okf_version: "0.2"',
         'type: "summary"',
         'title: "Documentation Index & Navigation Summary"',
-        'created: "2026-08-25"',
-        'status: "verified"',
+        f'timestamp: "{timestamp_str}"',
+        "topics:",
+        '  - "summary"',
+        '  - "index"',
+        '  - "navigation"',
+        '  - "docs"',
+        'description: "Dynamically generated repository documentation index and navigation map."',
+        'resource: "file:///SUMMARY.md"',
+        "sources:",
+        '  - "README.md"',
+        'generated: "generate_summary.py"',
+        "verified: true",
+        'status: "approved"',
+        f'stale_after: "{stale_after_str}"',
         'language: "en-GB"',
         "---",
         "",

@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Local Knowledge-First & Metadata Discovery Mandate in `.agents/AGENTS.md` and root `AGENTS.md` requiring AI agents to query local OKF metadata in `.agents/brain/` and `docs/` before remote server or external web queries.
+- Standard Operating Procedure guide (`docs/how-to/sop-knowledge-first-discovery.md`) detailing the 3-step local discovery flow and OKF context preservation rules.
 - `HttpOnly`, `SameSite="lax"`, `Secure` cookies for browser session handling on `/api/login` and `/api/logout` endpoint in `src/dca_service/web_app.py`.
 - Session cookie extraction support in `extract_current_user_payload` alongside `Authorization: Bearer` headers.
 - Connection pooling metrics monitoring (`ConnectionPoolMetrics`) for Supabase / PostgreSQL tracking acquisition latency, pool utilization, and query counts, exposed via `/api/db-pool-metrics` and integrated into `/api/db-status`.
