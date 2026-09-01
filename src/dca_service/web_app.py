@@ -957,7 +957,12 @@ def logout_endpoint(
 
 @app.get("/login", response_class=HTMLResponse)
 def serve_login_page() -> HTMLResponse:
-    """Serve interactive user login HTML page."""
+    """
+    Serve the interactive system login page.
+    
+    Returns:
+        HTMLResponse: The rendered login page.
+    """
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -1049,9 +1054,12 @@ def serve_login_page() -> HTMLResponse:
 @app.get("/user-management", response_class=HTMLResponse)
 def serve_user_management_page() -> HTMLResponse:
     """
-    Render the interactive user-management dashboard.
+    Render the role-protected interactive user-management dashboard.
     
-    The page provides role-protected account administration, user listing, password resets, logout, and browser-based DID registration.
+    The dashboard supports user listing, account creation, password resets, logout, and browser-based DID registration.
+    
+    Returns:
+    	HTMLResponse: The rendered user-management dashboard.
     """
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
