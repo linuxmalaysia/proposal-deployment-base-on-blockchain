@@ -1161,7 +1161,7 @@ def serve_user_management_page() -> HTMLResponse:
       const form = document.getElementById('user-reg-form');
       if (!form) return;
 
-      form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const name = document.getElementById('reg-fullname').value.trim() || 'Dr. Aris Roslan';
@@ -1169,12 +1169,28 @@ def serve_user_management_page() -> HTMLResponse:
         const dept = document.getElementById('reg-dept').value.trim() || 'Faculty of Engineering & Innovation';
         const email = document.getElementById('reg-email').value.trim() || 'aris@university.edu.my';
 
-        const hashSeed = `${name}-${role}-${dept}-${Date.now()}`;
-        const did = `did:univ:${simpleHash(hashSeed).substring(0, 16)}`;
+      const token = localStorage.getItem('rcf_dac_jwt');
 
-        const userRecord = { name, role, dept, email, did, timestamp: new Date().toISOString() };
+      try {
+        const resp = await fetch('/api/register-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ name, role, dept, email })
+        });
+
+        const resData = await resp.json();
+
+        if (!resp.ok) {
+          alert(`Registration Error (${resp.status}): ${resData.detail || 'Access denied.'}`);
+          return;
+        }
+
+        const userRecord = resData.user;
         let savedSuccessfully = false;
-
         try {
           localStorage.setItem('rcf_dac_user_registration', JSON.stringify(userRecord));
           savedSuccessfully = true;
@@ -1184,6 +1200,9 @@ def serve_user_management_page() -> HTMLResponse:
         }
 
         renderRegistrationResult(userRecord, savedSuccessfully);
+        } catch (err) {
+        alert(`Network error during DID registration: ${err}`);
+        }
       });
     }
 
@@ -1249,8 +1268,12 @@ def serve_user_management_page() -> HTMLResponse:
       const token = localStorage.getItem('rcf_dac_jwt');
       const unauthAlert = document.getElementById('unauthAlert');
       const adminContent = document.getElementById('adminContent');
-      const userObjStr = localStorage.getItem('rcf_dac_user');
-      let currentUser = userObjStr ? JSON.parse(userObjStr) : null;
+      const module1Card = document.getElementById('module1Card');
+      const module1SuperNotice = document.getElementById('module1SuperNotice');
+      const newRoleSelect = document.getElementById('newRole');
+      const createUserRoleNotice = document.getElementById('createUserRoleNotice');
+
+      if (module1Card) module1Card.style.display = 'none';
 
       try {
         const resp = await fetch('/api/users', {
@@ -1268,14 +1291,9 @@ def serve_user_management_page() -> HTMLResponse:
         adminContent.style.display = 'block';
         unauthAlert.style.display = 'none';
 
-        const module1Card = document.getElementById('module1Card');
-        const module1SuperNotice = document.getElementById('module1SuperNotice');
-        const newRoleSelect = document.getElementById('newRole');
-        const createUserRoleNotice = document.getElementById('createUserRoleNotice');
+        const callerRole = data.caller_role || 'admin';
 
-        const userRole = currentUser ? currentUser.role : 'admin';
-
-        if (userRole === 'admin') {
+        if (callerRole === 'admin') {
           if (module1Card) module1Card.style.display = 'block';
           if (module1SuperNotice) module1SuperNotice.style.display = 'none';
           if (createUserRoleNotice) createUserRoleNotice.innerText = 'As Admin, you can create user accounts for any operational role (operator, auditor, investor) or additional Admin accounts, but NOT Superuser.';
@@ -1287,7 +1305,7 @@ def serve_user_management_page() -> HTMLResponse:
               <option value="investor">investor</option>
             `;
           }
-        } else if (userRole === 'superuser') {
+        } else if (callerRole === 'superuser') {
           if (module1Card) module1Card.style.display = 'none';
           if (module1SuperNotice) module1SuperNotice.style.display = 'block';
           if (createUserRoleNotice) createUserRoleNotice.innerText = 'SECURITY RESTRICTION: As Superuser, you can ONLY create user accounts with "admin" role. Superuser cannot create any other role.';
@@ -1970,6 +1988,7 @@ def list_system_users(
         "users": users_list,
         "total": len(users_list),
         "requested_by": payload.get("sub"),
+        "caller_role": role,
     }
 
 

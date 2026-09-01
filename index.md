@@ -52,7 +52,7 @@ Select an institutional stakeholder view below to test registration, asset prove
       <button type="button" class="role-select-btn active" data-role="my-role">👤 My Role Modules</button>
       <button type="button" class="role-select-btn" data-role="all">🌐 All Modules (Read Filter)</button>
       <a href="/login" class="role-select-btn" style="background:#0066cc; color:white; text-decoration:none;">🔐 System Login</a>
-      <a href="/user-management" class="role-select-btn" style="background:#6c757d; color:white; text-decoration:none;">👥 User Management</a>
+      <a href="/user-management" id="btnUserMgmt" class="role-select-btn" style="background:#6c757d; color:white; text-decoration:none; display:none;">👥 User Management</a>
       <a href="/db-status" class="role-select-btn" style="background:#28a745; color:white; text-decoration:none;">🔌 DB Connection Status</a>
     </div>
   </div>

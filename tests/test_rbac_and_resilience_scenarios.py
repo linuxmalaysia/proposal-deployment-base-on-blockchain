@@ -19,7 +19,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
-os.environ["INVESTOR_JWT_SECRET"] = TEST_JWT_SECRET.decode()
 
 from fastapi.testclient import TestClient
 from dca_service.web_app import (
@@ -28,6 +27,7 @@ from dca_service.web_app import (
     EXPECTED_ISSUER,
     INVESTOR_JWT_SECRET,
     RATE_LIMIT_BUCKETS,
+    ROLE_MODULE_PERMISSIONS,
     app,
     base64url_encode,
     check_database_connection,
@@ -41,17 +41,19 @@ client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
-def isolate_account_registry():
+def isolate_account_registry(monkeypatch):
     """
-    Isolate account and rate-limit state for each test.
-    
-    Restores the account registry after the test and clears rate-limit buckets before and after it runs.
+    Isolate account, environment, role module permissions, and rate-limit state for each test.
     """
-    original = copy.deepcopy(ACCOUNT_REGISTRY)
+    monkeypatch.setenv("INVESTOR_JWT_SECRET", TEST_JWT_SECRET.decode())
+    original_accounts = copy.deepcopy(ACCOUNT_REGISTRY)
+    original_permissions = copy.deepcopy(ROLE_MODULE_PERMISSIONS)
     RATE_LIMIT_BUCKETS.clear()
     yield
     ACCOUNT_REGISTRY.clear()
-    ACCOUNT_REGISTRY.update(original)
+    ACCOUNT_REGISTRY.update(original_accounts)
+    ROLE_MODULE_PERMISSIONS.clear()
+    ROLE_MODULE_PERMISSIONS.update(original_permissions)
     RATE_LIMIT_BUCKETS.clear()
 
 

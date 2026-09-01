@@ -62,16 +62,21 @@ function initRoleSwitcher() {
         if (selectedRole === 'all') {
           view.style.display = 'block';
         } else if (selectedRole === 'my-role') {
-          if (!currentUser) {
-            view.style.display = 'block';
-          } else if (currentUser.role === 'operator' && viewRole === 'researcher') {
-            view.style.display = 'block';
-          } else if (currentUser.role === 'investor' && viewRole === 'investor') {
-            view.style.display = 'block';
-          } else if (currentUser.role === 'admin' && viewRole === 'admin') {
+          if (!currentUser || !currentUser.role) {
             view.style.display = 'block';
           } else {
-            view.style.display = 'none';
+            const role = currentUser.role.toLowerCase();
+            if (role === 'admin' || role === 'superuser') {
+              view.style.display = 'none';
+            } else if (role === 'auditor') {
+              view.style.display = 'block';
+            } else if (role === 'operator' && (viewRole === 'researcher' || viewRole === 'admin')) {
+              view.style.display = 'block';
+            } else if (role === 'investor' && viewRole === 'investor') {
+              view.style.display = 'block';
+            } else {
+              view.style.display = 'none';
+            }
           }
         } else if (viewRole === selectedRole) {
           view.style.display = 'block';
@@ -220,6 +225,13 @@ function initAssetForm() {
 
     const token = localStorage.getItem('rcf_dac_jwt');
 
+    let base64Content = "";
+    const bytes = new Uint8Array(bytesBuffer);
+    for (let i = 0; i < bytes.byteLength; i++) {
+      base64Content += String.fromCharCode(bytes[i]);
+    }
+    base64Content = btoa(base64Content);
+
     try {
       const resp = await fetch('/api/register-asset', {
         method: 'POST',
@@ -232,7 +244,9 @@ function initAssetForm() {
           title: title,
           trl: trl,
           abstract: abstract,
-          file_name: fileRef
+          file_name: fileRef,
+          file_content: base64Content,
+          content_encoding: "base64"
         })
       });
 
