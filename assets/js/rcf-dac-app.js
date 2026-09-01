@@ -15,9 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSavedAssets();
 });
 
-/**
- * Initializes session status display, role-based controls, and role panel switching.
- */
+/* -------------------------------------------------------------------------
+   1. Session Check & Role Switcher Logic
+   ------------------------------------------------------------------------- */
 function initRoleSwitcher() {
   const roleButtons = document.querySelectorAll('.role-select-btn');
   const roleViews = document.querySelectorAll('.role-view-panel');
@@ -197,12 +197,6 @@ function getSavedAssetCollection() {
   return {};
 }
 
-/**
- * Initializes the asset registration form and handles evidence submission.
- *
- * Registers asset metadata with the server, computes the evidence file's SHA-256 digest,
- * stores the returned asset record locally, and updates the asset collection display.
- */
 function initAssetForm() {
   const form = document.getElementById('asset-reg-form');
   if (!form) return;

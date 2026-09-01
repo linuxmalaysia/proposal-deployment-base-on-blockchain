@@ -88,7 +88,12 @@ INVESTOR_JWT_SECRET = _jwt_secret_env.encode()
 EXPECTED_ISSUER = "https://auth.rcf-dac.univ.edu.my"
 EXPECTED_AUDIENCE = "rcf-dac-data-room"
 
-# Module Access Control Mapping
+# Shared system-role allowlist
+SYSTEM_ROLES = {"admin", "superuser", "operator", "auditor", "investor", "user"}
+
+# Module Access Control Mapping & Persistence
+PERMISSIONS_FILE = BASE_DIR / "docs" / "role_module_permissions.json"
+
 DEFAULT_MODULE_PERMISSIONS: dict[str, list[str]] = {
     "module_1": ["admin"],       # User Registration & W3C DID Minting (Admin ONLY)
     "module_2": ["operator"],    # Research Asset Registration & Cryptographic Evidence Vault
@@ -96,7 +101,37 @@ DEFAULT_MODULE_PERMISSIONS: dict[str, list[str]] = {
     "module_4": ["investor"],    # Investor Dashboard & RCF Capital Deployment Matchmaker
     "module_5": ["investor"],    # Impact Measurement Platform: Revenue Distribution Calculator
 }
-ROLE_MODULE_PERMISSIONS: dict[str, list[str]] = {k: list(v) for k, v in DEFAULT_MODULE_PERMISSIONS.items()}
+
+
+def load_role_module_permissions() -> dict[str, list[str]]:
+    """Load persisted role-module permissions from durable JSON storage if present."""
+    if PERMISSIONS_FILE.exists() and PERMISSIONS_FILE.is_file():
+        try:
+            data = json.loads(PERMISSIONS_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                res = {k: list(v) for k, v in DEFAULT_MODULE_PERMISSIONS.items()}
+                for k, v in data.items():
+                    if isinstance(v, list) and k in res:
+                        if k == "module_1":
+                            res["module_1"] = ["admin"]
+                        else:
+                            res[k] = [str(r).lower().strip() for r in v if isinstance(r, str)]
+                return res
+        except Exception:
+            pass
+    return {k: list(v) for k, v in DEFAULT_MODULE_PERMISSIONS.items()}
+
+
+def save_role_module_permissions(permissions: dict[str, list[str]]) -> None:
+    """Save validated role-module permissions to durable JSON storage."""
+    try:
+        PERMISSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        PERMISSIONS_FILE.write_text(json.dumps(permissions, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+ROLE_MODULE_PERMISSIONS: dict[str, list[str]] = load_role_module_permissions()
 
 # In-memory storage for demonstration / web service operation
 USER_REGISTRY: dict[str, dict[str, Any]] = {}
@@ -1016,10 +1051,7 @@ def serve_user_management_page() -> HTMLResponse:
     """
     Render the interactive user-management dashboard.
     
-    The dashboard supports authenticated user listing, account creation, password resets, logout, and administrator-controlled DID registration.
-    
-    Returns:
-    	HTMLResponse: The rendered user-management dashboard.
+    The page provides role-protected account administration, user listing, password resets, logout, and browser-based DID registration.
     """
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
@@ -1594,18 +1626,7 @@ def register_user(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """
-    Mint a decentralized identifier and register an institutional user.
-    
-    Parameters:
-        req (UserRegistrationRequest): User details and assigned role.
-    
-    Returns:
-        dict[str, Any]: Registration message, user record, and simulated database table name.
-    
-    Raises:
-        HTTPException: If the authenticated user does not have the admin role.
-    """
+    """Mint W3C Decentralised Identifier (DID) and register institutional user (Admin ONLY)."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     role = payload.get("role", "")
     if role != "admin":
@@ -1642,15 +1663,7 @@ def register_asset(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """
-    Register a research asset and record its evidence hash.
-    
-    Parameters:
-    	req (AssetRegistrationRequest): Asset metadata and optional file content.
-    
-    Returns:
-    	dict[str, Any]: Registration message, asset record, and queued outbox status.
-    """
+    """Register research asset and generate SHA-256 evidence vault hash."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     check_module_access("module_2", payload, is_mutation=True)
 
@@ -1703,15 +1716,7 @@ def calculate_cloverleaf(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """
-    Calculate an asset's Cloverleaf Market Readiness Score and funding classification.
-    
-    Parameters:
-        req (CloverleafScoreRequest): Component scores for technology, market, commercialisation, and management.
-    
-    Returns:
-        dict[str, Any]: Score breakdown, total and maximum scores, investment-grade status, status label, and recommended RCF funding tier.
-    """
+    """Calculate Cloverleaf Market Readiness Score (MRS) (>180 qualification target)."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     check_module_access("module_3", payload, is_mutation=True)
 
@@ -1748,18 +1753,7 @@ def calculate_revenue(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """
-    Calculate the revenue distribution across institutional stakeholders.
-    
-    Parameters:
-    	req (RevenueSplitRequest): Revenue type and amount to distribute.
-    
-    Returns:
-    	dict[str, Any]: A revenue distribution containing the normalized revenue type, total amount in MYR and minor units, and stakeholder allocations with percentages and amounts.
-    
-    Raises:
-    	HTTPException: If the revenue type is unsupported.
-    """
+    """Calculate IP policy revenue-split matrix across institutional stakeholders."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     check_module_access("module_5", payload, is_mutation=True)
 
@@ -1847,17 +1841,8 @@ def verify_investor_bearer_token(
     token: str, secret: bytes = INVESTOR_JWT_SECRET
 ) -> dict[str, Any]:
     """
-    Validate a system Bearer token and return its claims.
-    
-    Parameters:
-        token (str): JWT to authenticate.
-        secret (bytes): HMAC-SHA256 secret used to verify the token signature.
-    
-    Returns:
-        dict[str, Any]: Verified JWT claims.
-    
-    Raises:
-        HTTPException: If the token is malformed, has an invalid signature or claims, is expired, or lacks the required investor or system-role authorization.
+    Perform cryptographic HMAC-SHA256 verification and claims check on system Bearer tokens.
+    Rejects opaque, malformed, unsigned, forged, expired, non-dict, or missing claim tokens.
     """
     if not token or not isinstance(token, str):
         raise HTTPException(
@@ -1949,15 +1934,10 @@ def check_module_access(
     is_mutation: bool = False,
 ) -> None:
     """
-    Enforce role-based access to a module.
-    
-    Parameters:
-        module_id (str): Identifier of the module to access.
-        payload (dict[str, Any]): Authenticated user claims used to determine the user's role.
-        is_mutation (bool): Whether the requested operation modifies data.
-    
-    Raises:
-        HTTPException: If the user's role cannot access the module or an auditor attempts a mutation.
+    Enforce RBAC and module isolation rules:
+    - Admin and Superuser roles CANNOT access operational modules (module_2 to module_5).
+    - Auditor role has read-only access to operational modules (blocked on mutation actions).
+    - Other roles are checked against ROLE_MODULE_PERMISSIONS[module_id].
     """
     role = payload.get("role", "").lower()
     if not role:
@@ -1993,20 +1973,7 @@ def extract_current_user_payload(
     rcf_dac_jwt: str | None = None,
     request: Request | None = None,
 ) -> dict[str, Any]:
-    """
-    Extract and verify the authenticated user's JWT payload.
-    
-    Parameters:
-        authorization (str | None): Optional Authorization header containing a Bearer token.
-        rcf_dac_jwt (str | None): Optional JWT session cookie value.
-        request (Request | None): Optional request used to read the session cookie.
-    
-    Returns:
-        dict[str, Any]: The verified JWT payload.
-    
-    Raises:
-        HTTPException: If no authentication token is provided.
-    """
+    """Helper to extract and verify JWT payload from Authorization header or HttpOnly session cookie."""
     token = None
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split("Bearer ", 1)[1].strip()
@@ -2030,12 +1997,7 @@ def list_system_users(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """
-    List registered system user accounts for authorized administrators.
-    
-    Returns:
-    	dict[str, Any]: A response containing user records, the total user count, and the requesting user.
-    """
+    """List all registered system user accounts (Admin & Superuser only)."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     role = payload.get("role", "")
     if role not in ("admin", "superuser"):
@@ -2071,12 +2033,7 @@ def get_role_assignments(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """
-    Retrieve the module-to-role access mappings for an administrator.
-    
-    Returns:
-    	dict[str, Any]: A mapping of module permissions and the identifier of the requesting user.
-    """
+    """Get current module-to-role access assignment mappings (Admin & Superuser)."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     role = payload.get("role", "")
     if role not in ("admin", "superuser"):
@@ -2098,23 +2055,7 @@ def update_role_assignments(
     rcf_dac_jwt: str | None = Cookie(None),
     x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
 ) -> dict[str, Any]:
-    """
-    Update role-to-module access permissions for authorized administrators.
-    
-    Module 1 remains restricted to administrators regardless of the submitted
-    permissions.
-    
-    Parameters:
-        req (RoleAssignmentUpdateRequest): Module permission mappings to apply.
-    
-    Returns:
-        dict[str, Any]: A success message, the updated module permissions, and the
-        identifier of the administrator who made the change.
-    
-    Raises:
-        HTTPException: If the requester is not an administrator or a submitted
-        module identifier is invalid.
-    """
+    """Update role-to-module access permissions (Admin ONLY)."""
     verify_csrf_and_origin(request, x_csrf_token)
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     role = payload.get("role", "")
@@ -2137,6 +2078,8 @@ def update_role_assignments(
             cleaned_roles = [r.lower().strip() for r in roles_list if isinstance(r, str)]
             ROLE_MODULE_PERMISSIONS[mod_id] = cleaned_roles
 
+    save_role_module_permissions(ROLE_MODULE_PERMISSIONS)
+
     return {
         "message": "Role-to-module assignment mappings updated successfully.",
         "module_permissions": ROLE_MODULE_PERMISSIONS,
@@ -2152,22 +2095,19 @@ def create_system_user(
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
     """
-    Create a system user account according to the caller's role.
-    
-    Admins may create accounts for any role except `superuser`. Superusers may create only `admin` accounts. Newly created accounts receive a generated institutional DID.
-    
-    Parameters:
-        req (CreateUserRequest): Account details, including username, password, role, and profile information.
-    
-    Returns:
-        dict[str, Any]: A success message and the created user's public account details.
-    
-    Raises:
-        HTTPException: If the caller lacks permission, the username already exists, or the requested role is not permitted.
+    Create a new system user account:
+    - Admin can create users for any role EXCEPT superuser.
+    - Superuser can ONLY create user accounts with admin role (cannot create any other role).
     """
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     caller_role = payload.get("role", "").lower()
     target_role = req.role.lower().strip()
+
+    if target_role not in SYSTEM_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unsupported role '{target_role}'. Allowed system roles: {', '.join(sorted(SYSTEM_ROLES))}.",
+        )
 
     if caller_role not in ("admin", "superuser"):
         raise HTTPException(
@@ -2330,16 +2270,7 @@ def get_investor_assets(
     rcf_dac_jwt: str | None = Cookie(None),
     bypass_cache: bool = False,
 ) -> dict[str, Any]:
-    """
-    Retrieve NDA-gated asset listings and registered assets for an authorized investor.
-    
-    Parameters:
-    	request (Request): The incoming HTTP request used for authentication checks.
-    	bypass_cache (bool): Whether to bypass the TTL cache and retrieve current data.
-    
-    Returns:
-    	dict[str, Any]: Data room listings, user-registered assets, access-level information, and cache status.
-    """
+    """Retrieve NDA-gated data room listings for accredited investors, backed by high-throughput TTL in-memory caching."""
     global _INVESTOR_ASSETS_CACHE, _INVESTOR_ASSETS_CACHE_TIMESTAMP
 
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
