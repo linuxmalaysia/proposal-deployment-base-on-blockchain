@@ -236,10 +236,10 @@ Select an institutional stakeholder view below to test registration, asset prove
 - 💼 **[Challenges & Opportunities]({{ '/docs/explanation/challenges-and-opportunities.html' | relative_url }})** - Strategic exploration of industry challenges.
 - 📐 **[Implementation Patterns]({{ '/docs/reference/implementation-patterns.html' | relative_url }})** - Industry Implementation Patterns.
 - 🧭 **[Documentation Summary]({{ '/SUMMARY.html' | relative_url }})** - Complete repository index.
-- 📄 **[Research Commercialisation Fund (RCF) & DAC Proposal](/docs/explanation/research-commercialisation-fund-dac-proposal.html)** - Master proposal prepared for Vice-Chancellor & Board of Directors.
-- 💼 **[Business Case: Research as an Asset Class](/docs/explanation/rcf-dac-business-case.html)** - Paradigm shift, trusted digital research assets, and national policy alignment (MOSTI, 10-10 MySTIE, MRANTI, MyIPO).
-- ⚡ **[Technical Architecture & Data Layer](/docs/explanation/rcf-dac-technical-data-layer.html)** - Percona Server for PostgreSQL 16 + TimescaleDB single source of truth and transactional outbox pattern.
-- 🔄 **[Five-Phase Execution Pipeline](/docs/explanation/rcf-dac-five-phase-process.html)** - Phase-gated methodology from lab inventory to revenue realization.
-- 📊 **[Governance & 24-Month Implementation Roadmap](/docs/explanation/rcf-dac-governance-budget-risks.html)** - Steering committee structure, RM 7.9M - RM 20.5M budget breakdown, and risk mitigations.
-- 🌐 **[International Precedents & Ecosystem Integration](/docs/explanation/rcf-dac-ecosystem-precedents.html)** - Case studies (Stanford, Oxford, Penn, Stellenbosch) and Malaysian ecosystem links.
-- 📖 **[Web Application User Guide](/docs/tutorials/web-application-user-guide.html)** - Comprehensive step-by-step user guide for all stakeholder personas.
+- 📄 **[Research Commercialisation Fund (RCF) & DAC Proposal]({{ '/docs/explanation/research-commercialisation-fund-dac-proposal.html' | relative_url }})** - Master proposal prepared for Vice-Chancellor & Board of Directors.
+- 💼 **[Business Case: Research as an Asset Class]({{ '/docs/explanation/rcf-dac-business-case.html' | relative_url }})** - Paradigm shift, trusted digital research assets, and national policy alignment (MOSTI, 10-10 MySTIE, MRANTI, MyIPO).
+- ⚡ **[Technical Architecture & Data Layer]({{ '/docs/explanation/rcf-dac-technical-data-layer.html' | relative_url }})** - Percona Server for PostgreSQL 16 + TimescaleDB single source of truth and transactional outbox pattern.
+- 🔄 **[Five-Phase Execution Pipeline]({{ '/docs/explanation/rcf-dac-five-phase-process.html' | relative_url }})** - Phase-gated methodology from lab inventory to revenue realization.
+- 📊 **[Governance & 24-Month Implementation Roadmap]({{ '/docs/explanation/rcf-dac-governance-budget-risks.html' | relative_url }})** - Steering committee structure, RM 7.9M - RM 20.5M budget breakdown, and risk mitigations.
+- 🌐 **[International Precedents & Ecosystem Integration]({{ '/docs/explanation/rcf-dac-ecosystem-precedents.html' | relative_url }})** - Case studies (Stanford, Oxford, Penn, Stellenbosch) and Malaysian ecosystem links.
+- 📖 **[Web Application User Guide]({{ '/docs/tutorials/web-application-user-guide.html' | relative_url }})** - Comprehensive step-by-step user guide for all stakeholder personas.
