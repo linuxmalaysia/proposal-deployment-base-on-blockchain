@@ -254,7 +254,12 @@ ASYNC_DB_POOL: Any = None
 
 
 async def init_async_connection_pool() -> Any:
-    """Initialise psycopg_pool.AsyncConnectionPool if DATABASE_URL or Supabase host is configured."""
+    """
+    Initialize and open the asynchronous PostgreSQL connection pool when database configuration is available.
+    
+    Returns:
+        Any: The opened connection pool, or `None` when configuration is unavailable or initialization fails.
+    """
     global ASYNC_DB_POOL
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -451,7 +456,17 @@ RATE_LIMIT_BUCKETS: dict[str, list[float]] = {}
 
 
 def is_rate_limited(client_ip: str, max_requests: int = 10, window_seconds: float = 60.0) -> bool:
-    """Leaky-bucket / sliding window rate-limiter for endpoint protection."""
+    """
+    Determine whether a client has exceeded the request limit within a rolling time window.
+    
+    Parameters:
+        client_ip (str): Client identifier used to track request timestamps.
+        max_requests (int): Maximum number of requests allowed in the window.
+        window_seconds (float): Duration of the rolling window in seconds.
+    
+    Returns:
+        bool: `true` if the client has reached the request limit, `false` otherwise.
+    """
     now = time.time()
     timestamps = RATE_LIMIT_BUCKETS.get(client_ip, [])
     # Retain only timestamps within the rolling window
@@ -474,7 +489,12 @@ app = FastAPI(
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next: Any) -> Any:
-    """Rate-limiting middleware for authentication endpoints (/api/login, /api/users)."""
+    """
+    Apply request-rate limits to authentication and user-management endpoints.
+    
+    Returns:
+    	Response from the downstream handler, or an HTTP 429 response when the client exceeds 10 requests within 60 seconds.
+    """
     rate_limited_paths = ["/api/login", "/api/users"]
     if any(request.url.path.startswith(p) for p in rate_limited_paths):
         client_ip = request.client.host if request.client else "127.0.0.1"
@@ -498,11 +518,12 @@ def health_check() -> dict[str, str]:
 
 def get_postgresql_connection() -> tuple[Any, str]:
     """
-    Establish a PostgreSQL connection using configured credentials and SSL verification.
-
+    Establish a PostgreSQL connection using the configured database settings.
+    
     Returns:
-        connection (psycopg.Connection or None): The PostgreSQL connection on success, or `None` when the driver, configuration, certificate, or connection is unavailable.
-        status (str): A success or error message describing the connection result.
+        tuple[Any, str]: The connection and a status message. The connection is
+        `None` when the driver, configuration, certificate, or connection is
+        unavailable.
     """
     try:
         import urllib.parse
@@ -975,7 +996,11 @@ def serve_login_page() -> HTMLResponse:
 
 @app.get("/user-management", response_class=HTMLResponse)
 def serve_user_management_page() -> HTMLResponse:
-    """Serve interactive User Management Interface (Admin & Superuser only)."""
+    """
+    Render the interactive user-management dashboard.
+    
+    The page provides role-protected account administration, user listing, password resets, logout, and browser-based DID registration.
+    """
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
 <head>
