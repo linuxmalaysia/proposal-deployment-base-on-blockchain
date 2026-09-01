@@ -16,23 +16,64 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* -------------------------------------------------------------------------
-   1. Role Switcher Logic
+   1. Session Check & Role Switcher Logic
    ------------------------------------------------------------------------- */
 function initRoleSwitcher() {
   const roleButtons = document.querySelectorAll('.role-select-btn');
   const roleViews = document.querySelectorAll('.role-view-panel');
+  const banner = document.getElementById('portalSessionBanner');
+  const btnUserMgmt = document.getElementById('btnUserMgmt');
+
+  const userObjStr = localStorage.getItem('rcf_dac_user');
+  let currentUser = null;
+  try {
+    if (userObjStr) currentUser = JSON.parse(userObjStr);
+  } catch (e) {}
+
+  if (banner) {
+    if (currentUser && currentUser.role) {
+      banner.style.background = '#e0f2fe';
+      banner.style.color = '#0369a1';
+      banner.style.border = '1px solid #bae6fd';
+      banner.innerHTML = `<strong>Active User:</strong> ${escapeHtml(currentUser.name || currentUser.username)} | <strong>Role:</strong> <span class="badge badge-primary">${escapeHtml(currentUser.role)}</span>`;
+      if (['admin', 'superuser'].includes(currentUser.role) && btnUserMgmt) {
+        btnUserMgmt.style.display = 'inline-block';
+      }
+    } else {
+      banner.style.background = '#fef3c7';
+      banner.style.color = '#92400e';
+      banner.style.border = '1px solid #fde68a';
+      banner.innerHTML = `<strong>⚠️ Authentication Required:</strong> You are currently viewing as guest. Operational module submissions require logging in with specific assigned role credentials. <a href="/login" style="color: #b45309; font-weight: bold; text-decoration: underline;">Click here to Login</a>.`;
+    }
+  }
 
   if (!roleButtons.length) return;
 
   roleButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const selectedRole = btn.getAttribute('data-role');
+      if (!selectedRole) return;
 
       roleButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
 
       roleViews.forEach(view => {
-        if (view.getAttribute('data-role-view') === selectedRole || selectedRole === 'all') {
+        const viewRole = view.getAttribute('data-role-view');
+        if (selectedRole === 'all') {
+          view.style.display = 'block';
+        } else if (selectedRole === 'my-role') {
+          if (!currentUser) {
+            view.style.display = 'block';
+          } else if (currentUser.role === 'operator' && viewRole === 'researcher') {
+            view.style.display = 'block';
+          } else if (currentUser.role === 'investor' && viewRole === 'investor') {
+            view.style.display = 'block';
+          } else if (currentUser.role === 'admin' && viewRole === 'admin') {
+            view.style.display = 'block';
+          } else {
+            view.style.display = 'none';
+          }
+        } else if (viewRole === selectedRole) {
           view.style.display = 'block';
         } else {
           view.style.display = 'none';
@@ -159,7 +200,7 @@ function initAssetForm() {
     e.preventDefault();
 
     const title = document.getElementById('asset-title').value.trim() || 'High-Efficiency Graphene Supercapacitor Cell';
-    const trl = document.getElementById('asset-trl').value;
+    const trl = parseInt(document.getElementById('asset-trl').value, 10) || 3;
     const abstract = document.getElementById('asset-abstract').value.trim() || 'Scalable energy storage prototype with 92% retention rate.';
     const fileInput = document.getElementById('asset-file');
 
@@ -170,31 +211,66 @@ function initAssetForm() {
 
     const file = fileInput.files[0];
     const fileRef = file.name;
-    const bytesBuffer = await file.arrayBuffer();
 
+    const bytesBuffer = await file.arrayBuffer();
     const hashBuffer = await crypto.subtle.digest('SHA-256', bytesBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hexDigest = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    const sha256Digest = `sha256:${hexDigest}`;
+    const localSha256Digest = `sha256:${hexDigest}`;
 
-    const assetHashSeed = `${title}-${abstract}-${trl}-${Date.now()}`;
-    const assetId = `did:univ:asset-${simpleHash(assetHashSeed).substring(0, 12)}`;
-    const txOutboxId = `outbox_tx_${Math.floor(100000 + Math.random() * 900000)}`;
+    const token = localStorage.getItem('rcf_dac_jwt');
 
-    const assetRecord = { title, trl, abstract, fileRef, assetId, sha256Digest, txOutboxId, timestamp: new Date().toISOString() };
-    const collection = getSavedAssetCollection();
-    collection[assetId] = assetRecord;
-
-    let savedSuccessfully = false;
     try {
-      localStorage.setItem('rcf_dac_asset_collection', JSON.stringify(collection));
-      savedSuccessfully = true;
-    } catch (err) {
-      console.warn('LocalStorage unavailable:', err);
-      savedSuccessfully = false;
-    }
+      const resp = await fetch('/api/register-asset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          title: title,
+          trl: trl,
+          abstract: abstract,
+          file_name: fileRef
+        })
+      });
 
-    renderAssetCollection(collection, assetId, savedSuccessfully);
+      const resData = await resp.json();
+
+      if (!resp.ok) {
+        alert(`Asset Registration Error (${resp.status}): ${resData.detail || 'Access denied.'}`);
+        return;
+      }
+
+      const asset = resData.asset;
+      const assetRecord = {
+        title: asset.title,
+        trl: asset.trl,
+        abstract: asset.abstract,
+        fileRef: asset.file_name,
+        assetId: asset.asset_id,
+        sha256Digest: asset.sha256_digest || localSha256Digest,
+        txOutboxId: asset.tx_outbox_id,
+        timestamp: asset.timestamp
+      };
+
+      const collection = getSavedAssetCollection();
+      collection[assetRecord.assetId] = assetRecord;
+
+      let savedSuccessfully = false;
+      try {
+        localStorage.setItem('rcf_dac_asset_collection', JSON.stringify(collection));
+        savedSuccessfully = true;
+      } catch (err) {
+        console.warn('LocalStorage unavailable:', err);
+        savedSuccessfully = false;
+      }
+
+      renderAssetCollection(collection, assetRecord.assetId, savedSuccessfully);
+    } catch (err) {
+      alert(`Network or Server error: ${err}`);
+    }
   });
 }
 

@@ -42,14 +42,15 @@ Select an institutional stakeholder view below to test registration, asset prove
   <!-- Role Switcher Control Header -->
   <div class="role-switcher-banner">
     <div class="role-switcher-title">
-      <h3>👥 Institutional Entry Point Switcher & Database Diagnostic</h3>
-      <p>Switch roles to experience tailored views for Researchers, Admins, and Investors, or check database connection status.</p>
+      <h3>👥 Institutional Role & Module Access Portal</h3>
+      <p>All modules require system login. Log in with specific role credentials to access assigned operational modules.</p>
+    </div>
+    <div id="portalSessionBanner" style="margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.9rem;">
+      <!-- Populated by rcf-dac-app.js based on auth session -->
     </div>
     <div class="role-btn-group">
-      <button type="button" class="role-select-btn active" data-role="all">🌐 All Modules</button>
-      <button type="button" class="role-select-btn" data-role="researcher">👩‍🔬 Researcher / Inventor</button>
-      <button type="button" class="role-select-btn" data-role="admin">🏛️ University Admin / TTO</button>
-      <button type="button" class="role-select-btn" data-role="investor">💼 VC / Angel Investor</button>
+      <button type="button" class="role-select-btn active" data-role="my-role">👤 My Role Modules</button>
+      <button type="button" class="role-select-btn" data-role="all">🌐 All Modules (Read Filter)</button>
       <a href="/login" class="role-select-btn" style="background:#0066cc; color:white; text-decoration:none;">🔐 System Login</a>
       <a href="/user-management" class="role-select-btn" style="background:#6c757d; color:white; text-decoration:none;">👥 User Management</a>
       <a href="/db-status" class="role-select-btn" style="background:#28a745; color:white; text-decoration:none;">🔌 DB Connection Status</a>
