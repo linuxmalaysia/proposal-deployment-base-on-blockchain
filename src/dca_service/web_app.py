@@ -76,7 +76,15 @@ def close_postgresql_connection(conn: Any) -> None:
 
 
 def get_asset_sri(asset_path: str) -> str:
-    """Compute base64 SHA-256 Subresource Integrity (SRI) string for static asset."""
+    """
+    Compute the Subresource Integrity value for a static asset.
+    
+    Parameters:
+        asset_path (str): Path to the asset, relative to the assets directory or application base directory.
+    
+    Returns:
+        str: Base64-encoded SHA-256 SRI value, or an empty string when the asset does not exist.
+    """
     if asset_path in ASSET_SRI_CACHE:
         return ASSET_SRI_CACHE[asset_path]
     clean_path = asset_path.lstrip("/")
@@ -116,6 +124,15 @@ def load_secrets_from_env_files() -> None:
 load_secrets_from_env_files()
 
 def parse_secret_key_env(val: str | None) -> str | None:
+    """
+    Extract a usable secret key from a direct value or a JSON object.
+    
+    Parameters:
+        val (str | None): Secret value, optionally encoded as a JSON object.
+    
+    Returns:
+        str | None: The first non-empty string value in a valid JSON object, the trimmed input otherwise, or None for an empty value.
+    """
     if not val:
         return None
     val = val.strip()
@@ -157,7 +174,13 @@ DEFAULT_MODULE_PERMISSIONS: dict[str, list[str]] = {
 
 
 def load_role_module_permissions() -> dict[str, list[str]]:
-    """Load persisted role-module permissions via Database API or default fallback."""
+    """Load role permissions for each module, using persisted values when available and defaults otherwise.
+    
+    Module 1 is always restricted to the ``admin`` role, and persisted role names are normalized to lowercase.
+    
+    Returns:
+        dict[str, list[str]]: A mapping of module names to authorized roles.
+    """
     db_perms = DatabaseAPI.load_role_permissions()
     if db_perms:
         res = {k: list(v) for k, v in DEFAULT_MODULE_PERMISSIONS.items()}
@@ -172,7 +195,12 @@ def load_role_module_permissions() -> dict[str, list[str]]:
 
 
 def save_role_module_permissions(permissions: dict[str, list[str]]) -> None:
-    """Save validated role-module permissions via Database API."""
+    """
+    Save role-module permissions to the database.
+    
+    Parameters:
+    	permissions (dict[str, list[str]]): Mapping of role names to permitted module names.
+    """
     DatabaseAPI.save_role_permissions(permissions)
 
 
@@ -196,7 +224,15 @@ def hash_password(password: str, salt: str | None = None) -> str:
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
-    """Verify password against scrypt or legacy hash format."""
+    """Verify a password against a stored scrypt or legacy salted SHA-256 hash.
+    
+    Parameters:
+        password (str): The plaintext password to verify.
+        stored_hash (str): The stored password hash.
+    
+    Returns:
+        bool: `true` if the password matches the stored hash, `false` otherwise.
+    """
     if stored_hash.startswith("scrypt$"):
         parts = stored_hash.split("$")
         if len(parts) != 3:
@@ -210,7 +246,15 @@ def verify_password(password: str, stored_hash: str) -> bool:
 
 
 def get_or_create_initial_password(role: str) -> str:
-    """Get password from environment or generate a secure random password."""
+    """
+    Obtains the initial password for a specified role.
+    
+    Parameters:
+        role (str): Role used to select the environment variable and construct a generated password.
+    
+    Returns:
+        str: The configured password, a deterministic test password, or a securely generated password.
+    """
     env_var = f"{role.upper()}_INITIAL_PASSWORD"
     if os.environ.get(env_var):
         return os.environ[env_var]
@@ -260,7 +304,12 @@ INITIAL_ACCOUNT_SPECS = [
 
 
 def seed_initial_accounts() -> None:
-    """Initialise and populate initial system user accounts into PostgreSQL via Database API."""
+    """
+    Create the predefined initial system accounts in PostgreSQL.
+    
+    Passwords are generated or retrieved for each account before the corresponding
+    user record is created.
+    """
     for acct in INITIAL_ACCOUNT_SPECS:
         u = acct["username"]
         r = acct["role"]
@@ -297,7 +346,12 @@ ASYNC_DB_POOL: Any = None
 
 
 async def init_async_connection_pool() -> Any:
-    """Initialize and open asynchronous PostgreSQL connection pool when database configuration is available."""
+    """
+    Initialize and open the asynchronous PostgreSQL connection pool when database configuration is available.
+    
+    Returns:
+        Any: The opened connection pool, or `None` if database configuration is unavailable or initialization fails.
+    """
     global ASYNC_DB_POOL
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -351,7 +405,15 @@ def base64url_encode(data: bytes) -> str:
 
 
 def base64url_decode(encoded_str: str) -> bytes:
-    """Decode URL-safe Base64 string with optional missing padding restored."""
+    """
+    Decode a URL-safe Base64-encoded string.
+    
+    Parameters:
+    	encoded_str (str): The encoded string, with or without padding.
+    
+    Returns:
+    	bytes: The decoded byte sequence.
+    """
     padded = encoded_str + "=" * (-len(encoded_str) % 4)
     return base64.urlsafe_b64decode(padded.encode())
 
@@ -420,6 +482,17 @@ class RevenueSplitRequest(BaseModel):
     @field_validator("amount")
     @classmethod
     def validate_max_two_decimal_places(cls, v: Decimal) -> Decimal:
+        """Validate that a monetary amount has no more than two decimal places.
+        
+        Parameters:
+            v (Decimal): Monetary amount to validate.
+        
+        Returns:
+            Decimal: The validated monetary amount.
+        
+        Raises:
+            ValueError: If the amount has more than two decimal places.
+        """
         exp = v.as_tuple().exponent
         if isinstance(exp, int) and exp < -2:
             raise ValueError("Monetary amount cannot have more than two decimal places.")
@@ -427,7 +500,12 @@ class RevenueSplitRequest(BaseModel):
 
 
 def _safe_auto_check_and_build_schema() -> dict[str, Any]:
-    """Fail-safe wrapper ensuring no background thread exception escapes unhandled."""
+    """
+    Safely checks and builds the database schema.
+    
+    Returns:
+    	dict[str, Any]: Schema check results, including connection status, created tables, and missing tables.
+    """
     try:
         return auto_check_and_build_schema()
     except Exception as exc:
@@ -445,7 +523,11 @@ def _safe_auto_check_and_build_schema() -> dict[str, Any]:
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI) -> Any:
-    """FastAPI lifespan context manager ensuring non-blocking schema auto-checking and pool management."""
+    """
+    Manage application startup and shutdown resources for the FastAPI service.
+    
+    Initializes the asynchronous database connection pool and starts background schema verification during startup. Waits briefly for the schema task and closes the connection pool during shutdown.
+    """
     global SCHEMA_BACKGROUND_TASK
     import asyncio
     try:
@@ -506,7 +588,11 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 
 @app.middleware("http")
 async def security_and_preload_middleware(request: Request, call_next: Any) -> Any:
-    """Enforce strict security headers and HTTP/2 asset preloading Link headers on HTML responses."""
+    """Apply security headers and preload links for HTML responses.
+    
+    Returns:
+        The response with security headers applied and, for HTML content, asset preload links added.
+    """
     response: Response = await call_next(request)
 
     csp_directives = (
@@ -561,7 +647,12 @@ def health_check() -> dict[str, str]:
 
 
 def initialize_database_schema() -> dict[str, Any]:
-    """Execute docs/schema.sql DDL script against PostgreSQL database."""
+    """
+    Execute the PostgreSQL schema definition script.
+    
+    Returns:
+        dict[str, Any]: A result containing `success` and a status `message`.
+    """
     schema_file = BASE_DIR / "docs" / "schema.sql"
     if not schema_file.exists():
         return {"success": False, "message": "docs/schema.sql file missing"}
@@ -588,7 +679,14 @@ def initialize_database_schema() -> dict[str, Any]:
 
 
 def auto_check_and_build_schema() -> dict[str, Any]:
-    """Automatic schema check and table build routine for application deployment."""
+    """
+    Verify the required PostgreSQL tables and create any missing tables.
+    
+    Returns:
+        dict[str, Any]: A status mapping containing connection status, schema-check
+        outcome, created tables, missing tables, and a descriptive message. The
+        result is also stored as the latest automatic schema check result.
+    """
     global LAST_SCHEMA_AUTO_CHECK_RESULT
     expected_tables = ["users", "assets", "cloverleaf_scores", "revenue_splits", "blockchain_transactions"]
     conn, msg = get_postgresql_connection()
@@ -659,7 +757,15 @@ def auto_check_and_build_schema() -> dict[str, Any]:
 
 
 def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
-    """Check PostgreSQL connectivity, verify expected public tables, and test Supabase Auth API."""
+    """
+    Check PostgreSQL connectivity, verify expected public tables, and test the Supabase Auth JWKS endpoint.
+    
+    Parameters:
+        bypass_cache (bool): Whether to perform fresh checks instead of using a recent cached result.
+    
+    Returns:
+        dict[str, Any]: Connection status, endpoint results, latency, schema table statuses, pool metrics, and cache state.
+    """
     global _DB_STATUS_CACHE, _DB_STATUS_CACHE_TIMESTAMP
     now = time.time()
 
@@ -783,7 +889,12 @@ def verify_csrf_and_origin(
     request: Request,
     x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
 ) -> None:
-    """Verify Origin header and CSRF token header for cookie-authenticated mutation endpoints."""
+    """
+    Validate origin and CSRF-header requirements for requests authenticated by the session cookie.
+    
+    Parameters:
+        x_csrf_token (str | None): Value of the ``X-CSRF-Token`` header, when provided.
+    """
     if "rcf_dac_jwt" in request.cookies:
         expected_origin = os.environ.get("ALLOWED_ORIGIN", "").rstrip("/")
         origin = request.headers.get("Origin") or request.headers.get("Referer")
@@ -804,7 +915,19 @@ def verify_csrf_and_origin(
 
 @app.post("/api/login")
 def login_endpoint(req: LoginRequest, response: Response) -> dict[str, Any]:
-    """Authenticate system account credentials, set HttpOnly session cookie, and return signed JWT."""
+    """
+    Authenticate an active system account and establish a session.
+    
+    Parameters:
+    	req (LoginRequest): Account credentials to authenticate.
+    	response (Response): HTTP response used to set the session cookie.
+    
+    Returns:
+    	dict[str, Any]: Authentication result containing the bearer token and authenticated user details.
+    
+    Raises:
+    	HTTPException: If the account is missing, disabled, archived, unable to log in, or has invalid credentials.
+    """
     account = DatabaseAPI.get_user_by_username(req.username)
     if not account:
         raise HTTPException(
@@ -1501,7 +1624,16 @@ def serve_user_management_page() -> HTMLResponse:
 @app.get("/db-status", response_class=HTMLResponse)
 @app.get("/db-connection", response_class=HTMLResponse)
 def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTMLResponse:
-    """Serve interactive database connection and schema status page."""
+    """
+    Serve an interactive page showing database connectivity, latency, cache state, and schema table status.
+    
+    Parameters:
+        bypass_cache (bool): Whether to bypass the cached database status.
+        force (bool): Whether to force a fresh database status query.
+    
+    Returns:
+        HTMLResponse: An HTML page containing the current database connection and schema status.
+    """
     db_info = check_database_connection(bypass_cache=bypass_cache or force)
     is_conn = db_info["is_connected"]
 
@@ -1598,7 +1730,21 @@ def register_user(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """Mint W3C Decentralised Identifier (DID) and register user in PostgreSQL (Admin ONLY)."""
+    """
+    Register a new user with a generated decentralized identifier.
+    
+    Parameters:
+    	req (UserRegistrationRequest): Details for the user account.
+    	request (Request): The incoming HTTP request used for authentication and request validation.
+    	authorization (str | None): Optional Bearer authorization header.
+    	rcf_dac_jwt (str | None): Optional authentication cookie.
+    
+    Returns:
+    	dict[str, Any]: A registration message, the created user record, and the database table name.
+    
+    Raises:
+    	HTTPException: If the authenticated user is not an administrator or database persistence fails.
+    """
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     role = payload.get("role", "")
     if role != "admin":
@@ -1643,7 +1789,17 @@ def register_asset(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """Register research asset and store SHA-256 evidence vault hash in PostgreSQL."""
+    """Register a research asset, store its SHA-256 evidence digest, and queue its transaction record.
+    
+    Parameters:
+    	req (AssetRegistrationRequest): Asset metadata and optional file content used to compute the evidence digest.
+    	request (Request): Request context used for authentication and access control.
+    	authorization (str | None): Optional Bearer authorization header.
+    	rcf_dac_jwt (str | None): Optional authentication cookie.
+    
+    Returns:
+    	dict[str, Any]: Registration confirmation containing the persisted asset record and queued outbox status.
+    """
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     check_module_access("module_2", payload, is_mutation=True)
 
@@ -1696,7 +1852,15 @@ def calculate_cloverleaf(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """Calculate Cloverleaf Market Readiness Score and persist record to PostgreSQL."""
+    """
+    Calculate and persist a Cloverleaf market readiness score.
+    
+    Parameters:
+        req (CloverleafScoreRequest): Validated technology, market, commercialisation, and management scores.
+    
+    Returns:
+        dict[str, Any]: Score breakdown, total and maximum scores, investment qualification, status label, and recommended funding tier.
+    """
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     check_module_access("module_3", payload, is_mutation=True)
 
@@ -1743,7 +1907,20 @@ def calculate_revenue(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """Calculate IP revenue-split allocations and save to PostgreSQL."""
+    """
+    Calculate and persist IP revenue-sharing allocations for the requested revenue type.
+    
+    The amount is distributed among the defined stakeholders, rounded to cents, and any rounding remainder is assigned to the reinvestment fund or treasury.
+    
+    Parameters:
+    	req (RevenueSplitRequest): Revenue amount and revenue type used to calculate the distribution.
+    
+    Returns:
+    	dict[str, Any]: Revenue type, total amount in MYR and minor units, and stakeholder distribution splits.
+    
+    Raises:
+    	HTTPException: If the revenue type is unsupported.
+    """
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     check_module_access("module_5", payload, is_mutation=True)
 
@@ -1815,7 +1992,18 @@ def create_system_jwt(
     exp_delta: float = 3600.0,
     secret: bytes = INVESTOR_JWT_SECRET,
 ) -> str:
-    """Generate a signed HMAC-SHA256 JWT for user session authentication."""
+    """
+    Generate a signed JWT containing authentication claims for a user.
+    
+    Parameters:
+    	username (str): Username to include in the token.
+    	role (str): Role used to determine authorization claims.
+    	exp_delta (float): Number of seconds until the token expires.
+    	secret (bytes): Secret key used to sign the token.
+    
+    Returns:
+    	str: Signed HMAC-SHA256 JWT.
+    """
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "sub": username,
@@ -1837,7 +2025,19 @@ def create_system_jwt(
 def verify_investor_bearer_token(
     token: str, secret: bytes = INVESTOR_JWT_SECRET
 ) -> dict[str, Any]:
-    """Perform cryptographic verification and claims check on Bearer tokens."""
+    """
+    Verify an investor Bearer token and validate its required JWT claims.
+    
+    Parameters:
+    	token (str): The JWT to verify.
+    	secret (bytes): The HMAC-SHA256 signing secret.
+    
+    Returns:
+    	dict[str, Any]: The validated JWT payload.
+    
+    Raises:
+    	HTTPException: If the token is malformed, has an invalid signature or claims, or has expired.
+    """
     if not token or not isinstance(token, str):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -1923,7 +2123,17 @@ def check_module_access(
     payload: dict[str, Any],
     is_mutation: bool = False,
 ) -> None:
-    """Enforce RBAC and module isolation rules."""
+    """
+    Enforce role-based access and module isolation rules.
+    
+    Parameters:
+        module_id (str): Identifier of the operational module.
+        payload (dict[str, Any]): Authentication claims containing the user's role.
+        is_mutation (bool): Whether the requested operation changes data.
+    
+    Raises:
+        HTTPException: If the user's role cannot access the module or perform the requested operation.
+    """
     role = payload.get("role", "").lower()
     if not role:
         if payload.get("admin"):
@@ -1958,7 +2168,20 @@ def extract_current_user_payload(
     rcf_dac_jwt: str | None = None,
     request: Request | None = None,
 ) -> dict[str, Any]:
-    """Helper to extract and verify JWT payload from Authorization header or session cookie."""
+    """
+    Extract and verify the authenticated user's JWT payload.
+    
+    Parameters:
+        authorization (str | None): Optional Bearer authorization header.
+        rcf_dac_jwt (str | None): Optional JWT supplied directly.
+        request (Request | None): Optional request containing the session cookie.
+    
+    Returns:
+        dict[str, Any]: The verified JWT payload.
+    
+    Raises:
+        HTTPException: If no authentication token is provided or the token is invalid.
+    """
     token = None
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split("Bearer ", 1)[1].strip()
@@ -1982,7 +2205,16 @@ def list_system_users(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """List registered system user accounts via Database API (Admin & Superuser only)."""
+    """
+    List registered system user accounts for authorized administrative callers.
+    
+    Returns:
+        dict[str, Any]: A mapping containing user records, the total user count,
+        and the requesting user's identifier and role.
+    
+    Raises:
+        HTTPException: If the caller is not an admin or superuser.
+    """
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     role = payload.get("role", "")
     if role not in ("admin", "superuser"):
@@ -2047,7 +2279,19 @@ def update_role_assignments(
     rcf_dac_jwt: str | None = Cookie(None),
     x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
 ) -> dict[str, Any]:
-    """Update role-to-module access permissions via Database API (Admin ONLY)."""
+    """
+    Update role-to-module access permissions for authorized administrators.
+    
+    Parameters:
+        req (RoleAssignmentUpdateRequest): Module identifiers and roles to assign.
+        request (Request): Incoming request used for CSRF and origin validation.
+    
+    Returns:
+        dict[str, Any]: Updated module permissions and the identifier of the administrator who made the change.
+    
+    Raises:
+        HTTPException: If the requester is not an administrator or a module identifier is invalid.
+    """
     verify_csrf_and_origin(request, x_csrf_token)
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     role = payload.get("role", "")
@@ -2085,7 +2329,18 @@ def create_system_user(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """Create a new system user account in PostgreSQL via Database API."""
+    """
+    Create a system user account with an institutionally generated DID.
+    
+    Parameters:
+    	req (CreateUserRequest): User details and the requested system role.
+    	request (Request): Current HTTP request used to authenticate the caller.
+    	authorization (str | None): Optional Bearer authorization header.
+    	rcf_dac_jwt (str | None): Optional authentication cookie.
+    
+    Returns:
+    	dict[str, Any]: A success message and the created user's public account details.
+    """
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     caller_role = payload.get("role", "").lower()
     target_role = req.role.lower().strip()
@@ -2161,7 +2416,22 @@ def reset_user_password(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """Reset password for specified user account via Database API."""
+    """
+    Reset the password for an eligible user account.
+    
+    Parameters:
+        username (str): Username of the account whose password is being reset.
+        req (ResetPasswordRequest): Request containing the new password.
+        request (Request): Current HTTP request used to authenticate the caller.
+    
+    Returns:
+        dict[str, Any]: Confirmation details containing the username and the identity
+            that performed the reset.
+    
+    Raises:
+        HTTPException: If the caller lacks administrator privileges, the account does
+            not exist, or the target account is a superuser.
+    """
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     caller_role = payload.get("role", "")
 
@@ -2203,10 +2473,17 @@ def delete_system_user(
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
     """
-    Disable and archive specified user account (Admin only).
-    POLICY ENFORCEMENT: No user created will be deleted from PostgreSQL.
-    Sets is_active=False, is_disabled=True, can_login=False, is_archived=True,
-    archived_at=now(), and tags=['archive'].
+    Disable and archive a user account without deleting its database record.
+    
+    Parameters:
+        username (str): Username of the account to disable and archive.
+    
+    Returns:
+        dict[str, Any]: Confirmation details and the archived user record.
+    
+    Raises:
+        HTTPException: If the caller lacks administrator privileges, the account does
+            not exist, or the target account is a superuser.
     """
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     caller_role = payload.get("role", "")
@@ -2265,7 +2542,15 @@ def get_investor_assets(
     rcf_dac_jwt: str | None = Cookie(None),
     bypass_cache: bool = False,
 ) -> dict[str, Any]:
-    """Retrieve NDA-gated data room listings backed by Database API and TTL cache."""
+    """
+    Retrieve investor data-room listings and assets registered by the current user.
+    
+    Parameters:
+        bypass_cache (bool): Whether to bypass the TTL cache and retrieve the latest asset data.
+    
+    Returns:
+        dict[str, Any]: Data-room listings, registered assets, access level, and cache status.
+    """
     global _INVESTOR_ASSETS_CACHE, _INVESTOR_ASSETS_CACHE_TIMESTAMP
 
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
@@ -2313,7 +2598,15 @@ ROOT_DOCS = {"SUMMARY.md", "README.md", "CHANGELOG.md", "HISTORY.md"}
 
 
 def render_markdown_to_html(md_text: str) -> str:
-    """Simple parser to convert markdown elements to clean HTML."""
+    """
+    Convert supported Markdown elements into HTML.
+    
+    Parameters:
+        md_text (str): Markdown text containing headings, separators, emphasis, links, or unordered lists.
+    
+    Returns:
+        str: HTML-rendered text.
+    """
     import re
 
     md_text = re.sub(r"\{::options.*?\/\}", "", md_text)
@@ -2350,6 +2643,15 @@ def render_markdown_to_html(md_text: str) -> str:
 
 
 def _render_doc_file(doc_file: Path) -> HTMLResponse:
+    """
+    Render a Markdown documentation file as a complete HTML response.
+    
+    Parameters:
+        doc_file (Path): Path to the documentation file to render.
+    
+    Returns:
+        HTMLResponse: An HTML response containing the rendered documentation and portal assets.
+    """
     content = doc_file.read_text(encoding="utf-8")
     if content.startswith("---"):
         parts = content.split("---", 2)

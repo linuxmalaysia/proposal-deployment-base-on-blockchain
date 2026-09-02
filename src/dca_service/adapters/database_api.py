@@ -40,6 +40,13 @@ class ConnectionPoolMetrics:
         self.failed_connections: int = 0
 
     def record_connection_attempt(self, latency_ms: float, success: bool) -> None:
+        """
+        Record the outcome and latency of a connection acquisition attempt.
+        
+        Parameters:
+            latency_ms (float): Connection acquisition latency in milliseconds.
+            success (bool): Whether the connection acquisition succeeded.
+        """
         if success:
             self.total_acquired += 1
             self.total_checkout_latency_ms += latency_ms
@@ -47,9 +54,17 @@ class ConnectionPoolMetrics:
             self.failed_connections += 1
 
     def record_query(self) -> None:
+        """Record one database query in the connection pool metrics."""
         self.total_queries += 1
 
     def to_dict(self) -> dict[str, Any]:
+        """
+        Return the current connection pool metrics as a dictionary.
+        
+        Returns:
+        	dict[str, Any]: Metrics including pool limits, connection and query counts,
+        	average checkout latency, utilization percentage, and a UTC timestamp.
+        """
         avg_latency = (
             round(self.total_checkout_latency_ms / self.total_acquired, 2)
             if self.total_acquired > 0
@@ -74,10 +89,10 @@ DB_POOL_METRICS = ConnectionPoolMetrics()
 
 def get_postgresql_connection() -> tuple[Any, str]:
     """
-    Establish a PostgreSQL connection using configured database settings.
-
+    Establish a PostgreSQL connection using the configured database URL or Supabase settings.
+    
     Returns:
-        tuple[Any, str]: The connection object and a status message.
+        tuple[Any, str]: The connection and a status message. The connection is `None` when configuration is missing, the CA certificate is unavailable, the driver is not installed, or the connection fails.
     """
     try:
         import urllib.parse
@@ -145,8 +160,13 @@ class DatabaseAPI:
     @staticmethod
     def create_user(user_data: dict[str, Any]) -> dict[str, Any]:
         """
-        Create and persist a new user account into PostgreSQL.
-        Default state: is_active=True, is_disabled=False, can_login=True, is_archived=False, tags=['active'].
+        Create or update a user account in the registries and PostgreSQL.
+        
+        Parameters:
+        	user_data (dict[str, Any]): User attributes, including username, credentials, role, profile details, and decentralized identifier.
+        
+        Returns:
+        	dict[str, Any]: The normalized user record with default account-state fields applied.
         """
         username = user_data["username"]
         conn, _ = get_postgresql_connection()
@@ -227,7 +247,15 @@ class DatabaseAPI:
 
     @staticmethod
     def get_user_by_username(username: str) -> dict[str, Any] | None:
-        """Fetch user record by username from PostgreSQL or in-memory fallback."""
+        """
+        Fetches a user record by username from PostgreSQL or the in-memory account registry.
+        
+        Parameters:
+        	username (str): The username to look up.
+        
+        Returns:
+        	dict[str, Any] | None: The matching user record, or `None` when no record is available.
+        """
         conn, _ = get_postgresql_connection()
         if conn:
             try:
@@ -270,7 +298,12 @@ class DatabaseAPI:
 
     @staticmethod
     def list_users() -> list[dict[str, Any]]:
-        """List all users from PostgreSQL or in-memory fallback."""
+        """
+        List all user records in creation order.
+        
+        Returns:
+        	list[dict[str, Any]]: User records retrieved from PostgreSQL, or cached records when PostgreSQL is unavailable or returns no rows.
+        """
         conn, _ = get_postgresql_connection()
         if conn:
             try:
@@ -315,7 +348,16 @@ class DatabaseAPI:
 
     @staticmethod
     def update_password(username: str, new_password_hash: str) -> bool:
-        """Update password hash for specified username."""
+        """
+        Update the stored password hash for an existing user.
+        
+        Parameters:
+        	username (str): Username of the user whose password hash is updated.
+        	new_password_hash (str): Replacement password hash.
+        
+        Returns:
+        	bool: `True` if the user exists and the update is recorded, `False` if the user does not exist.
+        """
         user = DatabaseAPI.get_user_by_username(username)
         if not user:
             return False
@@ -346,9 +388,13 @@ class DatabaseAPI:
     @staticmethod
     def disable_and_archive_user(username: str) -> dict[str, Any] | None:
         """
-        Soft-delete and archive a user account WITHOUT deleting any database rows.
-        Sets is_active=False, is_disabled=True, can_login=False, is_archived=True,
-        archived_at=now(), and tags=['archive'].
+        Disable and archive an existing user account without deleting its database record.
+        
+        Parameters:
+            username (str): Username of the account to disable and archive.
+        
+        Returns:
+            dict[str, Any] | None: The updated user record, or `None` if the user does not exist.
         """
         user = DatabaseAPI.get_user_by_username(username)
         if not user:
@@ -455,7 +501,16 @@ class DatabaseAPI:
 
     @staticmethod
     def save_asset(asset_record: dict[str, Any]) -> dict[str, Any]:
-        """Save research asset record into PostgreSQL or fallback."""
+        """
+        Persist a research asset record and retain it in the in-memory asset registry.
+        
+        Parameters:
+            asset_record (dict[str, Any]): Asset metadata, including its identifier and
+                persistence fields.
+        
+        Returns:
+            dict[str, Any]: The supplied asset record.
+        """
         asset_id = asset_record["asset_id"]
         ASSET_REGISTRY[asset_id] = dict(asset_record)
 
@@ -499,7 +554,12 @@ class DatabaseAPI:
 
     @staticmethod
     def list_assets() -> list[dict[str, Any]]:
-        """List all research assets from PostgreSQL or fallback."""
+        """
+        List research assets ordered by creation time.
+        
+        Returns:
+            list[dict[str, Any]]: Asset records from PostgreSQL, or cached records when PostgreSQL is unavailable.
+        """
         conn, _ = get_postgresql_connection()
         if conn:
             try:
@@ -538,7 +598,16 @@ class DatabaseAPI:
 
     @staticmethod
     def save_cloverleaf_score(score_record: dict[str, Any]) -> dict[str, Any]:
-        """Save Cloverleaf score record into PostgreSQL or fallback."""
+        """
+        Save a Cloverleaf score record to the database and in-memory storage.
+        
+        Parameters:
+            score_record (dict[str, Any]): Score data, including the asset identifier,
+                component scores, total score, and optional qualification status.
+        
+        Returns:
+            dict[str, Any]: The supplied score record.
+        """
         _IN_MEMORY_CLOVERLEAF_SCORES.append(dict(score_record))
 
         conn, _ = get_postgresql_connection()
@@ -576,7 +645,15 @@ class DatabaseAPI:
 
     @staticmethod
     def save_revenue_split(split_record: dict[str, Any]) -> dict[str, Any]:
-        """Save IP revenue split allocation into PostgreSQL or fallback."""
+        """
+        Save an IP revenue split allocation and return the supplied record.
+        
+        Parameters:
+            split_record (dict[str, Any]): Revenue split data containing the total ingested amount, revenue type, and distribution splits.
+        
+        Returns:
+            dict[str, Any]: The supplied revenue split record.
+        """
         _IN_MEMORY_REVENUE_SPLITS.append(dict(split_record))
 
         conn, _ = get_postgresql_connection()

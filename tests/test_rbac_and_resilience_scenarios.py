@@ -204,7 +204,9 @@ def test_superuser_password_reset_protection():
 
 
 def test_admin_user_management_crud_and_rbac():
-    """Test Admin capabilities to create, list, and reset non-superuser user accounts."""
+    """
+    Verify administrator creation, password reset, listing, and archival of a non-superuser account.
+    """
     admin_jwt = create_system_jwt(username="dca_admin_mgr", role="admin")
 
     # 1. Create new user account
@@ -246,7 +248,9 @@ def test_admin_user_management_crud_and_rbac():
 
 
 def test_strict_rbac_module_isolation_and_role_assignment():
-    """Comprehensive test suite for module isolation, role assignments, and admin vs superuser permissions."""
+    """
+    Verify role-based access controls, module isolation, role assignments, and auditor read-only access across API endpoints.
+    """
     admin_jwt = create_system_jwt(username="dca_admin_mgr", role="admin")
     super_jwt = create_system_jwt(username="dca_sys_root", role="superuser")
     operator_jwt = create_system_jwt(username="dca_operator_01", role="operator")
