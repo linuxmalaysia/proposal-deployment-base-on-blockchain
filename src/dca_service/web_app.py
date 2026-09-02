@@ -36,15 +36,7 @@ ASSET_SRI_CACHE: dict[str, str] = {}
 
 
 def get_asset_sri(asset_path: str) -> str:
-    """
-    Compute the Subresource Integrity value for a static asset.
-    
-    Parameters:
-        asset_path (str): Path to the static asset.
-    
-    Returns:
-        str: Base64-encoded SHA-256 SRI value, or an empty string if the asset is unavailable.
-    """
+    """Compute base64 SHA-256 Subresource Integrity (SRI) string for static asset."""
     if asset_path in ASSET_SRI_CACHE:
         return ASSET_SRI_CACHE[asset_path]
     clean_path = asset_path.lstrip("/")
@@ -579,9 +571,8 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 @app.middleware("http")
 async def security_and_preload_middleware(request: Request, call_next: Any) -> Any:
     """
-    Add security headers and asset preload links to HTTP responses.
-    
-    HTML responses include preload links for the application's stylesheet and JavaScript bundle.
+    Enforce strict security headers (Content Security Policy, X-Content-Type-Options,
+    X-Frame-Options, Referrer-Policy) and HTTP/2 asset preloading headers on responses.
     """
     response: Response = await call_next(request)
 
@@ -606,10 +597,18 @@ async def security_and_preload_middleware(request: Request, call_next: Any) -> A
     # HTTP/2 Asset Preloading Link headers for HTML responses
     content_type = response.headers.get("content-type", "")
     if "text/html" in content_type:
+        path = request.url.path
+        css_sri = get_asset_sri("/assets/css/style.css")
+        js_sri = get_asset_sri("/assets/js/rcf-dac-app.js")
+
         link_headers = [
-            '</assets/css/style.css>; rel=preload; as=style',
-            '</assets/js/rcf-dac-app.js>; rel=preload; as=script',
+            f'</assets/css/style.css>; rel=preload; as=style; integrity="{css_sri}"; crossorigin=anonymous',
         ]
+        if path == "/" or path.startswith("/docs") or path.endswith(".html"):
+            link_headers.append(
+                f'</assets/js/rcf-dac-app.js>; rel=preload; as=script; integrity="{js_sri}"; crossorigin=anonymous'
+            )
+
         response.headers["Link"] = ", ".join(link_headers)
 
     return response
@@ -1033,19 +1032,14 @@ def logout_endpoint(
 
 @app.get("/login", response_class=HTMLResponse)
 def serve_login_page() -> HTMLResponse:
-    """
-    Serve the interactive user login page.
-    
-    Returns:
-    	HTMLResponse: The rendered login page.
-    """
+    """Serve interactive user login HTML page."""
     css_sri = get_asset_sri("/assets/css/style.css")
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
 <head>
   <meta charset="UTF-8">
   <title>System Login | RCF & DAC Platform</title>
-  <link rel="preload" href="/assets/css/style.css" as="style">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="__CSS_SRI__" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="__CSS_SRI__" crossorigin="anonymous">
 </head>
 <body>
@@ -1148,7 +1142,7 @@ def serve_user_management_page() -> HTMLResponse:
 <head>
   <meta charset="UTF-8">
   <title>User Management Interface | RCF & DAC Platform</title>
-  <link rel="preload" href="/assets/css/style.css" as="style">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="__CSS_SRI__" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="__CSS_SRI__" crossorigin="anonymous">
 </head>
 <body>
@@ -1624,14 +1618,10 @@ def serve_user_management_page() -> HTMLResponse:
 @app.get("/db-connection", response_class=HTMLResponse)
 def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTMLResponse:
     """
-    Serve an interactive page showing database connection diagnostics and schema table statuses.
-    
-    Parameters:
-        bypass_cache (bool): Whether to bypass the cached database status.
-        force (bool): Whether to force a fresh database status query.
-    
+    Serve the interactive database connection and schema status page.
+
     Returns:
-        HTMLResponse: HTML containing the current connection diagnostics and schema verification results.
+        HTMLResponse: HTML containing current connection diagnostics and schema table statuses.
     """
     db_info = check_database_connection(bypass_cache=bypass_cache or force)
     is_conn = db_info["is_connected"]
@@ -1662,7 +1652,7 @@ def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTM
 <head>
   <meta charset="UTF-8">
   <title>Database Connection & Schema Verification Status | RCF & DAC</title>
-  <link rel="preload" href="/assets/css/style.css" as="style">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="{css_sri}" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="{css_sri}" crossorigin="anonymous">
 </head>
 <body>
@@ -2470,15 +2460,6 @@ def render_markdown_to_html(md_text: str) -> str:
 
 
 def _render_doc_file(doc_file: Path) -> HTMLResponse:
-    """
-    Render a documentation file as a complete HTML page.
-    
-    Parameters:
-        doc_file (Path): Path to the Markdown documentation file.
-    
-    Returns:
-        HTMLResponse: The rendered documentation page.
-    """
     content = doc_file.read_text(encoding="utf-8")
     if content.startswith("---"):
         parts = content.split("---", 2)
@@ -2494,8 +2475,8 @@ def _render_doc_file(doc_file: Path) -> HTMLResponse:
 <head>
   <meta charset="UTF-8">
   <title>RCF & DAC Documentation</title>
-  <link rel="preload" href="/assets/css/style.css" as="style">
-  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="{css_sri}" crossorigin="anonymous">
+  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" integrity="{js_sri}" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="{css_sri}" crossorigin="anonymous">
   <script src="/assets/js/rcf-dac-app.js" integrity="{js_sri}" crossorigin="anonymous" defer></script>
 </head>
@@ -2568,8 +2549,8 @@ def serve_index() -> HTMLResponse:
 <head>
   <meta charset="UTF-8">
   <title>RCF & DAC Interactive Web Portal</title>
-  <link rel="preload" href="/assets/css/style.css" as="style">
-  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="{css_sri}" crossorigin="anonymous">
+  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" integrity="{js_sri}" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="{css_sri}" crossorigin="anonymous">
   <script src="/assets/js/rcf-dac-app.js" integrity="{js_sri}" crossorigin="anonymous" defer></script>
 </head>

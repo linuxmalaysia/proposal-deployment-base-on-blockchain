@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import threading
 import time
+from pathlib import Path
 from typing import Generator
 
 import pytest
@@ -218,9 +219,7 @@ def test_playwright_login_and_user_creation_workflow(page: Page, live_server: st
 
 
 def test_playwright_web_design_guidelines_compliance(page: Page, live_server: str):
-    """
-    Verify accessibility attributes on authentication, user-management, and portal controls.
-    """
+    """Verify Web Interface Guidelines & W3C WCAG Accessibility compliance using Playwright E2E."""
     # 1. Login Page Audit: Form autocompletes, spellcheck, aria-live, aria-labels
     page.goto(f"{live_server}/login")
 
@@ -294,7 +293,8 @@ def test_playwright_web_design_guidelines_compliance(page: Page, live_server: st
 
 def test_playwright_visual_regression_theme_and_viewport_matrix(page: Page, live_server: str):
     """
-    Verify homepage rendering across desktop and mobile viewports in light and dark themes.
+    Expand Playwright E2E visual regression snapshot comparison testing across
+    dark mode/light mode themes and mobile viewports.
     """
     os.makedirs("docs/screenshots", exist_ok=True)
 
@@ -322,7 +322,21 @@ def test_playwright_visual_regression_theme_and_viewport_matrix(page: Page, live
             page.locator(".role-select-btn[data-role='all']").click()
 
             shot_path = f"docs/screenshots/playwright_homepage_{vp_name}_{theme}.png"
-            page.screenshot(path=shot_path, full_page=True)
+            if os.path.exists(shot_path):
+                baseline_bytes = Path(shot_path).read_bytes()
+            else:
+                baseline_bytes = b""
+
+            new_bytes = page.screenshot(full_page=True)
+
+            if baseline_bytes:
+                # Compare screenshot size variance against committed baseline
+                assert abs(len(new_bytes) - len(baseline_bytes)) < 25000, (
+                    f"Visual snapshot for {vp_name}_{theme} diverged significantly from baseline"
+                )
+
+            with open(shot_path, "wb") as f:
+                f.write(new_bytes)
 
             assert os.path.exists(shot_path)
             assert os.path.getsize(shot_path) > 0
