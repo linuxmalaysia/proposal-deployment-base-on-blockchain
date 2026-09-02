@@ -218,7 +218,9 @@ def test_playwright_login_and_user_creation_workflow(page: Page, live_server: st
 
 
 def test_playwright_web_design_guidelines_compliance(page: Page, live_server: str):
-    """Verify Web Interface Guidelines & W3C WCAG Accessibility compliance using Playwright E2E."""
+    """
+    Verify accessibility attributes on authentication, user-management, and portal controls.
+    """
     # 1. Login Page Audit: Form autocompletes, spellcheck, aria-live, aria-labels
     page.goto(f"{live_server}/login")
 
@@ -292,8 +294,7 @@ def test_playwright_web_design_guidelines_compliance(page: Page, live_server: st
 
 def test_playwright_visual_regression_theme_and_viewport_matrix(page: Page, live_server: str):
     """
-    Expand Playwright E2E visual regression snapshot comparison testing across
-    dark mode/light mode themes and mobile viewports.
+    Verify homepage rendering across desktop and mobile viewports in light and dark themes.
     """
     os.makedirs("docs/screenshots", exist_ok=True)
 

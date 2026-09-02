@@ -36,7 +36,15 @@ ASSET_SRI_CACHE: dict[str, str] = {}
 
 
 def get_asset_sri(asset_path: str) -> str:
-    """Compute base64 SHA-256 Subresource Integrity (SRI) string for static asset."""
+    """
+    Compute the Subresource Integrity value for a static asset.
+    
+    Parameters:
+        asset_path (str): Path to the static asset.
+    
+    Returns:
+        str: Base64-encoded SHA-256 SRI value, or an empty string if the asset is unavailable.
+    """
     if asset_path in ASSET_SRI_CACHE:
         return ASSET_SRI_CACHE[asset_path]
     clean_path = asset_path.lstrip("/")
@@ -571,8 +579,9 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 @app.middleware("http")
 async def security_and_preload_middleware(request: Request, call_next: Any) -> Any:
     """
-    Enforce strict security headers (Content Security Policy, X-Content-Type-Options,
-    X-Frame-Options, Referrer-Policy) and HTTP/2 asset preloading headers on responses.
+    Add security headers and asset preload links to HTTP responses.
+    
+    HTML responses include preload links for the application's stylesheet and JavaScript bundle.
     """
     response: Response = await call_next(request)
 
@@ -1024,7 +1033,12 @@ def logout_endpoint(
 
 @app.get("/login", response_class=HTMLResponse)
 def serve_login_page() -> HTMLResponse:
-    """Serve interactive user login HTML page."""
+    """
+    Serve the interactive user login page.
+    
+    Returns:
+    	HTMLResponse: The rendered login page.
+    """
     css_sri = get_asset_sri("/assets/css/style.css")
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
@@ -1610,10 +1624,14 @@ def serve_user_management_page() -> HTMLResponse:
 @app.get("/db-connection", response_class=HTMLResponse)
 def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTMLResponse:
     """
-    Serve the interactive database connection and schema status page.
-
+    Serve an interactive page showing database connection diagnostics and schema table statuses.
+    
+    Parameters:
+        bypass_cache (bool): Whether to bypass the cached database status.
+        force (bool): Whether to force a fresh database status query.
+    
     Returns:
-        HTMLResponse: HTML containing current connection diagnostics and schema table statuses.
+        HTMLResponse: HTML containing the current connection diagnostics and schema verification results.
     """
     db_info = check_database_connection(bypass_cache=bypass_cache or force)
     is_conn = db_info["is_connected"]
@@ -2452,6 +2470,15 @@ def render_markdown_to_html(md_text: str) -> str:
 
 
 def _render_doc_file(doc_file: Path) -> HTMLResponse:
+    """
+    Render a documentation file as a complete HTML page.
+    
+    Parameters:
+        doc_file (Path): Path to the Markdown documentation file.
+    
+    Returns:
+        HTMLResponse: The rendered documentation page.
+    """
     content = doc_file.read_text(encoding="utf-8")
     if content.startswith("---"):
         parts = content.split("---", 2)
