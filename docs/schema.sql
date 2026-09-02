@@ -20,6 +20,30 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Idempotent column migrations for existing users tables
+ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_disabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS can_login BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT ARRAY['active'];
+ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+
+-- Idempotent unique constraint for username on existing tables
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_users_username'
+    ) THEN
+        ALTER TABLE users ADD CONSTRAINT uq_users_username UNIQUE (username);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END $$;
+
 CREATE TABLE IF NOT EXISTS role_permissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     module_id VARCHAR(100) UNIQUE NOT NULL,
@@ -84,10 +108,8 @@ CREATE TABLE IF NOT EXISTS blockchain_transactions (
 );
 
 -- Indexes for high-concurrency lookup & archiving queries
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_did ON users(did);
 CREATE INDEX IF NOT EXISTS idx_users_archived ON users(is_archived, is_disabled);
-CREATE INDEX IF NOT EXISTS idx_role_permissions_module ON role_permissions(module_id);
 CREATE INDEX IF NOT EXISTS idx_assets_asset_id ON assets(asset_id);
 CREATE INDEX IF NOT EXISTS idx_assets_created_at_trl ON assets(created_at, trl);
 CREATE INDEX IF NOT EXISTS idx_cloverleaf_asset_id ON cloverleaf_scores(asset_id);

@@ -220,6 +220,7 @@ def test_close_postgresql_connection_never_leaves_negative_active_count(
     metrics = web_app.ConnectionPoolMetrics()
     metrics.active_connections = initial_active
     monkeypatch.setattr(web_app, "DB_POOL_METRICS", metrics)
+    monkeypatch.setattr("dca_service.adapters.database_api.DB_POOL_METRICS", metrics)
     connection = MagicMock()
     connection.close.side_effect = close_error
 
