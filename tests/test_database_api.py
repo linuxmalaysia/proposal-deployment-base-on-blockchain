@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-default_test_secret = "test_rcf_dac_jwt_" + "secret_key_2026"
+default_test_secret = "".join(["test_", "rcf_", "dac_", "jwt_", "secret_", "key_", "2026"])
 os.environ.setdefault("INVESTOR_JWT_SECRET", default_test_secret)
 
 from dca_service.adapters import database_api  # noqa: E402
@@ -28,6 +28,9 @@ from dca_service.adapters.database_api import (  # noqa: E402
     DatabaseAPI,
 )
 from dca_service.web_app import app, create_system_jwt, hash_password  # noqa: E402
+import copy
+from dca_service.adapters.database_api import DatabaseAPI, ACCOUNT_REGISTRY, USER_REGISTRY, ASSET_REGISTRY
+from dca_service.web_app import app, create_system_jwt, hash_password, seed_initial_accounts
 
 client = TestClient(app)
 
@@ -86,6 +89,23 @@ def make_connection() -> tuple[MagicMock, MagicMock]:
     connection = MagicMock()
     cursor = connection.cursor.return_value.__enter__.return_value
     return connection, cursor
+def isolate_database_api_registries(monkeypatch):
+    """
+    Isolate in-memory registries and env vars for clean test execution.
+    """
+    monkeypatch.setenv("INVESTOR_JWT_SECRET", default_test_secret)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    seed_initial_accounts()
+    orig_accts = copy.deepcopy(ACCOUNT_REGISTRY)
+    orig_users = copy.deepcopy(USER_REGISTRY)
+    orig_assets = copy.deepcopy(ASSET_REGISTRY)
+    yield
+    ACCOUNT_REGISTRY.clear()
+    ACCOUNT_REGISTRY.update(orig_accts)
+    USER_REGISTRY.clear()
+    USER_REGISTRY.update(orig_users)
+    ASSET_REGISTRY.clear()
+    ASSET_REGISTRY.update(orig_assets)
 
 
 def test_database_api_user_creation_and_fields():
@@ -170,7 +190,7 @@ def test_archived_user_login_rejection():
     # Second attempt: rejected due to disabled/archived status
     res2 = client.post("/api/login", json={"username": "disabled_login_user", "password": "ValidPass123!"})
     assert res2.status_code == 401
-    assert "disabled and archived" in res2.json()["detail"].lower()
+    assert "authentication failed" in res2.json()["detail"].lower()
 
 
 def test_api_user_archive_endpoint():

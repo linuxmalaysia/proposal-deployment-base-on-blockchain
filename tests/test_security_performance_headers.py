@@ -92,13 +92,13 @@ def test_security_headers_apply_to_successful_and_error_responses(path: str) -> 
 
 
 def test_preload_link_header_is_added_only_to_html_responses() -> None:
-    html_response = client.get("/login", headers={"Accept-Encoding": "identity"})
+    html_response = client.get("/", headers={"Accept-Encoding": "identity"})
     json_response = client.get("/health", headers={"Accept-Encoding": "identity"})
     static_response = client.get("/assets/css/style.css", headers={"Accept-Encoding": "identity"})
 
     assert html_response.headers["link"] == (
-        "</assets/css/style.css>; rel=preload; as=style, "
-        "</assets/js/rcf-dac-app.js>; rel=preload; as=script"
+        "</assets/css/style.css>; rel=preload; as=style; crossorigin=anonymous, "
+        "</assets/js/rcf-dac-app.js>; rel=preload; as=script; crossorigin=anonymous"
     )
     assert "link" not in json_response.headers
     assert "link" not in static_response.headers
@@ -121,13 +121,13 @@ def test_rendered_pages_include_preloads_and_matching_integrity_attributes(
     js_integrity = _expected_sri(web_app.ASSETS_DIR / "js" / "rcf-dac-app.js")
 
     assert response.status_code == 200
-    assert '<link rel="preload" href="/assets/css/style.css" as="style">' in response.text
+    assert '<link rel="preload" href="/assets/css/style.css" as="style" crossorigin="anonymous">' in response.text
     assert (
         f'<link rel="stylesheet" href="/assets/css/style.css" '
         f'integrity="{css_integrity}" crossorigin="anonymous">'
     ) in response.text
     if includes_javascript:
-        assert '<link rel="preload" href="/assets/js/rcf-dac-app.js" as="script">' in response.text
+        assert '<link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" crossorigin="anonymous">' in response.text
         assert (
             f'<script src="/assets/js/rcf-dac-app.js" integrity="{js_integrity}" '
             'crossorigin="anonymous" defer></script>'

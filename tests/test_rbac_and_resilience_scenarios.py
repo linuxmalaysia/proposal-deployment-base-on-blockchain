@@ -46,6 +46,8 @@ def isolate_account_registry(monkeypatch):
     Isolate account, environment, role module permissions, and rate-limit state for each test.
     """
     monkeypatch.setenv("INVESTOR_JWT_SECRET", TEST_JWT_SECRET.decode())
+    from dca_service.web_app import seed_initial_accounts
+    seed_initial_accounts()
     original_accounts = copy.deepcopy(ACCOUNT_REGISTRY)
     original_permissions = copy.deepcopy(ROLE_MODULE_PERMISSIONS)
     RATE_LIMIT_BUCKETS.clear()
@@ -204,9 +206,7 @@ def test_superuser_password_reset_protection():
 
 
 def test_admin_user_management_crud_and_rbac():
-    """
-    Verify administrator creation, password reset, listing, and archival of a non-superuser account.
-    """
+    """Test Admin capabilities to create, list, and reset non-superuser user accounts."""
     admin_jwt = create_system_jwt(username="dca_admin_mgr", role="admin")
 
     # 1. Create new user account
@@ -248,9 +248,7 @@ def test_admin_user_management_crud_and_rbac():
 
 
 def test_strict_rbac_module_isolation_and_role_assignment():
-    """
-    Verify role-based access controls, module isolation, role assignments, and auditor read-only access across API endpoints.
-    """
+    """Comprehensive test suite for module isolation, role assignments, and admin vs superuser permissions."""
     admin_jwt = create_system_jwt(username="dca_admin_mgr", role="admin")
     super_jwt = create_system_jwt(username="dca_sys_root", role="superuser")
     operator_jwt = create_system_jwt(username="dca_operator_01", role="operator")

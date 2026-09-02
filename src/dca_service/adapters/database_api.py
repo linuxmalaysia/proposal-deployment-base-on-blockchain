@@ -21,7 +21,13 @@ logger = logging.getLogger("dca_service.database_api")
 ACCOUNT_REGISTRY: dict[str, dict[str, Any]] = {}
 USER_REGISTRY: dict[str, dict[str, Any]] = {}
 ASSET_REGISTRY: dict[str, dict[str, Any]] = {}
-ROLE_MODULE_PERMISSIONS: dict[str, list[str]] = {}
+ROLE_MODULE_PERMISSIONS: dict[str, list[str]] = {
+    "module_1": ["admin"],
+    "module_2": ["operator"],
+    "module_3": ["operator"],
+    "module_4": ["investor"],
+    "module_5": ["investor"],
+}
 
 _IN_MEMORY_CLOVERLEAF_SCORES: list[dict[str, Any]] = []
 _IN_MEMORY_REVENUE_SPLITS: list[dict[str, Any]] = []
@@ -40,13 +46,6 @@ class ConnectionPoolMetrics:
         self.failed_connections: int = 0
 
     def record_connection_attempt(self, latency_ms: float, success: bool) -> None:
-        """
-        Record the outcome and latency of a connection acquisition attempt.
-        
-        Parameters:
-            latency_ms (float): Connection acquisition latency in milliseconds.
-            success (bool): Whether the connection acquisition succeeded.
-        """
         if success:
             self.total_acquired += 1
             self.total_checkout_latency_ms += latency_ms
@@ -54,17 +53,9 @@ class ConnectionPoolMetrics:
             self.failed_connections += 1
 
     def record_query(self) -> None:
-        """Record one database query in the connection pool metrics."""
         self.total_queries += 1
 
     def to_dict(self) -> dict[str, Any]:
-        """
-        Return the current connection pool metrics as a dictionary.
-        
-        Returns:
-        	dict[str, Any]: Metrics including pool limits, connection and query counts,
-        	average checkout latency, utilization percentage, and a UTC timestamp.
-        """
         avg_latency = (
             round(self.total_checkout_latency_ms / self.total_acquired, 2)
             if self.total_acquired > 0
@@ -85,17 +76,65 @@ class ConnectionPoolMetrics:
 
 
 DB_POOL_METRICS = ConnectionPoolMetrics()
+SYNC_DB_POOL: Any = None
+
+
+def get_database_url() -> str | None:
+    """Construct or retrieve configured PostgreSQL database URL string."""
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        return database_url
+
+    pooler_host = os.environ.get("SUPABASE_POOLER_HOST") or os.environ.get("SUPABASE_DB_HOST")
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    db_pass = os.environ.get("SUPABASE_DB_PASSWORD", "")
+    if pooler_host and supabase_url and db_pass:
+        import urllib.parse
+        parsed = urllib.parse.urlparse(supabase_url)
+        hostname = parsed.netloc or "your-supabase-project-ref.supabase.co"
+        project_ref = hostname.split(".")[0]
+        encoded_pass = urllib.parse.quote_plus(db_pass)
+        ca_file = Path(os.environ.get("SUPABASE_SSLROOTCERT", "/etc/secrets/prod-supabase-ca.crt"))
+        if ca_file.exists():
+            ssl_params = f"sslmode=verify-full&sslrootcert={ca_file}"
+        else:
+            return None
+        return f"postgresql://postgres.{project_ref}:{encoded_pass}@{pooler_host}:6543/postgres?{ssl_params}"
+    return None
+
+
+def get_sync_db_pool() -> Any:
+    """Get or initialize shared synchronous ConnectionPool."""
+    global SYNC_DB_POOL
+    if SYNC_DB_POOL is not None:
+        return SYNC_DB_POOL
+
+    database_url = get_database_url()
+    if database_url:
+        try:
+            from psycopg_pool import ConnectionPool
+            pool = ConnectionPool(
+                conninfo=database_url,
+                min_size=1,
+                max_size=DB_POOL_METRICS.max_pool_size,
+                open=True,
+            )
+            SYNC_DB_POOL = pool
+            return SYNC_DB_POOL
+        except Exception as exc:
+            logger.warning("ConnectionPool initialization failed: %s", exc)
+            return None
+    return None
 
 
 def get_postgresql_connection() -> tuple[Any, str]:
     """
-    Establish a PostgreSQL connection using the configured database URL or Supabase settings.
-    
+    Establish or acquire a PostgreSQL connection using shared ConnectionPool or psycopg.
+
     Returns:
-        tuple[Any, str]: The connection and a status message. The connection is `None` when configuration is missing, the CA certificate is unavailable, the driver is not installed, or the connection fails.
+        tuple[Any, str]: Connection instance and diagnostic message.
     """
     try:
-        import urllib.parse
         import psycopg
     except ImportError:
         DB_POOL_METRICS.record_connection_attempt(0.0, False)
@@ -107,24 +146,26 @@ def get_postgresql_connection() -> tuple[Any, str]:
         supabase_url = os.environ.get("SUPABASE_URL", "")
         db_pass = os.environ.get("SUPABASE_DB_PASSWORD", "")
         if pooler_host and supabase_url and db_pass:
-            parsed = urllib.parse.urlparse(supabase_url)
-            hostname = parsed.netloc or "your-supabase-project-ref.supabase.co"
-            project_ref = hostname.split(".")[0]
-            encoded_pass = urllib.parse.quote_plus(db_pass)
             ca_file = Path(os.environ.get("SUPABASE_SSLROOTCERT", "/etc/secrets/prod-supabase-ca.crt"))
-            if ca_file.exists():
-                ssl_params = f"sslmode=verify-full&sslrootcert={ca_file}"
-            else:
+            if not ca_file.exists():
                 DB_POOL_METRICS.record_connection_attempt(0.0, False)
                 return None, "PostgreSQL CA certificate missing (/etc/secrets/prod-supabase-ca.crt); failing closed."
-            database_url = f"postgresql://postgres.{project_ref}:{encoded_pass}@{pooler_host}:6543/postgres?{ssl_params}"
 
+    database_url = get_database_url()
     if not database_url:
         DB_POOL_METRICS.record_connection_attempt(0.0, False)
         return None, "DATABASE_URL or SUPABASE_DB_PASSWORD not configured"
 
     t0 = time.time()
     try:
+        pool = get_sync_db_pool()
+        if pool is not None:
+            conn = pool.getconn()
+            lat_ms = (time.time() - t0) * 1000.0
+            DB_POOL_METRICS.record_connection_attempt(lat_ms, True)
+            DB_POOL_METRICS.active_connections += 1
+            return conn, "Connected to PostgreSQL"
+
         conn = psycopg.connect(database_url, connect_timeout=4)
         lat_ms = (time.time() - t0) * 1000.0
         DB_POOL_METRICS.record_connection_attempt(lat_ms, True)
@@ -137,10 +178,16 @@ def get_postgresql_connection() -> tuple[Any, str]:
 
 
 def close_postgresql_connection(conn: Any) -> None:
-    """Close PostgreSQL connection and update active connection metrics."""
+    """Release or close PostgreSQL connection and update pool accounting."""
     if conn is not None:
         try:
-            conn.close()
+            if SYNC_DB_POOL is not None:
+                try:
+                    SYNC_DB_POOL.putconn(conn)
+                except Exception:
+                    conn.close()
+            else:
+                conn.close()
         except Exception:
             pass
         finally:
@@ -160,16 +207,12 @@ class DatabaseAPI:
     @staticmethod
     def create_user(user_data: dict[str, Any]) -> dict[str, Any]:
         """
-        Create or update a user account in the registries and PostgreSQL.
-        
-        Parameters:
-        	user_data (dict[str, Any]): User attributes, including username, credentials, role, profile details, and decentralized identifier.
-        
-        Returns:
-        	dict[str, Any]: The normalized user record with default account-state fields applied.
+        Create and persist a new user account into PostgreSQL.
+        ON CONFLICT (username) updates name, role, dept, email, did, updated_at
+        WITHOUT overwriting password_hash, is_active, is_disabled, can_login, is_archived, archived_at, or tags.
         """
         username = user_data["username"]
-        conn, _ = get_postgresql_connection()
+        conn, msg = get_postgresql_connection()
 
         user_record = {
             "username": username,
@@ -189,7 +232,6 @@ class DatabaseAPI:
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
 
-        # Sync to central in-memory registries
         ACCOUNT_REGISTRY[username] = dict(user_record)
         USER_REGISTRY[user_record["did"]] = dict(user_record)
 
@@ -203,18 +245,11 @@ class DatabaseAPI:
                             is_active, is_disabled, can_login, is_archived, archived_at, tags, created_at, updated_at
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                         ON CONFLICT (username) DO UPDATE SET
-                            password_hash = EXCLUDED.password_hash,
                             role = EXCLUDED.role,
                             name = EXCLUDED.name,
                             dept = EXCLUDED.dept,
                             email = EXCLUDED.email,
                             did = EXCLUDED.did,
-                            is_active = EXCLUDED.is_active,
-                            is_disabled = EXCLUDED.is_disabled,
-                            can_login = EXCLUDED.can_login,
-                            is_archived = EXCLUDED.is_archived,
-                            archived_at = EXCLUDED.archived_at,
-                            tags = EXCLUDED.tags,
                             updated_at = CURRENT_TIMESTAMP;
                         """,
                         (
@@ -240,6 +275,8 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
+                close_postgresql_connection(conn)
+                raise RuntimeError(f"Database user creation failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
 
@@ -247,15 +284,7 @@ class DatabaseAPI:
 
     @staticmethod
     def get_user_by_username(username: str) -> dict[str, Any] | None:
-        """
-        Fetches a user record by username from PostgreSQL or the in-memory account registry.
-        
-        Parameters:
-        	username (str): The username to look up.
-        
-        Returns:
-        	dict[str, Any] | None: The matching user record, or `None` when no record is available.
-        """
+        """Fetch user record by username from PostgreSQL or in-memory fallback."""
         conn, _ = get_postgresql_connection()
         if conn:
             try:
@@ -289,6 +318,7 @@ class DatabaseAPI:
                         ACCOUNT_REGISTRY[username] = dict(user_rec)
                         USER_REGISTRY[user_rec["did"]] = dict(user_rec)
                         return user_rec
+                    return None
             except Exception as exc:
                 logger.warning("PostgreSQL fetch user error: %s", exc)
             finally:
@@ -298,12 +328,7 @@ class DatabaseAPI:
 
     @staticmethod
     def list_users() -> list[dict[str, Any]]:
-        """
-        List all user records in creation order.
-        
-        Returns:
-        	list[dict[str, Any]]: User records retrieved from PostgreSQL, or cached records when PostgreSQL is unavailable or returns no rows.
-        """
+        """List all users from PostgreSQL query or fallback if connection/query fails."""
         conn, _ = get_postgresql_connection()
         if conn:
             try:
@@ -316,29 +341,28 @@ class DatabaseAPI:
                         """
                     )
                     rows = cur.fetchall()
-                    if rows:
-                        results = []
-                        for row in rows:
-                            u_rec = {
-                                "username": row[0],
-                                "password_hash": row[1],
-                                "role": row[2],
-                                "name": row[3],
-                                "dept": row[4],
-                                "email": row[5],
-                                "did": row[6],
-                                "is_active": row[7],
-                                "is_disabled": row[8],
-                                "can_login": row[9],
-                                "is_archived": row[10],
-                                "archived_at": row[11].isoformat() if row[11] else None,
-                                "tags": list(row[12]) if row[12] else [],
-                                "created_at": row[13].isoformat() if row[13] else None,
-                            }
-                            ACCOUNT_REGISTRY[u_rec["username"]] = dict(u_rec)
-                            USER_REGISTRY[u_rec["did"]] = dict(u_rec)
-                            results.append(u_rec)
-                        return results
+                    results = []
+                    for row in rows:
+                        u_rec = {
+                            "username": row[0],
+                            "password_hash": row[1],
+                            "role": row[2],
+                            "name": row[3],
+                            "dept": row[4],
+                            "email": row[5],
+                            "did": row[6],
+                            "is_active": row[7],
+                            "is_disabled": row[8],
+                            "can_login": row[9],
+                            "is_archived": row[10],
+                            "archived_at": row[11].isoformat() if row[11] else None,
+                            "tags": list(row[12]) if row[12] else [],
+                            "created_at": row[13].isoformat() if row[13] else None,
+                        }
+                        ACCOUNT_REGISTRY[u_rec["username"]] = dict(u_rec)
+                        USER_REGISTRY[u_rec["did"]] = dict(u_rec)
+                        results.append(u_rec)
+                    return results
             except Exception as exc:
                 logger.warning("PostgreSQL list users error: %s", exc)
             finally:
@@ -348,16 +372,7 @@ class DatabaseAPI:
 
     @staticmethod
     def update_password(username: str, new_password_hash: str) -> bool:
-        """
-        Update the stored password hash for an existing user.
-        
-        Parameters:
-        	username (str): Username of the user whose password hash is updated.
-        	new_password_hash (str): Replacement password hash.
-        
-        Returns:
-        	bool: `True` if the user exists and the update is recorded, `False` if the user does not exist.
-        """
+        """Update password hash for specified username."""
         user = DatabaseAPI.get_user_by_username(username)
         if not user:
             return False
@@ -380,6 +395,8 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
+                close_postgresql_connection(conn)
+                raise RuntimeError(f"Database password update failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
 
@@ -388,13 +405,9 @@ class DatabaseAPI:
     @staticmethod
     def disable_and_archive_user(username: str) -> dict[str, Any] | None:
         """
-        Disable and archive an existing user account without deleting its database record.
-        
-        Parameters:
-            username (str): Username of the account to disable and archive.
-        
-        Returns:
-            dict[str, Any] | None: The updated user record, or `None` if the user does not exist.
+        Soft-delete and archive a user account WITHOUT deleting any database rows.
+        Sets is_active=False, is_disabled=True, can_login=False, is_archived=True,
+        archived_at=now(), and tags=['archive'].
         """
         user = DatabaseAPI.get_user_by_username(username)
         if not user:
@@ -435,6 +448,8 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
+                close_postgresql_connection(conn)
+                raise RuntimeError(f"Database user archiving failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
 
@@ -470,6 +485,8 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
+                close_postgresql_connection(conn)
+                raise RuntimeError(f"Database save role permissions failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
 
@@ -482,14 +499,13 @@ class DatabaseAPI:
                 with conn.cursor() as cur:
                     cur.execute("SELECT module_id, allowed_roles FROM role_permissions;")
                     rows = cur.fetchall()
-                    if rows:
-                        res = {}
-                        for row in rows:
-                            mod_id = row[0]
-                            allowed = row[1] if isinstance(row[1], list) else json.loads(row[1])
-                            res[mod_id] = [str(r) for r in allowed]
-                            ROLE_MODULE_PERMISSIONS[mod_id] = res[mod_id]
-                        return res
+                    res = {}
+                    for row in rows:
+                        mod_id = row[0]
+                        allowed = row[1] if isinstance(row[1], list) else json.loads(row[1])
+                        res[mod_id] = [str(r) for r in allowed]
+                        ROLE_MODULE_PERMISSIONS[mod_id] = res[mod_id]
+                    return res
             except Exception as exc:
                 logger.warning("PostgreSQL load_role_permissions error: %s", exc)
             finally:
@@ -501,16 +517,7 @@ class DatabaseAPI:
 
     @staticmethod
     def save_asset(asset_record: dict[str, Any]) -> dict[str, Any]:
-        """
-        Persist a research asset record and retain it in the in-memory asset registry.
-        
-        Parameters:
-            asset_record (dict[str, Any]): Asset metadata, including its identifier and
-                persistence fields.
-        
-        Returns:
-            dict[str, Any]: The supplied asset record.
-        """
+        """Save research asset record into PostgreSQL or fallback."""
         asset_id = asset_record["asset_id"]
         ASSET_REGISTRY[asset_id] = dict(asset_record)
 
@@ -547,6 +554,8 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
+                close_postgresql_connection(conn)
+                raise RuntimeError(f"Database save asset failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
 
@@ -554,12 +563,7 @@ class DatabaseAPI:
 
     @staticmethod
     def list_assets() -> list[dict[str, Any]]:
-        """
-        List research assets ordered by creation time.
-        
-        Returns:
-            list[dict[str, Any]]: Asset records from PostgreSQL, or cached records when PostgreSQL is unavailable.
-        """
+        """List all research assets from PostgreSQL query or fallback."""
         conn, _ = get_postgresql_connection()
         if conn:
             try:
@@ -571,22 +575,21 @@ class DatabaseAPI:
                         """
                     )
                     rows = cur.fetchall()
-                    if rows:
-                        res = []
-                        for row in rows:
-                            rec = {
-                                "asset_id": row[0],
-                                "title": row[1],
-                                "trl": row[2],
-                                "abstract": row[3],
-                                "file_name": row[4],
-                                "sha256_digest": row[5],
-                                "tx_outbox_id": row[6],
-                                "timestamp": row[7].isoformat() if row[7] else None,
-                            }
-                            ASSET_REGISTRY[rec["asset_id"]] = rec
-                            res.append(rec)
-                        return res
+                    res = []
+                    for row in rows:
+                        rec = {
+                            "asset_id": row[0],
+                            "title": row[1],
+                            "trl": row[2],
+                            "abstract": row[3],
+                            "file_name": row[4],
+                            "sha256_digest": row[5],
+                            "tx_outbox_id": row[6],
+                            "timestamp": row[7].isoformat() if row[7] else None,
+                        }
+                        ASSET_REGISTRY[rec["asset_id"]] = rec
+                        res.append(rec)
+                    return res
             except Exception as exc:
                 logger.warning("PostgreSQL list_assets error: %s", exc)
             finally:
@@ -598,16 +601,7 @@ class DatabaseAPI:
 
     @staticmethod
     def save_cloverleaf_score(score_record: dict[str, Any]) -> dict[str, Any]:
-        """
-        Save a Cloverleaf score record to the database and in-memory storage.
-        
-        Parameters:
-            score_record (dict[str, Any]): Score data, including the asset identifier,
-                component scores, total score, and optional qualification status.
-        
-        Returns:
-            dict[str, Any]: The supplied score record.
-        """
+        """Save Cloverleaf score record into PostgreSQL or fallback."""
         _IN_MEMORY_CLOVERLEAF_SCORES.append(dict(score_record))
 
         conn, _ = get_postgresql_connection()
@@ -636,6 +630,8 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
+                close_postgresql_connection(conn)
+                raise RuntimeError(f"Database save cloverleaf score failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
 
@@ -645,15 +641,7 @@ class DatabaseAPI:
 
     @staticmethod
     def save_revenue_split(split_record: dict[str, Any]) -> dict[str, Any]:
-        """
-        Save an IP revenue split allocation and return the supplied record.
-        
-        Parameters:
-            split_record (dict[str, Any]): Revenue split data containing the total ingested amount, revenue type, and distribution splits.
-        
-        Returns:
-            dict[str, Any]: The supplied revenue split record.
-        """
+        """Save IP revenue split allocation into PostgreSQL or fallback."""
         _IN_MEMORY_REVENUE_SPLITS.append(dict(split_record))
 
         conn, _ = get_postgresql_connection()
@@ -678,6 +666,8 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
+                close_postgresql_connection(conn)
+                raise RuntimeError(f"Database save revenue split failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
 
