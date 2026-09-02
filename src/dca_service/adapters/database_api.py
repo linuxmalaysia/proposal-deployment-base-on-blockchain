@@ -83,7 +83,20 @@ def get_database_url() -> str | None:
     """Construct or retrieve configured PostgreSQL database URL string."""
     database_url = os.environ.get("DATABASE_URL")
     if database_url:
-        return database_url
+        is_unix_socket = "host=/" in database_url or "host=%2F" in database_url or "/.s.PGSQL." in database_url
+        if is_unix_socket:
+            return database_url
+
+        if "sslmode=verify-full" in database_url:
+            return database_url
+
+        ca_file = Path(os.environ.get("SUPABASE_SSLROOTCERT", "/etc/secrets/prod-supabase-ca.crt"))
+        if ca_file.exists():
+            delimiter = "&" if "?" in database_url else "?"
+            return f"{database_url}{delimiter}sslmode=verify-full&sslrootcert={ca_file}"
+
+        logger.warning("DATABASE_URL requires sslmode=verify-full and trusted CA for TCP connections; rejecting insecure TCP configuration.")
+        return None
 
     pooler_host = os.environ.get("SUPABASE_POOLER_HOST") or os.environ.get("SUPABASE_DB_HOST")
     supabase_url = os.environ.get("SUPABASE_URL", "")
@@ -275,7 +288,6 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
-                close_postgresql_connection(conn)
                 raise RuntimeError(f"Database user creation failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
@@ -395,7 +407,6 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
-                close_postgresql_connection(conn)
                 raise RuntimeError(f"Database password update failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
@@ -448,7 +459,6 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
-                close_postgresql_connection(conn)
                 raise RuntimeError(f"Database user archiving failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
@@ -485,7 +495,6 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
-                close_postgresql_connection(conn)
                 raise RuntimeError(f"Database save role permissions failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
@@ -554,7 +563,6 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
-                close_postgresql_connection(conn)
                 raise RuntimeError(f"Database save asset failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
@@ -630,7 +638,6 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
-                close_postgresql_connection(conn)
                 raise RuntimeError(f"Database save cloverleaf score failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
@@ -666,7 +673,6 @@ class DatabaseAPI:
                     conn.rollback()
                 except Exception:
                     pass
-                close_postgresql_connection(conn)
                 raise RuntimeError(f"Database save revenue split failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)

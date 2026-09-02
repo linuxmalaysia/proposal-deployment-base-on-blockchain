@@ -40,7 +40,7 @@ BEGIN
         ALTER TABLE users ADD CONSTRAINT uq_users_username UNIQUE (username);
     END IF;
 EXCEPTION
-    WHEN OTHERS THEN
+    WHEN duplicate_object THEN
         NULL;
 END $$;
 

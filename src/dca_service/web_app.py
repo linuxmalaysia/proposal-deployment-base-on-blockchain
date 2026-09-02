@@ -1642,9 +1642,10 @@ def register_user(
     try:
         DatabaseAPI.create_user(record)
     except Exception as exc:
+        logger.error("Database user registration failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Database user registration failed: {exc}",
+            detail="Database service error. Transaction could not be completed.",
         ) from exc
 
     user_projection = {
@@ -1709,9 +1710,10 @@ def register_asset(
     try:
         DatabaseAPI.save_asset(asset_record)
     except Exception as exc:
+        logger.error("Database asset save failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Database asset save failed: {exc}",
+            detail="Database service error. Transaction could not be completed.",
         ) from exc
 
     global _INVESTOR_ASSETS_CACHE
@@ -1756,9 +1758,10 @@ def calculate_cloverleaf(
     try:
         DatabaseAPI.save_cloverleaf_score(score_record)
     except Exception as exc:
+        logger.error("Database cloverleaf score save failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Database cloverleaf score save failed: {exc}",
+            detail="Database service error. Transaction could not be completed.",
         ) from exc
 
     return {
@@ -1842,9 +1845,10 @@ def calculate_revenue(
     try:
         DatabaseAPI.save_revenue_split(split_record)
     except Exception as exc:
+        logger.error("Database revenue split save failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Database revenue split save failed: {exc}",
+            detail="Database service error. Transaction could not be completed.",
         ) from exc
 
     return {
@@ -2118,9 +2122,10 @@ def update_role_assignments(
     try:
         save_role_module_permissions(ROLE_MODULE_PERMISSIONS)
     except Exception as exc:
+        logger.error("Database role assignments update failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Database role assignments update failed: {exc}",
+            detail="Database service error. Transaction could not be completed.",
         ) from exc
 
     return {
@@ -2195,9 +2200,10 @@ def create_system_user(
     try:
         saved_user = DatabaseAPI.create_user(new_user_record)
     except Exception as exc:
+        logger.error("Database user creation failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Database user creation failed: {exc}",
+            detail="Database service error. Transaction could not be completed.",
         ) from exc
 
     return {
@@ -2252,9 +2258,10 @@ def reset_user_password(
     try:
         DatabaseAPI.update_password(username, hash_password(req.new_password))
     except Exception as exc:
+        logger.error("Database password reset failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Database password reset failed: {exc}",
+            detail="Database service error. Transaction could not be completed.",
         ) from exc
 
     return {
@@ -2304,9 +2311,10 @@ def delete_system_user(
     try:
         archived_user = DatabaseAPI.disable_and_archive_user(username)
     except Exception as exc:
+        logger.error("Database user archiving failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Database user archiving failed: {exc}",
+            detail="Database service error. Transaction could not be completed.",
         ) from exc
 
     return {

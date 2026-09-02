@@ -46,6 +46,10 @@ def isolate_account_registry(monkeypatch):
     Isolate account, environment, role module permissions, and rate-limit state for each test.
     """
     monkeypatch.setenv("INVESTOR_JWT_SECRET", TEST_JWT_SECRET.decode())
+    monkeypatch.setattr(
+        "dca_service.adapters.database_api.get_postgresql_connection",
+        lambda: (None, "Disconnected for test isolation"),
+    )
     from dca_service.web_app import seed_initial_accounts
     seed_initial_accounts()
     original_accounts = copy.deepcopy(ACCOUNT_REGISTRY)
