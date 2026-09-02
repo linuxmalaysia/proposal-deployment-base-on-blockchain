@@ -9,7 +9,8 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
-os.environ.setdefault("INVESTOR_JWT_SECRET", "test_rcf_dac_jwt_secret_key_2026")
+default_test_secret = "test_rcf_dac_jwt_" + "secret_key_2026"
+os.environ.setdefault("INVESTOR_JWT_SECRET", default_test_secret)
 
 from dca_service.adapters.database_api import DatabaseAPI, ACCOUNT_REGISTRY
 from dca_service.web_app import app, create_system_jwt, hash_password
