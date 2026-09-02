@@ -298,7 +298,7 @@ def test_generated_web_design_skill_matches_its_catalogue_entry() -> None:
     "required_rule",
     [
         "Icon-only buttons need `aria-label`.",
-        "Async updates (toasts, alert boxes, validation messages) need `aria-live=\"polite\"`.",
+        "Reserve `aria-live=\"polite\"` for non-urgent status updates",
         "Inputs need `autocomplete` and meaningful `name` attribute.",
         "Honor `prefers-reduced-motion`",
         "`font-variant-numeric: tabular-nums`",

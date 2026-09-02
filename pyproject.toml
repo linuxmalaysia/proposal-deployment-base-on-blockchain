@@ -7,6 +7,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "brotli-asgi>=1.6.0",
     "email-validator>=2.3.0",
     "fastapi>=0.141.1",
     "jinja2>=3.1.6",

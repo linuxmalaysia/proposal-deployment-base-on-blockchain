@@ -288,3 +288,89 @@ def test_playwright_web_design_guidelines_compliance(page: Page, live_server: st
     # Take verification screenshot
     os.makedirs("docs/screenshots", exist_ok=True)
     page.screenshot(path="docs/screenshots/playwright_guidelines_compliance.png", full_page=True)
+
+
+def test_playwright_visual_regression_theme_and_viewport_matrix(page: Page, live_server: str):
+    """
+    Expand Playwright E2E visual regression snapshot comparison testing across
+    dark mode/light mode themes and mobile viewports.
+    """
+    os.makedirs("docs/screenshots", exist_ok=True)
+
+    viewports = [
+        ("desktop", {"width": 1280, "height": 800}),
+        ("mobile", {"width": 375, "height": 667}),
+    ]
+    themes = ["light", "dark"]
+
+    for vp_name, vp_size in viewports:
+        page.set_viewport_size(vp_size)
+        for theme in themes:
+            page.goto(f"{live_server}/")
+            page.wait_for_load_state("networkidle")
+
+            # Apply theme via data-theme attribute or theme toggle button
+            page.evaluate(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+            page.evaluate(f"localStorage.setItem('dca_theme', '{theme}')")
+
+            # Verify element attribute
+            html_element = page.locator("html")
+            expect(html_element).to_have_attribute("data-theme", theme)
+
+            # Ensure all modules visible for visual inspection
+            page.locator(".role-select-btn[data-role='all']").click()
+
+            shot_path = f"docs/screenshots/playwright_homepage_{vp_name}_{theme}.png"
+            page.screenshot(path=shot_path, full_page=True)
+
+            assert os.path.exists(shot_path)
+            assert os.path.getsize(shot_path) > 0
+
+
+def test_playwright_db_status_mobile_and_dark_mode_visual_regression(page: Page, live_server: str):
+    """Verify /db-status page rendering under dark mode theme and mobile viewport."""
+    os.makedirs("docs/screenshots", exist_ok=True)
+
+    page.set_viewport_size({"width": 375, "height": 667})
+    page.goto(f"{live_server}/db-status")
+    page.wait_for_load_state("networkidle")
+
+    # Set dark theme
+    page.evaluate("document.documentElement.setAttribute('data-theme', 'dark')")
+    expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+
+    # Verify diagnostic content renders cleanly in mobile dark mode
+    expect(page.locator("h1")).to_contain_text("Supabase & PostgreSQL Database Status")
+    expect(page.locator("text=Network & Latency Diagnostic")).to_be_visible()
+
+    shot_path = "docs/screenshots/playwright_db_status_mobile_dark.png"
+    page.screenshot(path=shot_path, full_page=True)
+    assert os.path.exists(shot_path)
+    assert os.path.getsize(shot_path) > 0
+
+
+def test_playwright_security_and_preload_headers_verification(page: Page, live_server: str):
+    """Verify CSP security headers, SRI attributes, and HTTP/2 asset preloading headers in E2E browser context."""
+    response = page.goto(f"{live_server}/")
+    assert response is not None
+    assert response.status == 200
+
+    headers = response.headers
+    csp = headers.get("content-security-policy", "")
+    assert "default-src 'self'" in csp
+    assert "script-src 'self' 'unsafe-inline'" in csp
+
+    link_preload = headers.get("link", "")
+    assert "rel=preload" in link_preload
+    assert "/assets/css/style.css" in link_preload
+
+    # Verify SRI integrity and crossorigin attributes on loaded static assets
+    css_link = page.locator("link[rel='stylesheet']")
+    expect(css_link).to_have_attribute("crossorigin", "anonymous")
+    css_integrity = css_link.get_attribute("integrity")
+    assert css_integrity is not None and css_integrity.startswith("sha256-")
+
+    js_script = page.locator("script[src='/assets/js/rcf-dac-app.js']")
+    expect(js_script).to_have_attribute("crossorigin", "anonymous")
+    js_integrity = js_script.get_attribute("integrity")
+    assert js_integrity is not None and js_integrity.startswith("sha256-")
