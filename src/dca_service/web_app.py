@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import Cookie, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -30,6 +31,25 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ASSETS_DIR = BASE_DIR / "assets"
 DOCS_DIR = BASE_DIR / "docs"
+
+ASSET_SRI_CACHE: dict[str, str] = {}
+
+
+def get_asset_sri(asset_path: str) -> str:
+    """Compute base64 SHA-256 Subresource Integrity (SRI) string for static asset."""
+    if asset_path in ASSET_SRI_CACHE:
+        return ASSET_SRI_CACHE[asset_path]
+    clean_path = asset_path.lstrip("/")
+    if clean_path.startswith("assets/"):
+        file_path = BASE_DIR / clean_path
+    else:
+        file_path = ASSETS_DIR / clean_path
+    if file_path.exists() and file_path.is_file():
+        digest = hashlib.sha256(file_path.read_bytes()).digest()
+        sri = f"sha256-{base64.b64encode(digest).decode('utf-8')}"
+        ASSET_SRI_CACHE[asset_path] = sri
+        return sri
+    return ""
 
 
 def load_secrets_from_env_files() -> None:
@@ -539,6 +559,61 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+try:
+    from brotli_asgi import BrotliMiddleware
+    app.add_middleware(BrotliMiddleware, minimum_size=500)
+except ImportError:
+    pass
+
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+
+@app.middleware("http")
+async def security_and_preload_middleware(request: Request, call_next: Any) -> Any:
+    """
+    Enforce strict security headers (Content Security Policy, X-Content-Type-Options,
+    X-Frame-Options, Referrer-Policy) and HTTP/2 asset preloading headers on responses.
+    """
+    response: Response = await call_next(request)
+
+    # Security Headers
+    csp_directives = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "font-src 'self'; "
+        "connect-src 'self'; "
+        "object-src 'none'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+    response.headers["Content-Security-Policy"] = csp_directives
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # HTTP/2 Asset Preloading Link headers for HTML responses
+    content_type = response.headers.get("content-type", "")
+    if "text/html" in content_type:
+        path = request.url.path
+        css_sri = get_asset_sri("/assets/css/style.css")
+        js_sri = get_asset_sri("/assets/js/rcf-dac-app.js")
+
+        link_headers = [
+            f'</assets/css/style.css>; rel=preload; as=style; integrity="{css_sri}"; crossorigin=anonymous',
+        ]
+        if path == "/" or path.startswith("/docs") or path.endswith(".html"):
+            link_headers.append(
+                f'</assets/js/rcf-dac-app.js>; rel=preload; as=script; integrity="{js_sri}"; crossorigin=anonymous'
+            )
+
+        response.headers["Link"] = ", ".join(link_headers)
+
+    return response
+
+
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next: Any) -> Any:
     """
@@ -958,12 +1033,14 @@ def logout_endpoint(
 @app.get("/login", response_class=HTMLResponse)
 def serve_login_page() -> HTMLResponse:
     """Serve interactive user login HTML page."""
+    css_sri = get_asset_sri("/assets/css/style.css")
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
 <head>
   <meta charset="UTF-8">
   <title>System Login | RCF & DAC Platform</title>
-  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="__CSS_SRI__" crossorigin="anonymous">
+  <link rel="stylesheet" href="/assets/css/style.css" integrity="__CSS_SRI__" crossorigin="anonymous">
 </head>
 <body>
   <div class="container" style="max-width: 500px; margin: 4rem auto; padding: 0 1rem;">
@@ -1046,7 +1123,7 @@ def serve_login_page() -> HTMLResponse:
     });
   </script>
 </body>
-</html>"""
+</html>""".replace("__CSS_SRI__", css_sri)
     return HTMLResponse(content=html_content)
 
 
@@ -1059,12 +1136,14 @@ def serve_user_management_page() -> HTMLResponse:
     
     The page provides role-protected account administration, user listing, password resets, logout, and browser-based DID registration.
     """
+    css_sri = get_asset_sri("/assets/css/style.css")
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
 <head>
   <meta charset="UTF-8">
   <title>User Management Interface | RCF & DAC Platform</title>
-  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="__CSS_SRI__" crossorigin="anonymous">
+  <link rel="stylesheet" href="/assets/css/style.css" integrity="__CSS_SRI__" crossorigin="anonymous">
 </head>
 <body>
   <div class="container" style="max-width: 1000px; margin: 2rem auto; padding: 0 1rem;">
@@ -1078,7 +1157,7 @@ def serve_user_management_page() -> HTMLResponse:
       <p style="color: #666;">RBAC Controlled Account Administration & Governance Interface</p>
     </div>
 
-    <div id="unauthAlert" role="alert" aria-live="assertive" style="display: none; background: #f8d7da; color: #721c24; padding: 1.5rem; border-radius: 6px; text-align: center; margin-bottom: 2rem;">
+    <div id="unauthAlert" role="alert" aria-live="polite" style="display: none; background: #f8d7da; color: #721c24; padding: 1.5rem; border-radius: 6px; text-align: center; margin-bottom: 2rem;">
       <h3>⛔ Access Denied</h3>
       <p>This interface is restricted strictly to Administrator and Superuser roles.</p>
       <a href="/login" class="btn" style="background: #0066cc; color: white; padding: 0.6rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 1rem;">Go to Login Page</a>
@@ -1529,7 +1608,7 @@ def serve_user_management_page() -> HTMLResponse:
     });
   </script>
 </body>
-</html>"""
+</html>""".replace("__CSS_SRI__", css_sri)
     return HTMLResponse(content=html_content)
 
 
@@ -1567,12 +1646,14 @@ def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTM
         else '<span style="color: #28a745; font-size: 0.9rem; margin-left: 0.5rem;">(🔄 Fresh query)</span>'
     )
 
+    css_sri = get_asset_sri("/assets/css/style.css")
     html_content = f"""<!DOCTYPE html>
 <html lang="en-GB">
 <head>
   <meta charset="UTF-8">
   <title>Database Connection & Schema Verification Status | RCF & DAC</title>
-  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="{css_sri}" crossorigin="anonymous">
+  <link rel="stylesheet" href="/assets/css/style.css" integrity="{css_sri}" crossorigin="anonymous">
 </head>
 <body>
   <div class="container" style="max-width: 900px; margin: 2rem auto; padding: 0 1rem;">
@@ -2386,14 +2467,18 @@ def _render_doc_file(doc_file: Path) -> HTMLResponse:
             content = parts[2]
 
     rendered_html = render_markdown_to_html(content)
+    css_sri = get_asset_sri("/assets/css/style.css")
+    js_sri = get_asset_sri("/assets/js/rcf-dac-app.js")
 
     html_wrapper = f"""<!DOCTYPE html>
 <html lang="en-GB">
 <head>
   <meta charset="UTF-8">
   <title>RCF & DAC Documentation</title>
-  <link rel="stylesheet" href="/assets/css/style.css">
-  <script src="/assets/js/rcf-dac-app.js" defer></script>
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="{css_sri}" crossorigin="anonymous">
+  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" integrity="{js_sri}" crossorigin="anonymous">
+  <link rel="stylesheet" href="/assets/css/style.css" integrity="{css_sri}" crossorigin="anonymous">
+  <script src="/assets/js/rcf-dac-app.js" integrity="{js_sri}" crossorigin="anonymous" defer></script>
 </head>
 <body>
   <div class="container">
@@ -2456,14 +2541,18 @@ def serve_index() -> HTMLResponse:
                 content = parts[2]
 
         rendered_html = render_markdown_to_html(content)
+        css_sri = get_asset_sri("/assets/css/style.css")
+        js_sri = get_asset_sri("/assets/js/rcf-dac-app.js")
 
         html_wrapper = f"""<!DOCTYPE html>
 <html lang="en-GB">
 <head>
   <meta charset="UTF-8">
   <title>RCF & DAC Interactive Web Portal</title>
-  <link rel="stylesheet" href="/assets/css/style.css">
-  <script src="/assets/js/rcf-dac-app.js" defer></script>
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="{css_sri}" crossorigin="anonymous">
+  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" integrity="{js_sri}" crossorigin="anonymous">
+  <link rel="stylesheet" href="/assets/css/style.css" integrity="{css_sri}" crossorigin="anonymous">
+  <script src="/assets/js/rcf-dac-app.js" integrity="{js_sri}" crossorigin="anonymous" defer></script>
 </head>
 <body>
   <div class="container">
