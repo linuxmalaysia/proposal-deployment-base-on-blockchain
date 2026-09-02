@@ -1,14 +1,30 @@
--- RCF & DAC Platform Database Schema Definition for Supabase PostgreSQL
+-- RCF & DAC Platform Database Schema Definition for Supabase / PostgreSQL
 -- Governed by DSOM Protocol // Clean Architecture
 
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    did VARCHAR(255) UNIQUE NOT NULL,
-    name VARCHAR(255) NOT NULL,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
     dept VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    did VARCHAR(255) UNIQUE NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_disabled BOOLEAN NOT NULL DEFAULT FALSE,
+    can_login BOOLEAN NOT NULL DEFAULT TRUE,
+    is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+    archived_at TIMESTAMP WITH TIME ZONE,
+    tags TEXT[] DEFAULT ARRAY['active'],
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    module_id VARCHAR(100) UNIQUE NOT NULL,
+    allowed_roles JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS assets (
@@ -43,6 +59,15 @@ CREATE TABLE IF NOT EXISTS revenue_splits (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS sub_accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sub_account_id VARCHAR(255) UNIQUE NOT NULL,
+    client_id VARCHAR(255) NOT NULL,
+    asset_symbol VARCHAR(50) NOT NULL,
+    balance NUMERIC(28, 8) NOT NULL DEFAULT 0.0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS blockchain_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transaction_id VARCHAR(255) UNIQUE NOT NULL,
@@ -58,8 +83,11 @@ CREATE TABLE IF NOT EXISTS blockchain_transactions (
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes for high-concurrency lookup
+-- Indexes for high-concurrency lookup & archiving queries
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_did ON users(did);
+CREATE INDEX IF NOT EXISTS idx_users_archived ON users(is_archived, is_disabled);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_module ON role_permissions(module_id);
 CREATE INDEX IF NOT EXISTS idx_assets_asset_id ON assets(asset_id);
 CREATE INDEX IF NOT EXISTS idx_assets_created_at_trl ON assets(created_at, trl);
 CREATE INDEX IF NOT EXISTS idx_cloverleaf_asset_id ON cloverleaf_scores(asset_id);

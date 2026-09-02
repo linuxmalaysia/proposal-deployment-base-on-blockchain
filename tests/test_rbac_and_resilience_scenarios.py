@@ -236,10 +236,13 @@ def test_admin_user_management_crud_and_rbac():
     assert "test_operator_99" in usernames
     assert "dca_sys_root" in usernames
 
-    # 4. Delete non-superuser account
+    # 4. Disable & archive non-superuser account (non-deletion policy)
     res_delete = client.delete("/api/users/test_operator_99", headers={"Authorization": f"Bearer {admin_jwt}"})
     assert res_delete.status_code == 200
-    assert "test_operator_99" not in ACCOUNT_REGISTRY
+    assert ACCOUNT_REGISTRY["test_operator_99"]["is_archived"] is True
+    assert ACCOUNT_REGISTRY["test_operator_99"]["can_login"] is False
+    assert ACCOUNT_REGISTRY["test_operator_99"]["is_disabled"] is True
+    assert "archive" in ACCOUNT_REGISTRY["test_operator_99"]["tags"]
 
 
 def test_strict_rbac_module_isolation_and_role_assignment():
