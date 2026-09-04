@@ -117,7 +117,7 @@ def test_get_postgresql_connection_prefers_explicit_database_url(
     connection = MagicMock()
     connect = MagicMock(return_value=connection)
     install_fake_psycopg(monkeypatch, connect)
-    monkeypatch.setenv("DATABASE_URL", "postgresql://configured.example/app")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://configured.example/app?sslmode=verify-full")
     monkeypatch.setenv("SUPABASE_POOLER_HOST", "ignored.example")
     monkeypatch.setenv("SUPABASE_URL", "https://ignored.supabase.co")
     monkeypatch.setenv("SUPABASE_DB_PASSWORD", "ignored-password")
@@ -127,7 +127,7 @@ def test_get_postgresql_connection_prefers_explicit_database_url(
     assert result is connection
     assert message == "Connected to PostgreSQL"
     connect.assert_called_once_with(
-        "postgresql://configured.example/app", connect_timeout=4
+        "postgresql://configured.example/app?sslmode=verify-full", connect_timeout=4
     )
 
 
@@ -154,7 +154,7 @@ def test_get_postgresql_connection_reports_connection_failure(
 ) -> None:
     connect = MagicMock(side_effect=RuntimeError("network unavailable"))
     install_fake_psycopg(monkeypatch, connect)
-    monkeypatch.setenv("DATABASE_URL", "postgresql://configured.example/app")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://configured.example/app?sslmode=verify-full")
 
     connection, message = web_app.get_postgresql_connection()
 

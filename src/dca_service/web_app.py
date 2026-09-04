@@ -11,6 +11,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import math
 import os
 import secrets
@@ -26,6 +27,39 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from dca_service.adapters.database_api import (
+    ACCOUNT_REGISTRY,
+    ASSET_REGISTRY,
+    DB_POOL_METRICS,
+    ROLE_MODULE_PERMISSIONS,
+    USER_REGISTRY,
+    ConnectionPoolMetrics,
+    DatabaseAPI,
+    close_postgresql_connection,
+    get_database_url,
+    get_postgresql_connection,
+)
+
+logger = logging.getLogger("dca_service.web_app")
+
+__all__ = [
+    "ACCOUNT_REGISTRY",
+    "ASSET_REGISTRY",
+    "USER_REGISTRY",
+    "ROLE_MODULE_PERMISSIONS",
+    "DB_POOL_METRICS",
+    "ConnectionPoolMetrics",
+    "DatabaseAPI",
+    "app",
+    "hash_password",
+    "verify_password",
+    "get_postgresql_connection",
+    "close_postgresql_connection",
+    "check_database_connection",
+    "create_system_jwt",
+    "seed_initial_accounts",
+]
 
 # Root directory pathing
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -75,7 +109,7 @@ def load_secrets_from_env_files() -> None:
 
 load_secrets_from_env_files()
 
-# Helper to extract secret key from string or JSON-object format (e.g. for SUPABASE_SECRET_KEYS)
+
 def parse_secret_key_env(val: str | None) -> str | None:
     if not val:
         return None
@@ -84,7 +118,6 @@ def parse_secret_key_env(val: str | None) -> str | None:
         try:
             parsed = json.loads(val)
             if isinstance(parsed, dict):
-                # Return first string value or default/active key
                 for k, v in parsed.items():
                     if isinstance(v, str) and v:
                         return v
@@ -92,7 +125,7 @@ def parse_secret_key_env(val: str | None) -> str | None:
             pass
     return val if val else None
 
-# Mandatory JWT secret lookup (fails closed if neither INVESTOR_JWT_SECRET nor SUPABASE_SECRET_KEY / SUPABASE_SECRET_KEYS is set)
+
 _jwt_secret_env = (
     os.environ.get("INVESTOR_JWT_SECRET")
     or parse_secret_key_env(os.environ.get("SUPABASE_SECRET_KEY"))
@@ -104,15 +137,10 @@ if not _jwt_secret_env:
     )
 INVESTOR_JWT_SECRET = _jwt_secret_env.encode()
 
-# Module-level expected claims constants
 EXPECTED_ISSUER = "https://auth.rcf-dac.univ.edu.my"
 EXPECTED_AUDIENCE = "rcf-dac-data-room"
 
-# Shared system-role allowlist
 SYSTEM_ROLES = {"admin", "superuser", "operator", "auditor", "investor", "user"}
-
-# Module Access Control Mapping & Persistence
-PERMISSIONS_FILE = BASE_DIR / "docs" / "role_module_permissions.json"
 
 DEFAULT_MODULE_PERMISSIONS: dict[str, list[str]] = {
     "module_1": ["admin"],       # User Registration & W3C DID Minting (Admin ONLY)
@@ -124,51 +152,36 @@ DEFAULT_MODULE_PERMISSIONS: dict[str, list[str]] = {
 
 
 def load_role_module_permissions() -> dict[str, list[str]]:
-    """Load persisted role-module permissions from durable JSON storage if present."""
-    if PERMISSIONS_FILE.exists() and PERMISSIONS_FILE.is_file():
-        try:
-            data = json.loads(PERMISSIONS_FILE.read_text(encoding="utf-8"))
-            if isinstance(data, dict):
-                res = {k: list(v) for k, v in DEFAULT_MODULE_PERMISSIONS.items()}
-                for k, v in data.items():
-                    if isinstance(v, list) and k in res:
-                        if k == "module_1":
-                            res["module_1"] = ["admin"]
-                        else:
-                            res[k] = [str(r).lower().strip() for r in v if isinstance(r, str)]
-                return res
-        except Exception:
-            pass
+    """Load persisted role-module permissions via Database API or default fallback."""
+    try:
+        db_perms = DatabaseAPI.load_role_permissions()
+        if db_perms:
+            res = {k: list(v) for k, v in DEFAULT_MODULE_PERMISSIONS.items()}
+            for k, v in db_perms.items():
+                if k in res:
+                    if k == "module_1":
+                        res["module_1"] = ["admin"]
+                    else:
+                        res[k] = [str(r).lower().strip() for r in v if isinstance(r, str)]
+            return res
+    except Exception:
+        pass
     return {k: list(v) for k, v in DEFAULT_MODULE_PERMISSIONS.items()}
 
 
 def save_role_module_permissions(permissions: dict[str, list[str]]) -> None:
-    """Save validated role-module permissions to durable JSON storage."""
-    try:
-        PERMISSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        PERMISSIONS_FILE.write_text(json.dumps(permissions, indent=2), encoding="utf-8")
-    except Exception:
-        pass
+    """Save validated role-module permissions via Database API."""
+    DatabaseAPI.save_role_permissions(permissions)
 
 
-ROLE_MODULE_PERMISSIONS: dict[str, list[str]] = load_role_module_permissions()
-
-# In-memory storage for demonstration / web service operation
-USER_REGISTRY: dict[str, dict[str, Any]] = {}
-ASSET_REGISTRY: dict[str, dict[str, Any]] = {}
-ACCOUNT_REGISTRY: dict[str, dict[str, Any]] = {}
 LAST_SCHEMA_AUTO_CHECK_RESULT: dict[str, Any] | None = None
 SCHEMA_BACKGROUND_TASK: Any | None = None
 
-# Password Hashing & Initial Accounts Setup
 PASSWORD_SALT = os.environ.get("RBAC_PASSWORD_SALT", "rcf_dac_rbac_salt_default")
 
 
 def hash_password(password: str, salt: str | None = None) -> str:
-    """
-    Hash password using hashlib.scrypt KDF with per-account salt.
-    Returns format 'scrypt$salt$hash'.
-    """
+    """Hash password using hashlib.scrypt KDF with per-account salt."""
     if not salt:
         salt = secrets.token_hex(16)
     key = hashlib.scrypt(password.encode(), salt=salt.encode(), n=16384, r=8, p=1)
@@ -185,7 +198,6 @@ def verify_password(password: str, stored_hash: str) -> bool:
         expected_key = parts[2]
         key = hashlib.scrypt(password.encode(), salt=salt.encode(), n=16384, r=8, p=1)
         return hmac.compare_digest(key.hex(), expected_key)
-    # Fallback legacy SHA-256 comparison for test compatibility
     legacy_hash = hashlib.sha256(f"{PASSWORD_SALT}:{password}".encode()).hexdigest()
     return hmac.compare_digest(stored_hash, legacy_hash)
 
@@ -195,14 +207,12 @@ def get_or_create_initial_password(role: str) -> str:
     env_var = f"{role.upper()}_INITIAL_PASSWORD"
     if os.environ.get(env_var):
         return os.environ[env_var]
-    # Standard deterministic fallback for test reproducible runs or generate secure random string
     if os.environ.get("PYTEST_CURRENT_TEST"):
         return f"InitPass_{role}_2026!"
     token = secrets.token_urlsafe(10)
     return f"Secured_{role}_{token}!"
 
 
-# Initial System Account Definitions
 INITIAL_ACCOUNT_SPECS = [
     {
         "username": "dca_sys_root",
@@ -243,12 +253,12 @@ INITIAL_ACCOUNT_SPECS = [
 
 
 def seed_initial_accounts() -> None:
-    """Initialise and populate initial system user accounts with hashed passwords."""
+    """Initialise and populate initial system user accounts into PostgreSQL via Database API."""
     for acct in INITIAL_ACCOUNT_SPECS:
         u = acct["username"]
         r = acct["role"]
         p = get_or_create_initial_password(r)
-        ACCOUNT_REGISTRY[u] = {
+        user_record = {
             "username": u,
             "password_hash": hash_password(p),
             "role": r,
@@ -256,13 +266,22 @@ def seed_initial_accounts() -> None:
             "dept": acct["dept"],
             "email": acct["email"],
             "did": f"did:univ:acct-{hashlib.sha256(u.encode()).hexdigest()[:12]}",
+            "is_active": True,
+            "is_disabled": False,
+            "can_login": True,
+            "is_archived": False,
+            "tags": ["active"],
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
+        try:
+            DatabaseAPI.create_user(user_record)
+        except Exception as exc:
+            logger.warning("Could not seed account %s: %s", u, exc)
 
 
 seed_initial_accounts()
 
-# DB Status Diagnostic & High-Throughput Cache Configuration & State
+
 DB_STATUS_CACHE_TTL: float = float(os.environ.get("DB_STATUS_CACHE_TTL", "5.0"))
 _DB_STATUS_CACHE: dict[str, Any] | None = None
 _DB_STATUS_CACHE_TIMESTAMP: float = 0.0
@@ -271,72 +290,13 @@ INVESTOR_ASSETS_CACHE_TTL: float = float(os.environ.get("INVESTOR_ASSETS_CACHE_T
 _INVESTOR_ASSETS_CACHE: dict[str, Any] | None = None
 _INVESTOR_ASSETS_CACHE_TIMESTAMP: float = 0.0
 
-
-class ConnectionPoolMetrics:
-    """Tracks database connection pooling stats, latency, and utilization metrics."""
-
-    def __init__(self) -> None:
-        self.total_acquired: int = 0
-        self.active_connections: int = 0
-        self.max_pool_size: int = int(os.environ.get("DB_POOL_MAX_SIZE", "20"))
-        self.min_pool_size: int = int(os.environ.get("DB_POOL_MIN_SIZE", "5"))
-        self.total_checkout_latency_ms: float = 0.0
-        self.total_queries: int = 0
-        self.failed_connections: int = 0
-
-    def record_connection_attempt(self, latency_ms: float, success: bool) -> None:
-        if success:
-            self.total_acquired += 1
-            self.total_checkout_latency_ms += latency_ms
-        else:
-            self.failed_connections += 1
-
-    def record_query(self) -> None:
-        self.total_queries += 1
-
-    def to_dict(self) -> dict[str, Any]:
-        avg_latency = (
-            round(self.total_checkout_latency_ms / self.total_acquired, 2)
-            if self.total_acquired > 0
-            else 0.0
-        )
-        return {
-            "max_pool_size": self.max_pool_size,
-            "min_pool_size": self.min_pool_size,
-            "total_connections_acquired": self.total_acquired,
-            "failed_connection_attempts": self.failed_connections,
-            "avg_checkout_latency_ms": avg_latency,
-            "total_queries_executed": self.total_queries,
-            "pool_utilization_percent": round(
-                (self.active_connections / self.max_pool_size) * 100, 1
-            ) if self.max_pool_size > 0 else 0.0,
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        }
-
-
-DB_POOL_METRICS = ConnectionPoolMetrics()
 ASYNC_DB_POOL: Any = None
 
 
 async def init_async_connection_pool() -> Any:
-    """
-    Initialize and open the asynchronous PostgreSQL connection pool when database configuration is available.
-    
-    Returns:
-        Any: The opened connection pool, or `None` when configuration is unavailable or initialization fails.
-    """
+    """Initialize and open asynchronous PostgreSQL connection pool when database configuration is available."""
     global ASYNC_DB_POOL
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        pooler_host = os.environ.get("SUPABASE_POOLER_HOST") or os.environ.get("SUPABASE_DB_HOST")
-        supabase_url = os.environ.get("SUPABASE_URL", "")
-        db_pass = os.environ.get("SUPABASE_DB_PASSWORD", "")
-        if pooler_host and supabase_url and db_pass:
-            import urllib.parse
-            project_ref = supabase_url.replace("https://", "").replace("http://", "").split(".")[0]
-            db_user = f"postgres.{project_ref}" if "." not in pooler_host else "postgres"
-            encoded_pass = urllib.parse.quote_plus(db_pass)
-            database_url = f"postgresql://{db_user}:{encoded_pass}@{pooler_host}:5432/postgres?sslmode=require"
+    database_url = get_database_url()
 
     if database_url:
         try:
@@ -368,22 +328,9 @@ async def close_async_connection_pool() -> None:
             ASYNC_DB_POOL = None
 
 
-def close_postgresql_connection(conn: Any) -> None:
-    """Close PostgreSQL connection and decrement active connection pool accounting."""
-    if conn is not None:
-        try:
-            conn.close()
-        except Exception:
-            pass
-        finally:
-            if DB_POOL_METRICS.active_connections > 0:
-                DB_POOL_METRICS.active_connections -= 1
-
 RevenueType = Literal["royalties", "licensing", "equity", "dividend"]
 ContentEncoding = Literal["base64", "raw", "text"]
 
-
-# --- Helper Cryptographic Utilities ---
 
 def base64url_encode(data: bytes) -> str:
     """Encode bytes to URL-safe Base64 without trailing '=' padding."""
@@ -395,8 +342,6 @@ def base64url_decode(encoded_str: str) -> bytes:
     padded = encoded_str + "=" * (-len(encoded_str) % 4)
     return base64.urlsafe_b64decode(padded.encode())
 
-
-# --- Pydantic Request Models ---
 
 class LoginRequest(BaseModel):
     username: str = Field(..., description="System account username")
@@ -468,8 +413,6 @@ class RevenueSplitRequest(BaseModel):
         return v
 
 
-# --- API Endpoints ---
-
 def _safe_auto_check_and_build_schema() -> dict[str, Any]:
     """Fail-safe wrapper ensuring no background thread exception escapes unhandled."""
     try:
@@ -489,15 +432,14 @@ def _safe_auto_check_and_build_schema() -> dict[str, Any]:
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI) -> Any:
-    """
-    FastAPI lifespan context manager ensuring non-blocking schema auto-checking,
-    table building, and AsyncConnectionPool lifecycle management on startup and shutdown.
-
-    Args:
-        app_instance (FastAPI): The active FastAPI web application instance.
-    """
+    """FastAPI lifespan context manager ensuring non-blocking schema auto-checking and pool management."""
     global SCHEMA_BACKGROUND_TASK
     import asyncio
+
+    # Execute DB initialisations inside lifespan context manager
+    ROLE_MODULE_PERMISSIONS.update(load_role_module_permissions())
+    seed_initial_accounts()
+
     try:
         await init_async_connection_pool()
     except Exception:
@@ -522,26 +464,13 @@ async def lifespan(app_instance: FastAPI) -> Any:
         pass
 
 
-# --- Rate Limiting Storage & Middleware ---
-
 RATE_LIMIT_BUCKETS: dict[str, list[float]] = {}
 
 
 def is_rate_limited(client_ip: str, max_requests: int = 10, window_seconds: float = 60.0) -> bool:
-    """
-    Determine whether a client has exceeded the request limit within a rolling time window.
-    
-    Parameters:
-        client_ip (str): Client identifier used to track request timestamps.
-        max_requests (int): Maximum number of requests allowed in the window.
-        window_seconds (float): Duration of the rolling window in seconds.
-    
-    Returns:
-        bool: `true` if the client has reached the request limit, `false` otherwise.
-    """
+    """Determine whether a client has exceeded request limits within a rolling time window."""
     now = time.time()
     timestamps = RATE_LIMIT_BUCKETS.get(client_ip, [])
-    # Retain only timestamps within the rolling window
     timestamps = [t for t in timestamps if now - t < window_seconds]
     if len(timestamps) >= max_requests:
         RATE_LIMIT_BUCKETS[client_ip] = timestamps
@@ -551,7 +480,6 @@ def is_rate_limited(client_ip: str, max_requests: int = 10, window_seconds: floa
     return False
 
 
-# Initialise FastAPI web application instance with lifespan context
 app = FastAPI(
     title="RCF & DAC Interactive Web Portal",
     description="Research Commercialisation Fund & Digital Asset Custodian Service API",
@@ -570,13 +498,9 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 
 @app.middleware("http")
 async def security_and_preload_middleware(request: Request, call_next: Any) -> Any:
-    """
-    Enforce strict security headers (Content Security Policy, X-Content-Type-Options,
-    X-Frame-Options, Referrer-Policy) and HTTP/2 asset preloading headers on responses.
-    """
+    """Enforce strict security headers and HTTP/2 asset preloading Link headers on HTML responses."""
     response: Response = await call_next(request)
 
-    # Security Headers
     csp_directives = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline'; "
@@ -594,34 +518,23 @@ async def security_and_preload_middleware(request: Request, call_next: Any) -> A
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
-    # HTTP/2 Asset Preloading Link headers for HTML responses
     content_type = response.headers.get("content-type", "")
     if "text/html" in content_type:
         path = request.url.path
-        css_sri = get_asset_sri("/assets/css/style.css")
-        js_sri = get_asset_sri("/assets/js/rcf-dac-app.js")
-
-        link_headers = [
-            f'</assets/css/style.css>; rel=preload; as=style; integrity="{css_sri}"; crossorigin=anonymous',
-        ]
         if path == "/" or path.startswith("/docs") or path.endswith(".html"):
-            link_headers.append(
-                f'</assets/js/rcf-dac-app.js>; rel=preload; as=script; integrity="{js_sri}"; crossorigin=anonymous'
+            response.headers["Link"] = (
+                "</assets/css/style.css>; rel=preload; as=style; crossorigin=anonymous, "
+                "</assets/js/rcf-dac-app.js>; rel=preload; as=script; crossorigin=anonymous"
             )
-
-        response.headers["Link"] = ", ".join(link_headers)
+        else:
+            response.headers["Link"] = "</assets/css/style.css>; rel=preload; as=style; crossorigin=anonymous"
 
     return response
 
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next: Any) -> Any:
-    """
-    Apply request-rate limits to authentication and user-management endpoints.
-    
-    Returns:
-        Response from the downstream handler, or an HTTP 429 response when the client exceeds 10 requests within 60 seconds.
-    """
+    """Apply rate limits to authentication and user-management endpoints."""
     rate_limited_paths = ["/api/login", "/api/users"]
     if any(request.url.path.startswith(p) for p in rate_limited_paths):
         client_ip = request.client.host if request.client else "127.0.0.1"
@@ -639,70 +552,12 @@ if ASSETS_DIR.exists():
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
-    """Health check endpoint for Render service monitoring."""
+    """Health check endpoint for service monitoring."""
     return {"status": "ok", "service": "rcf-dac-web-app", "version": "0.1.0"}
 
 
-def get_postgresql_connection() -> tuple[Any, str]:
-    """
-    Establish a PostgreSQL connection using the configured database settings.
-    
-    Returns:
-        tuple[Any, str]: The connection and a status message. The connection is
-        `None` when the driver, configuration, certificate, or connection is
-        unavailable.
-    """
-    try:
-        import urllib.parse
-
-        import psycopg
-    except ImportError:
-        DB_POOL_METRICS.record_connection_attempt(0.0, False)
-        return None, "psycopg driver not installed"
-
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        pooler_host = os.environ.get("SUPABASE_POOLER_HOST") or os.environ.get("SUPABASE_DB_HOST")
-        supabase_url = os.environ.get("SUPABASE_URL", "")
-        db_pass = os.environ.get("SUPABASE_DB_PASSWORD", "")
-        if pooler_host and supabase_url and db_pass:
-            # Extract project ref from URL hostname
-            parsed = urllib.parse.urlparse(supabase_url)
-            hostname = parsed.netloc or "your-supabase-project-ref.supabase.co"
-            project_ref = hostname.split(".")[0]
-            encoded_pass = urllib.parse.quote_plus(db_pass)
-            ca_file = Path(os.environ.get("SUPABASE_SSLROOTCERT", "/etc/secrets/prod-supabase-ca.crt"))
-            if ca_file.exists():
-                ssl_params = f"sslmode=verify-full&sslrootcert={ca_file}"
-            else:
-                DB_POOL_METRICS.record_connection_attempt(0.0, False)
-                return None, "PostgreSQL CA certificate missing (/etc/secrets/prod-supabase-ca.crt); failing closed."
-            database_url = f"postgresql://postgres.{project_ref}:{encoded_pass}@{pooler_host}:6543/postgres?{ssl_params}"
-
-    if not database_url:
-        DB_POOL_METRICS.record_connection_attempt(0.0, False)
-        return None, "DATABASE_URL or SUPABASE_DB_PASSWORD not configured"
-
-    t0 = time.time()
-    try:
-        conn = psycopg.connect(database_url, connect_timeout=4)
-        lat_ms = (time.time() - t0) * 1000.0
-        DB_POOL_METRICS.record_connection_attempt(lat_ms, True)
-        DB_POOL_METRICS.active_connections += 1
-        return conn, "Connected to PostgreSQL"
-    except Exception as exc:
-        lat_ms = (time.time() - t0) * 1000.0
-        DB_POOL_METRICS.record_connection_attempt(lat_ms, False)
-        return None, f"PostgreSQL connection error: {exc}"
-
-
 def initialize_database_schema() -> dict[str, Any]:
-    """
-    Execute docs/schema.sql DDL script against PostgreSQL database to create schema and tables.
-
-    Returns:
-        Dict[str, Any]: Execution status dictionary containing success boolean and descriptive message.
-    """
+    """Execute docs/schema.sql DDL script against PostgreSQL database."""
     schema_file = BASE_DIR / "docs" / "schema.sql"
     if not schema_file.exists():
         return {"success": False, "message": "docs/schema.sql file missing"}
@@ -729,17 +584,7 @@ def initialize_database_schema() -> dict[str, Any]:
 
 
 def auto_check_and_build_schema() -> dict[str, Any]:
-    """
-    Fail-safe automatic schema check and table build routine for application deployment on Render.com.
-
-    Inspects PostgreSQL information_schema.tables for existing application schema tables, maintaining
-    existing data, and automatically executing DDL schema statements if missing tables are detected.
-    Retains schema check and initialisation results in module-level state for operator diagnostics.
-
-    Returns:
-        Dict[str, Any]: Execution status dictionary containing success boolean, message string,
-        db_connected status boolean, tables_created list, and missing_tables list.
-    """
+    """Automatic schema check and table build routine for application deployment."""
     global LAST_SCHEMA_AUTO_CHECK_RESULT
     expected_tables = ["users", "assets", "cloverleaf_scores", "revenue_splits", "blockchain_transactions"]
     conn, msg = get_postgresql_connection()
@@ -757,9 +602,7 @@ def auto_check_and_build_schema() -> dict[str, Any]:
     try:
         with conn.cursor() as cur:
             cur.execute("SET statement_timeout = 10000; SET lock_timeout = 5000;")
-            cur.execute(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
-            )
+            cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';")
             existing_tables = {r[0] for r in cur.fetchall()}
 
         missing_tables = [tbl for tbl in expected_tables if tbl not in existing_tables]
@@ -811,19 +654,8 @@ def auto_check_and_build_schema() -> dict[str, Any]:
         return res
 
 
-
-
 def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
-    """
-    Check PostgreSQL connectivity, verify expected public tables, and test the Supabase authentication API.
-    Uses in-memory TTL caching to minimize database round-trips under high-concurrency polling unless bypassed.
-    
-    Args:
-        bypass_cache (bool): If True, forces a fresh database check bypassing cached result.
-
-    Returns:
-        Dict[str, Any]: Diagnostic status including connection results, latency, timestamp, and table verification details.
-    """
+    """Check PostgreSQL connectivity, verify expected public tables, and test Supabase Auth API."""
     global _DB_STATUS_CACHE, _DB_STATUS_CACHE_TIMESTAMP
     now = time.time()
 
@@ -844,7 +676,6 @@ def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
     details = []
     verified_db_tables = set()
 
-    # 1. Read-only PostgreSQL database connection & table verification
     conn, pg_msg = get_postgresql_connection()
     query_succeeded = False
     if conn:
@@ -853,9 +684,7 @@ def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
         try:
             with conn.cursor() as cur:
                 DB_POOL_METRICS.record_query()
-                cur.execute(
-                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
-                )
+                cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';")
                 rows = cur.fetchall()
                 verified_db_tables = {r[0] for r in rows}
                 query_succeeded = True
@@ -867,7 +696,6 @@ def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
     else:
         details.append(pg_msg)
 
-    # 2. Test Supabase HTTP API connectivity separately
     if supabase_jwks_url:
         import urllib.request
         try:
@@ -947,13 +775,11 @@ def get_db_pool_metrics_endpoint() -> dict[str, Any]:
     }
 
 
-# --- CSRF & Origin Protection Helper ---
-
 def verify_csrf_and_origin(
     request: Request,
     x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
 ) -> None:
-    """Verify Origin header and non-cookie CSRF token header for cookie-authenticated mutation endpoints."""
+    """Verify Origin header and CSRF token header for cookie-authenticated mutation endpoints."""
     if "rcf_dac_jwt" in request.cookies:
         expected_origin = os.environ.get("ALLOWED_ORIGIN", "").rstrip("/")
         origin = request.headers.get("Origin") or request.headers.get("Referer")
@@ -974,9 +800,18 @@ def verify_csrf_and_origin(
 
 @app.post("/api/login")
 def login_endpoint(req: LoginRequest, response: Response) -> dict[str, Any]:
-    """Authenticate system account credentials, set HttpOnly session cookie, and return signed JWT session token."""
-    account = ACCOUNT_REGISTRY.get(req.username)
+    """Authenticate system account credentials, set HttpOnly session cookie, and return signed JWT."""
+    account = DatabaseAPI.get_user_by_username(req.username)
     if not account:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed. Invalid username or password.",
+        )
+
+    # Check non-login, disabled, and archived status
+    if account.get("is_disabled") or not account.get("can_login", True) or account.get("is_archived"):
+        logger.warning("Authentication failed: User account '%s' is disabled/archived.", req.username)
+        # OWASP REST Security directive: Return generic authentication failure message
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication failed. Invalid username or password.",
@@ -991,7 +826,6 @@ def login_endpoint(req: LoginRequest, response: Response) -> dict[str, Any]:
     role = account["role"]
     token = create_system_jwt(username=account["username"], role=role)
 
-    # Set HttpOnly, SameSite, Secure session cookie (defaults to True; opt-out via COOKIE_SECURE=false)
     secure_cookie = os.environ.get("COOKIE_SECURE", "true").lower() != "false"
     response.set_cookie(
         key="rcf_dac_jwt",
@@ -1039,7 +873,7 @@ def serve_login_page() -> HTMLResponse:
 <head>
   <meta charset="UTF-8">
   <title>System Login | RCF & DAC Platform</title>
-  <link rel="preload" href="/assets/css/style.css" as="style" integrity="__CSS_SRI__" crossorigin="anonymous">
+  <link rel="preload" href="/assets/css/style.css" as="style" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="__CSS_SRI__" crossorigin="anonymous">
 </head>
 <body>
@@ -1127,22 +961,16 @@ def serve_login_page() -> HTMLResponse:
     return HTMLResponse(content=html_content)
 
 
-
-
 @app.get("/user-management", response_class=HTMLResponse)
 def serve_user_management_page() -> HTMLResponse:
-    """
-    Render the interactive user-management dashboard.
-    
-    The page provides role-protected account administration, user listing, password resets, logout, and browser-based DID registration.
-    """
+    """Render interactive user-management dashboard."""
     css_sri = get_asset_sri("/assets/css/style.css")
     html_content = """<!DOCTYPE html>
 <html lang="en-GB">
 <head>
   <meta charset="UTF-8">
   <title>User Management Interface | RCF & DAC Platform</title>
-  <link rel="preload" href="/assets/css/style.css" as="style" integrity="__CSS_SRI__" crossorigin="anonymous">
+  <link rel="preload" href="/assets/css/style.css" as="style" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="__CSS_SRI__" crossorigin="anonymous">
 </head>
 <body>
@@ -1251,6 +1079,7 @@ def serve_user_management_page() -> HTMLResponse:
               <th style="padding: 0.6rem;">Role</th>
               <th style="padding: 0.6rem;">Department</th>
               <th style="padding: 0.6rem;">W3C DID</th>
+              <th style="padding: 0.6rem;">Status</th>
               <th style="padding: 0.6rem;">Actions</th>
             </tr>
           </thead>
@@ -1281,7 +1110,7 @@ def serve_user_management_page() -> HTMLResponse:
       const form = document.getElementById('user-reg-form');
       if (!form) return;
 
-    form.addEventListener('submit', async (e) => {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const name = document.getElementById('reg-fullname').value.trim() || 'Dr. Aris Roslan';
@@ -1289,39 +1118,40 @@ def serve_user_management_page() -> HTMLResponse:
         const dept = document.getElementById('reg-dept').value.trim() || 'Faculty of Engineering & Innovation';
         const email = document.getElementById('reg-email').value.trim() || 'aris@university.edu.my';
 
-      const token = localStorage.getItem('rcf_dac_jwt');
+        const token = localStorage.getItem('rcf_dac_jwt');
 
-      try {
-        const resp = await fetch('/api/register-user', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          credentials: 'same-origin',
-          body: JSON.stringify({ name, role, dept, email })
-        });
-
-        const resData = await resp.json();
-
-        if (!resp.ok) {
-          alert(`Registration Error (${resp.status}): ${resData.detail || 'Access denied.'}`);
-          return;
-        }
-
-        const userRecord = resData.user;
-        let savedSuccessfully = false;
         try {
-          localStorage.setItem('rcf_dac_user_registration', JSON.stringify(userRecord));
-          savedSuccessfully = true;
-        } catch (err) {
-          console.warn('LocalStorage unavailable:', err);
-          savedSuccessfully = false;
-        }
+          const resp = await fetch('/api/register-user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': 'csrf_session_valid',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ name, role, dept, email })
+          });
 
-        renderRegistrationResult(userRecord, savedSuccessfully);
+          const resData = await resp.json();
+
+          if (!resp.ok) {
+            alert(`Registration Error (${resp.status}): ${resData.detail || 'Access denied.'}`);
+            return;
+          }
+
+          const userRecord = resData.user;
+          let savedSuccessfully = false;
+          try {
+            localStorage.setItem('rcf_dac_user_registration', JSON.stringify(userRecord));
+            savedSuccessfully = true;
+          } catch (err) {
+            console.warn('LocalStorage unavailable:', err);
+            savedSuccessfully = false;
+          }
+
+          renderRegistrationResult(userRecord, savedSuccessfully);
         } catch (err) {
-        alert(`Network error during DID registration: ${err}`);
+          alert(`Network error during DID registration: ${err}`);
         }
       });
     }
@@ -1344,7 +1174,7 @@ def serve_user_management_page() -> HTMLResponse:
                 <code style="background: #0f172a; color: #38bdf8; padding: 0.25rem 0.5rem; border-radius: 4px; font-family: monospace; font-size: 1rem;">${escapeHtml(userRecord.did)}</code>
               </div>
               <div style="font-size: 0.8rem; color: #64748b;">
-                <span>BROWSER STORAGE PERSISTENCE: Simulated PostgreSQL 16 <code style="background: #e2e8f0; padding: 0.1rem 0.3rem; border-radius: 3px;">users</code> table record (Persisted locally)</span>
+                <span>BROWSER STORAGE PERSISTENCE: PostgreSQL <code style="background: #e2e8f0; padding: 0.1rem 0.3rem; border-radius: 3px;">users</code> table record</span>
               </div>
             </div>
           `;
@@ -1361,9 +1191,6 @@ def serve_user_management_page() -> HTMLResponse:
               <div style="background: #1e293b; color: #e2e8f0; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 0.75rem;">
                 <span style="display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem;">W3C Decentralised Identifier (DID):</span>
                 <code style="background: #0f172a; color: #38bdf8; padding: 0.25rem 0.5rem; border-radius: 4px; font-family: monospace; font-size: 1rem;">${escapeHtml(userRecord.did)}</code>
-              </div>
-              <div style="font-size: 0.8rem; color: #64748b;">
-                <span>BROWSER STORAGE PERSISTENCE: Local storage write failed or unavailable; record not persisted.</span>
               </div>
             </div>
           `;
@@ -1416,7 +1243,7 @@ def serve_user_management_page() -> HTMLResponse:
         if (callerRole === 'admin') {
           if (module1Card) module1Card.style.display = 'block';
           if (module1SuperNotice) module1SuperNotice.style.display = 'none';
-          if (createUserRoleNotice) createUserRoleNotice.innerText = 'As Admin, you can create user accounts for any operational role (operator, auditor, investor) or additional Admin accounts, but NOT Superuser.';
+          if (createUserRoleNotice) createUserRoleNotice.innerText = 'As Admin, you can create user accounts for any operational role or additional Admin accounts.';
           if (newRoleSelect) {
             newRoleSelect.innerHTML = `
               <option value="operator">operator</option>
@@ -1428,7 +1255,7 @@ def serve_user_management_page() -> HTMLResponse:
         } else if (callerRole === 'superuser') {
           if (module1Card) module1Card.style.display = 'none';
           if (module1SuperNotice) module1SuperNotice.style.display = 'block';
-          if (createUserRoleNotice) createUserRoleNotice.innerText = 'SECURITY RESTRICTION: As Superuser, you can ONLY create user accounts with "admin" role. Superuser cannot create any other role.';
+          if (createUserRoleNotice) createUserRoleNotice.innerText = 'SECURITY RESTRICTION: As Superuser, you can ONLY create user accounts with "admin" role.';
           if (newRoleSelect) {
             newRoleSelect.innerHTML = `<option value="admin">admin</option>`;
           }
@@ -1471,6 +1298,26 @@ def serve_user_management_page() -> HTMLResponse:
           codeDid.textContent = u.did;
           tdDid.appendChild(codeDid);
 
+          const tdStatus = document.createElement('td');
+          tdStatus.style.padding = '0.6rem';
+          const spanStatus = document.createElement('span');
+          if (u.is_archived || u.is_disabled) {
+            spanStatus.style.background = '#f8d7da';
+            spanStatus.style.color = '#721c24';
+            spanStatus.style.padding = '0.2rem 0.5rem';
+            spanStatus.style.borderRadius = '12px';
+            spanStatus.style.fontSize = '0.8rem';
+            spanStatus.textContent = '🔒 ARCHIVED';
+          } else {
+            spanStatus.style.background = '#d4edda';
+            spanStatus.style.color = '#155724';
+            spanStatus.style.padding = '0.2rem 0.5rem';
+            spanStatus.style.borderRadius = '12px';
+            spanStatus.style.fontSize = '0.8rem';
+            spanStatus.textContent = '🟢 ACTIVE';
+          }
+          tdStatus.appendChild(spanStatus);
+
           const tdActions = document.createElement('td');
           tdActions.style.padding = '0.6rem';
           if (u.role === 'superuser') {
@@ -1482,15 +1329,29 @@ def serve_user_management_page() -> HTMLResponse:
             tdActions.appendChild(spanSuper);
           } else {
             const btnReset = document.createElement('button');
-            btnReset.style.background = '#dc3545';
+            btnReset.style.background = '#0066cc';
             btnReset.style.color = 'white';
             btnReset.style.border = 'none';
             btnReset.style.padding = '0.3rem 0.6rem';
             btnReset.style.borderRadius = '4px';
             btnReset.style.cursor = 'pointer';
+            btnReset.style.marginRight = '0.4rem';
             btnReset.textContent = 'Reset Password';
             btnReset.addEventListener('click', () => promptReset(u.username));
             tdActions.appendChild(btnReset);
+
+            if (!u.is_archived) {
+              const btnDisable = document.createElement('button');
+              btnDisable.style.background = '#dc3545';
+              btnDisable.style.color = 'white';
+              btnDisable.style.border = 'none';
+              btnDisable.style.padding = '0.3rem 0.6rem';
+              btnDisable.style.borderRadius = '4px';
+              btnDisable.style.cursor = 'pointer';
+              btnDisable.textContent = 'Disable & Archive';
+              btnDisable.addEventListener('click', () => archiveUser(u.username));
+              tdActions.appendChild(btnDisable);
+            }
           }
 
           tr.appendChild(tdUser);
@@ -1498,6 +1359,7 @@ def serve_user_management_page() -> HTMLResponse:
           tr.appendChild(tdRole);
           tr.appendChild(tdDept);
           tr.appendChild(tdDid);
+          tr.appendChild(tdStatus);
           tr.appendChild(tdActions);
           tbody.appendChild(tr);
         });
@@ -1518,6 +1380,7 @@ def serve_user_management_page() -> HTMLResponse:
           credentials: 'same-origin',
           headers: {
             'Content-Type': 'application/json',
+            'X-CSRF-Token': 'csrf_session_valid',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
           body: JSON.stringify({ new_password: newPassword })
@@ -1530,6 +1393,31 @@ def serve_user_management_page() -> HTMLResponse:
         }
       } catch (e) {
         alert('Failed to reset password.');
+      }
+    }
+
+    async function archiveUser(username) {
+      if (!confirm(`Are you sure you want to disable and archive account '${username}'? (Record will NOT be deleted from PostgreSQL).`)) return;
+
+      const token = localStorage.getItem('rcf_dac_jwt');
+      try {
+        const resp = await fetch(`/api/users/${username}`, {
+          method: 'DELETE',
+          credentials: 'same-origin',
+          headers: {
+            'X-CSRF-Token': 'csrf_session_valid',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        });
+        const resData = await resp.json();
+        if (resp.ok) {
+          alert(resData.message);
+          loadUsers();
+        } else {
+          alert(`Error: ${resData.detail}`);
+        }
+      } catch (e) {
+        alert('Failed to archive user account.');
       }
     }
 
@@ -1612,17 +1500,10 @@ def serve_user_management_page() -> HTMLResponse:
     return HTMLResponse(content=html_content)
 
 
-
-
 @app.get("/db-status", response_class=HTMLResponse)
 @app.get("/db-connection", response_class=HTMLResponse)
 def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTMLResponse:
-    """
-    Serve the interactive database connection and schema status page.
-
-    Returns:
-        HTMLResponse: HTML containing current connection diagnostics and schema table statuses.
-    """
+    """Serve interactive database connection and schema status page."""
     db_info = check_database_connection(bypass_cache=bypass_cache or force)
     is_conn = db_info["is_connected"]
 
@@ -1652,7 +1533,7 @@ def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTM
 <head>
   <meta charset="UTF-8">
   <title>Database Connection & Schema Verification Status | RCF & DAC</title>
-  <link rel="preload" href="/assets/css/style.css" as="style" integrity="{css_sri}" crossorigin="anonymous">
+  <link rel="preload" href="/assets/css/style.css" as="style" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="{css_sri}" crossorigin="anonymous">
 </head>
 <body>
@@ -1718,8 +1599,10 @@ def register_user(
     request: Request,
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
+    x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
 ) -> dict[str, Any]:
-    """Mint W3C Decentralised Identifier (DID) and register institutional user (Admin ONLY)."""
+    """Mint W3C Decentralised Identifier (DID) and register user in PostgreSQL (Admin ONLY)."""
+    verify_csrf_and_origin(request, x_csrf_token)
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     role = payload.get("role", "")
     if role != "admin":
@@ -1732,20 +1615,45 @@ def register_user(
     seed_str = f"{req.name}-{req.role}-{req.dept}-{time.time()}-{unique_nonce}"
     did_hash = hashlib.sha256(seed_str.encode()).hexdigest()[:16]
     did = f"did:univ:{did_hash}"
+    generated_username = f"user_{did_hash[:8]}"
 
     record = {
+        "username": generated_username,
+        "password_hash": hash_password(secrets.token_hex(16)),
         "name": req.name,
         "role": req.role,
         "dept": req.dept,
         "email": req.email,
         "did": did,
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "is_active": True,
+        "is_disabled": False,
+        "can_login": True,
+        "is_archived": False,
+        "tags": ["active"],
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
-    USER_REGISTRY[did] = record
+    try:
+        DatabaseAPI.create_user(record)
+    except Exception as exc:
+        logger.error("Database user registration failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database service error. Transaction could not be completed.",
+        ) from exc
+
+    user_projection = {
+        "name": record["name"],
+        "role": record["role"],
+        "dept": record["dept"],
+        "email": record["email"],
+        "did": record["did"],
+        "timestamp": record["created_at"],
+    }
+
     return {
         "message": "User identity registered & W3C DID minted",
-        "user": record,
-        "simulated_db_table": "percona_postgresql_16.users",
+        "user": user_projection,
+        "simulated_db_table": "postgresql.users",
     }
 
 
@@ -1756,7 +1664,7 @@ def register_asset(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """Register research asset and generate SHA-256 evidence vault hash."""
+    """Register research asset and store SHA-256 evidence vault hash in PostgreSQL."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     check_module_access("module_2", payload, is_mutation=True)
 
@@ -1792,9 +1700,17 @@ def register_asset(
         "tx_outbox_id": tx_outbox_id,
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
-    ASSET_REGISTRY[asset_id] = asset_record
+    try:
+        DatabaseAPI.save_asset(asset_record)
+    except Exception as exc:
+        logger.error("Database asset save failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database service error. Transaction could not be completed.",
+        ) from exc
+
     global _INVESTOR_ASSETS_CACHE
-    _INVESTOR_ASSETS_CACHE = None  # Invalidate high-throughput cache
+    _INVESTOR_ASSETS_CACHE = None
     return {
         "message": "Digital Research Asset registered in evidence vault",
         "asset": asset_record,
@@ -1809,7 +1725,7 @@ def calculate_cloverleaf(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """Calculate Cloverleaf Market Readiness Score (MRS) (>180 qualification target)."""
+    """Calculate Cloverleaf Market Readiness Score and persist record to PostgreSQL."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     check_module_access("module_3", payload, is_mutation=True)
 
@@ -1823,6 +1739,23 @@ def calculate_cloverleaf(
     else:
         funding_tier = "Requires laboratory TRL escalation & market sizing refinement"
         status_label = f"DEVELOPMENT REQUIRED (Score {total_score} <= 180 Target)"
+
+    score_record = {
+        "tech_score": req.tech,
+        "market_score": req.market,
+        "comm_score": req.comm,
+        "mgmt_score": req.mgmt,
+        "total_score": total_score,
+        "is_qualified": is_qualified,
+    }
+    try:
+        DatabaseAPI.save_cloverleaf_score(score_record)
+    except Exception as exc:
+        logger.error("Database cloverleaf score save failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database service error. Transaction could not be completed.",
+        ) from exc
 
     return {
         "breakdown": {
@@ -1846,7 +1779,7 @@ def calculate_revenue(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """Calculate IP policy revenue-split matrix across institutional stakeholders."""
+    """Calculate IP revenue-split allocations and save to PostgreSQL."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     check_module_access("module_5", payload, is_mutation=True)
 
@@ -1897,6 +1830,20 @@ def calculate_revenue(
         for (name, pct), alloc in zip(stakeholders, allocations)
     ]
 
+    split_record = {
+        "total_ingested_myr": str(amount.quantize(Decimal("0.01"))),
+        "revenue_type": rev_type,
+        "distribution_splits": splits,
+    }
+    try:
+        DatabaseAPI.save_revenue_split(split_record)
+    except Exception as exc:
+        logger.error("Database revenue split save failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database service error. Transaction could not be completed.",
+        ) from exc
+
     return {
         "revenue_type": rev_type,
         "total_ingested_myr": str(amount.quantize(Decimal("0.01"))),
@@ -1911,7 +1858,7 @@ def create_system_jwt(
     exp_delta: float = 3600.0,
     secret: bytes = INVESTOR_JWT_SECRET,
 ) -> str:
-    """Generate a signed HMAC-SHA256 JWT for system user session authentication."""
+    """Generate a signed HMAC-SHA256 JWT for user session authentication."""
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "sub": username,
@@ -1933,10 +1880,7 @@ def create_system_jwt(
 def verify_investor_bearer_token(
     token: str, secret: bytes = INVESTOR_JWT_SECRET
 ) -> dict[str, Any]:
-    """
-    Perform cryptographic HMAC-SHA256 verification and claims check on system Bearer tokens.
-    Rejects opaque, malformed, unsigned, forged, expired, non-dict, or missing claim tokens.
-    """
+    """Perform cryptographic verification and claims check on Bearer tokens."""
     if not token or not isinstance(token, str):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -1952,7 +1896,6 @@ def verify_investor_bearer_token(
 
     header_b64, payload_b64, sig_b64 = parts
 
-    # Verify HMAC-SHA256 signature
     signing_input = f"{header_b64}.{payload_b64}".encode()
     expected_sig = base64url_encode(hmac.new(secret, signing_input, hashlib.sha256).digest())
 
@@ -1962,7 +1905,6 @@ def verify_investor_bearer_token(
             detail="Authorisation failed. Invalid or forged token signature.",
         )
 
-    # Decode and parse payload claims
     try:
         payload_bytes = base64url_decode(payload_b64)
         payload = json.loads(payload_bytes.decode())
@@ -1978,7 +1920,6 @@ def verify_investor_bearer_token(
             detail="Authorisation failed. JWT payload must be a JSON object.",
         )
 
-    # Validate required claims
     if "exp" not in payload:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -2010,7 +1951,6 @@ def verify_investor_bearer_token(
             detail="Authorisation failed. Missing or invalid token audience ('aud').",
         )
 
-    # If role is system role, allow token verification without accredited_investor claim
     user_role = payload.get("role", "")
     if not payload.get("accredited_investor") and not payload.get("admin") and user_role not in ("admin", "superuser", "operator", "auditor", "investor", "user"):
         raise HTTPException(
@@ -2026,12 +1966,7 @@ def check_module_access(
     payload: dict[str, Any],
     is_mutation: bool = False,
 ) -> None:
-    """
-    Enforce RBAC and module isolation rules:
-    - Admin and Superuser roles CANNOT access operational modules (module_2 to module_5).
-    - Auditor role has read-only access to operational modules (blocked on mutation actions).
-    - Other roles are checked against ROLE_MODULE_PERMISSIONS[module_id].
-    """
+    """Enforce RBAC and module isolation rules."""
     role = payload.get("role", "").lower()
     if not role:
         if payload.get("admin"):
@@ -2066,7 +2001,7 @@ def extract_current_user_payload(
     rcf_dac_jwt: str | None = None,
     request: Request | None = None,
 ) -> dict[str, Any]:
-    """Helper to extract and verify JWT payload from Authorization header or HttpOnly session cookie."""
+    """Helper to extract and verify JWT payload from Authorization header or session cookie."""
     token = None
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split("Bearer ", 1)[1].strip()
@@ -2090,7 +2025,7 @@ def list_system_users(
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
 ) -> dict[str, Any]:
-    """List all registered system user accounts (Admin & Superuser only)."""
+    """List registered system user accounts via Database API (Admin & Superuser only)."""
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     role = payload.get("role", "")
     if role not in ("admin", "superuser"):
@@ -2099,8 +2034,9 @@ def list_system_users(
             detail="Authorisation failed. Access restricted to Admin or Superuser roles.",
         )
 
+    all_users = DatabaseAPI.list_users()
     users_list = []
-    for acct in ACCOUNT_REGISTRY.values():
+    for acct in all_users:
         users_list.append({
             "username": acct["username"],
             "role": acct["role"],
@@ -2108,6 +2044,12 @@ def list_system_users(
             "dept": acct["dept"],
             "email": acct["email"],
             "did": acct["did"],
+            "is_active": acct.get("is_active", True),
+            "is_disabled": acct.get("is_disabled", False),
+            "can_login": acct.get("can_login", True),
+            "is_archived": acct.get("is_archived", False),
+            "archived_at": acct.get("archived_at"),
+            "tags": acct.get("tags", ["active"]),
             "created_at": acct.get("created_at"),
             "superuser_protected": acct["role"] == "superuser",
         })
@@ -2148,7 +2090,7 @@ def update_role_assignments(
     rcf_dac_jwt: str | None = Cookie(None),
     x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
 ) -> dict[str, Any]:
-    """Update role-to-module access permissions (Admin ONLY)."""
+    """Update role-to-module access permissions via Database API (Admin ONLY)."""
     verify_csrf_and_origin(request, x_csrf_token)
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     role = payload.get("role", "")
@@ -2164,14 +2106,20 @@ def update_role_assignments(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Invalid module ID '{mod_id}'. Allowed modules: module_1, module_2, module_3, module_4, module_5.",
             )
-        # Ensure module_1 is ALWAYS restricted to admin
         if mod_id == "module_1":
             ROLE_MODULE_PERMISSIONS["module_1"] = ["admin"]
         else:
             cleaned_roles = [r.lower().strip() for r in roles_list if isinstance(r, str)]
             ROLE_MODULE_PERMISSIONS[mod_id] = cleaned_roles
 
-    save_role_module_permissions(ROLE_MODULE_PERMISSIONS)
+    try:
+        save_role_module_permissions(ROLE_MODULE_PERMISSIONS)
+    except Exception as exc:
+        logger.error("Database role assignments update failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database service error. Transaction could not be completed.",
+        ) from exc
 
     return {
         "message": "Role-to-module assignment mappings updated successfully.",
@@ -2186,12 +2134,10 @@ def create_system_user(
     request: Request,
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
+    x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
 ) -> dict[str, Any]:
-    """
-    Create a new system user account:
-    - Admin can create users for any role EXCEPT superuser.
-    - Superuser can ONLY create user accounts with admin role (cannot create any other role).
-    """
+    """Create a new system user account in PostgreSQL via Database API."""
+    verify_csrf_and_origin(request, x_csrf_token)
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     caller_role = payload.get("role", "").lower()
     target_role = req.role.lower().strip()
@@ -2221,14 +2167,15 @@ def create_system_user(
                 detail="Authorisation failed. Superuser can ONLY create accounts with 'admin' role, not any other role.",
             )
 
-    if req.username in ACCOUNT_REGISTRY:
+    existing_user = DatabaseAPI.get_user_by_username(req.username)
+    if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"User account '{req.username}' already exists.",
         )
 
     did_hash = hashlib.sha256(f"{req.username}-{time.time()}".encode()).hexdigest()[:12]
-    new_user = {
+    new_user_record = {
         "username": req.username,
         "password_hash": hash_password(req.password),
         "role": target_role,
@@ -2236,19 +2183,31 @@ def create_system_user(
         "dept": req.dept,
         "email": req.email,
         "did": f"did:univ:acct-{did_hash}",
+        "is_active": True,
+        "is_disabled": False,
+        "can_login": True,
+        "is_archived": False,
+        "tags": ["active"],
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
-    ACCOUNT_REGISTRY[req.username] = new_user
+    try:
+        saved_user = DatabaseAPI.create_user(new_user_record)
+    except Exception as exc:
+        logger.error("Database user creation failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database service error. Transaction could not be completed.",
+        ) from exc
 
     return {
         "message": f"User account '{req.username}' successfully created with role '{target_role}'.",
         "user": {
-            "username": new_user["username"],
-            "role": new_user["role"],
-            "name": new_user["name"],
-            "dept": new_user["dept"],
-            "email": new_user["email"],
-            "did": new_user["did"],
+            "username": saved_user["username"],
+            "role": saved_user["role"],
+            "name": saved_user["name"],
+            "dept": saved_user["dept"],
+            "email": saved_user["email"],
+            "did": saved_user["did"],
         },
     }
 
@@ -2260,11 +2219,10 @@ def reset_user_password(
     request: Request,
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
+    x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
 ) -> dict[str, Any]:
-    """
-    Reset password for specified user account.
-    Superuser password CANNOT be reset via API; it requires direct database SQL command.
-    """
+    """Reset password for specified user account via Database API."""
+    verify_csrf_and_origin(request, x_csrf_token)
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     caller_role = payload.get("role", "")
 
@@ -2274,14 +2232,13 @@ def reset_user_password(
             detail="Authorisation failed. Administrator or Superuser role required for password reset.",
         )
 
-    target_acct = ACCOUNT_REGISTRY.get(username)
+    target_acct = DatabaseAPI.get_user_by_username(username)
     if not target_acct:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User account '{username}' not found.",
         )
 
-    # Superuser protection mandate: Superuser password CAN ONLY be reset by direct SQL command
     if target_acct["role"] == "superuser":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -2291,7 +2248,15 @@ def reset_user_password(
             ),
         )
 
-    target_acct["password_hash"] = hash_password(req.new_password)
+    try:
+        DatabaseAPI.update_password(username, hash_password(req.new_password))
+    except Exception as exc:
+        logger.error("Database password reset failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database service error. Transaction could not be completed.",
+        ) from exc
+
     return {
         "message": f"Password for user '{username}' successfully reset.",
         "username": username,
@@ -2305,18 +2270,25 @@ def delete_system_user(
     request: Request,
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
+    x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
 ) -> dict[str, Any]:
-    """Delete specified user account (Admin only; cannot delete superuser)."""
+    """
+    Disable and archive specified user account (Admin only).
+    POLICY ENFORCEMENT: No user created will be deleted from PostgreSQL.
+    Sets is_active=False, is_disabled=True, can_login=False, is_archived=True,
+    archived_at=now(), and tags=['archive'].
+    """
+    verify_csrf_and_origin(request, x_csrf_token)
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     caller_role = payload.get("role", "")
 
     if caller_role != "admin" and not (caller_role == "superuser" and payload.get("admin")):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authorisation failed. Administrator role required to delete accounts.",
+            detail="Authorisation failed. Administrator role required to archive accounts.",
         )
 
-    target_acct = ACCOUNT_REGISTRY.get(username)
+    target_acct = DatabaseAPI.get_user_by_username(username)
     if not target_acct:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -2326,13 +2298,22 @@ def delete_system_user(
     if target_acct["role"] == "superuser":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="SECURITY RESTRICTION: Superuser account cannot be deleted via API.",
+            detail="SECURITY RESTRICTION: Superuser account cannot be archived via API.",
         )
 
-    del ACCOUNT_REGISTRY[username]
+    try:
+        archived_user = DatabaseAPI.disable_and_archive_user(username)
+    except Exception as exc:
+        logger.error("Database user archiving failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database service error. Transaction could not be completed.",
+        ) from exc
+
     return {
-        "message": f"User account '{username}' successfully deleted.",
-        "deleted_by": payload.get("sub"),
+        "message": f"User account '{username}' successfully disabled, set to non-login, and archived with archive tag.",
+        "archived_by": payload.get("sub"),
+        "user": archived_user,
     }
 
 
@@ -2363,7 +2344,7 @@ def get_investor_assets(
     rcf_dac_jwt: str | None = Cookie(None),
     bypass_cache: bool = False,
 ) -> dict[str, Any]:
-    """Retrieve NDA-gated data room listings for accredited investors, backed by high-throughput TTL in-memory caching."""
+    """Retrieve NDA-gated data room listings backed by Database API and TTL cache."""
     global _INVESTOR_ASSETS_CACHE, _INVESTOR_ASSETS_CACHE_TIMESTAMP
 
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
@@ -2395,7 +2376,7 @@ def get_investor_assets(
             "status": "Cleared for Fund",
         },
     ]
-    registered = list(ASSET_REGISTRY.values())
+    registered = DatabaseAPI.list_assets()
     res = {
         "data_room_assets": default_listings,
         "user_registered_assets": registered,
@@ -2411,30 +2392,18 @@ ROOT_DOCS = {"SUMMARY.md", "README.md", "CHANGELOG.md", "HISTORY.md"}
 
 
 def render_markdown_to_html(md_text: str) -> str:
-    """Simple parser to convert index.md markdown elements to clean HTML."""
+    """Simple parser to convert markdown elements to clean HTML."""
     import re
 
-    # Strip Liquid tags like {::options ... /}
     md_text = re.sub(r"\{::options.*?\/\}", "", md_text)
-
-    # Resolve Liquid relative_url tags e.g. {{ '/docs/explanation/...' | relative_url }} -> /docs/explanation/...
     md_text = re.sub(r"\{\{\s*['\"](.*?)['\"](?:\s*\|\s*relative_url)?\s*\}\}", r"\1", md_text)
-
-    # Convert horizontal rules
     md_text = re.sub(r"^---$", "<hr>", md_text, flags=re.MULTILINE)
-
-    # Convert headers (###, ##, #)
     md_text = re.sub(r"^### (.*)$", r"<h3>\1</h3>", md_text, flags=re.MULTILINE)
     md_text = re.sub(r"^## (.*)$", r"<h2>\1</h2>", md_text, flags=re.MULTILINE)
     md_text = re.sub(r"^# (.*)$", r"<h1>\1</h1>", md_text, flags=re.MULTILINE)
-
-    # Convert bold text **text**
     md_text = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", md_text)
-
-    # Convert markdown links [text](url)
     md_text = re.sub(r"\[(.*?)\]\((.*?)\)", r'<a href="\2">\1</a>', md_text)
 
-    # Convert bullet lists - text
     lines = md_text.splitlines()
     html_lines = []
     in_list = False
@@ -2475,8 +2444,8 @@ def _render_doc_file(doc_file: Path) -> HTMLResponse:
 <head>
   <meta charset="UTF-8">
   <title>RCF & DAC Documentation</title>
-  <link rel="preload" href="/assets/css/style.css" as="style" integrity="{css_sri}" crossorigin="anonymous">
-  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" integrity="{js_sri}" crossorigin="anonymous">
+  <link rel="preload" href="/assets/css/style.css" as="style" crossorigin="anonymous">
+  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="{css_sri}" crossorigin="anonymous">
   <script src="/assets/js/rcf-dac-app.js" integrity="{js_sri}" crossorigin="anonymous" defer></script>
 </head>
@@ -2492,7 +2461,7 @@ def _render_doc_file(doc_file: Path) -> HTMLResponse:
 
 @app.get("/{doc_name}.html", response_class=HTMLResponse)
 def serve_root_doc(doc_name: str) -> HTMLResponse:
-    """Serve root Markdown documentation files (e.g. SUMMARY.html, README.html)."""
+    """Serve root Markdown documentation files."""
     filename = f"{doc_name}.md"
     if filename in ROOT_DOCS:
         doc_file = (BASE_DIR / filename).resolve()
@@ -2549,8 +2518,8 @@ def serve_index() -> HTMLResponse:
 <head>
   <meta charset="UTF-8">
   <title>RCF & DAC Interactive Web Portal</title>
-  <link rel="preload" href="/assets/css/style.css" as="style" integrity="{css_sri}" crossorigin="anonymous">
-  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" integrity="{js_sri}" crossorigin="anonymous">
+  <link rel="preload" href="/assets/css/style.css" as="style" crossorigin="anonymous">
+  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="{css_sri}" crossorigin="anonymous">
   <script src="/assets/js/rcf-dac-app.js" integrity="{js_sri}" crossorigin="anonymous" defer></script>
 </head>

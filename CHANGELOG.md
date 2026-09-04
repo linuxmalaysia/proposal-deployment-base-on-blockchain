@@ -27,9 +27,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-08-31
+## [Unreleased] - 2026-09-02
 
 ### Added
+
+- Centralized Database API Access Layer (`src/dca_service/adapters/database_api.py`) for direct PostgreSQL database operations across all application modules.
+- Soft non-deletion user archiving policy: `DELETE /api/users/{username}` disables account (`is_active=False`, `is_disabled=True`, `can_login=False`, `is_archived=True`, `tags=['archive']`) without record deletion.
+- OWASP REST Security Cheat Sheet compliance: generic authentication failure messages (`"Authentication failed. Invalid username or password."`), CSRF and origin token validation on user mutation endpoints (`create_system_user`, `reset_user_password`, `delete_system_user`, `register_user`), strict `sslmode=verify-full` validation on TCP `DATABASE_URL` connections, and server-side exception logging.
+- Refactored `docs/schema.sql` schema definitions with idempotent column migrations and `duplicate_object` exception handling on username unique constraints.
 
 - Local Knowledge-First & Metadata Discovery Mandate in `.agents/AGENTS.md` and root `AGENTS.md` requiring AI agents to query local OKF metadata in `.agents/brain/` and `docs/` before remote server or external web queries.
 - Standard Operating Procedure guide (`docs/how-to/sop-knowledge-first-discovery.md`) detailing the 3-step local discovery flow and OKF context preservation rules.

@@ -17,10 +17,8 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
-
 from fastapi.testclient import TestClient
+from dca_service.adapters.database_api import USER_REGISTRY, ASSET_REGISTRY
 from dca_service.web_app import (
     ACCOUNT_REGISTRY,
     EXPECTED_AUDIENCE,
@@ -37,6 +35,8 @@ from dca_service.web_app import (
     verify_password,
 )
 
+TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
+
 client = TestClient(app)
 
 
@@ -46,12 +46,24 @@ def isolate_account_registry(monkeypatch):
     Isolate account, environment, role module permissions, and rate-limit state for each test.
     """
     monkeypatch.setenv("INVESTOR_JWT_SECRET", TEST_JWT_SECRET.decode())
+    monkeypatch.setattr(
+        "dca_service.adapters.database_api.get_postgresql_connection",
+        lambda: (None, "Disconnected for test isolation"),
+    )
+    from dca_service.web_app import seed_initial_accounts
+    seed_initial_accounts()
     original_accounts = copy.deepcopy(ACCOUNT_REGISTRY)
+    original_users = copy.deepcopy(USER_REGISTRY)
+    original_assets = copy.deepcopy(ASSET_REGISTRY)
     original_permissions = copy.deepcopy(ROLE_MODULE_PERMISSIONS)
     RATE_LIMIT_BUCKETS.clear()
     yield
     ACCOUNT_REGISTRY.clear()
     ACCOUNT_REGISTRY.update(original_accounts)
+    USER_REGISTRY.clear()
+    USER_REGISTRY.update(original_users)
+    ASSET_REGISTRY.clear()
+    ASSET_REGISTRY.update(original_assets)
     ROLE_MODULE_PERMISSIONS.clear()
     ROLE_MODULE_PERMISSIONS.update(original_permissions)
     RATE_LIMIT_BUCKETS.clear()
@@ -142,6 +154,7 @@ def test_rbac_authentication_login_flow(monkeypatch):
     """
     monkeypatch.setenv("ADMIN_INITIAL_PASSWORD", "AdminPass123!")
     monkeypatch.setenv("SUPERUSER_INITIAL_PASSWORD", "SuperPass123!")
+    ACCOUNT_REGISTRY.clear()
     from dca_service.web_app import seed_initial_accounts
     seed_initial_accounts()
 
@@ -236,10 +249,13 @@ def test_admin_user_management_crud_and_rbac():
     assert "test_operator_99" in usernames
     assert "dca_sys_root" in usernames
 
-    # 4. Delete non-superuser account
+    # 4. Disable & archive non-superuser account (non-deletion policy)
     res_delete = client.delete("/api/users/test_operator_99", headers={"Authorization": f"Bearer {admin_jwt}"})
     assert res_delete.status_code == 200
-    assert "test_operator_99" not in ACCOUNT_REGISTRY
+    assert ACCOUNT_REGISTRY["test_operator_99"]["is_archived"] is True
+    assert ACCOUNT_REGISTRY["test_operator_99"]["can_login"] is False
+    assert ACCOUNT_REGISTRY["test_operator_99"]["is_disabled"] is True
+    assert "archive" in ACCOUNT_REGISTRY["test_operator_99"]["tags"]
 
 
 def test_strict_rbac_module_isolation_and_role_assignment():
