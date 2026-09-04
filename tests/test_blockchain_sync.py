@@ -216,6 +216,34 @@ def test_insert_transaction_idempotency_and_conflict():
         db_adapter.insert_transaction(entry_conflict)
 
 
+def test_hypertable_naive_range_end_datetime_normalisation():
+    """Verify TimescaleDBAdapter handles naive range_end datetimes safely without tzinfo mismatch errors."""
+    db_adapter = TimescaleDBAdapter(hypertable_name="blockchain_transactions")
+    now = datetime.now(timezone.utc)
+
+    # Add chunk with naive range_end and range_start (no tzinfo)
+    naive_end = datetime.now() - timedelta(days=20)
+    naive_start = datetime.now() - timedelta(days=30)
+
+    chunk_naive = HypertableChunkInfo(
+        chunk_name="_hyper_naive_chunk",
+        range_start=naive_start,
+        range_end=naive_end,
+        record_count=5000,
+    )
+
+    db_adapter.add_chunk_info(chunk_naive)
+
+    # Verify add_chunk_info normalized tzinfo to UTC
+    stored_chunks = db_adapter.get_chunks()
+    assert stored_chunks[0].range_end.tzinfo is not None
+    assert stored_chunks[0].range_start.tzinfo is not None
+
+    # Compress transaction history older than 7 days safely
+    res = db_adapter.compress_transaction_history(compress_older_than_days=7, now=now)
+    assert res["compressed_chunks_count"] == 1
+
+
 def test_archiving_policy_hypertable_mismatch_validation():
     """Verify policy application rejects mismatched hypertable names."""
     db_adapter = TimescaleDBAdapter(hypertable_name="btc_transactions")

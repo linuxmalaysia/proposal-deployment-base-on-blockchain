@@ -94,7 +94,10 @@ class TimescaleDBAdapter:
         total_compressed_bytes = 0
 
         for chunk in self._chunks:
-            age_days = (now - chunk.range_end).days
+            range_end = chunk.range_end
+            if range_end.tzinfo is None:
+                range_end = range_end.replace(tzinfo=UTC)
+            age_days = (now - range_end).days
             if age_days >= compress_older_than_days and chunk.state == HypertableChunkState.ACTIVE_UNCOMPRESSED:
                 chunk.state = HypertableChunkState.COMPRESSED
                 chunk.compressed_size_bytes = max(100, chunk.record_count * 15)
@@ -199,7 +202,11 @@ class TimescaleDBAdapter:
         return list(self._records.values())
 
     def add_chunk_info(self, chunk: HypertableChunkInfo) -> None:
-        """Register a chunk in the hypertable catalog."""
+        """Register a chunk in the hypertable catalog, normalizing datetimes to UTC if naive."""
+        if chunk.range_end.tzinfo is None:
+            chunk.range_end = chunk.range_end.replace(tzinfo=UTC)
+        if chunk.range_start.tzinfo is None:
+            chunk.range_start = chunk.range_start.replace(tzinfo=UTC)
         self._chunks.append(chunk)
 
     def get_chunks(self) -> list[HypertableChunkInfo]:
@@ -217,7 +224,10 @@ class TimescaleDBAdapter:
         archived_count = 0
 
         for chunk in self._chunks:
-            age_days = (now - chunk.range_end).days
+            range_end = chunk.range_end
+            if range_end.tzinfo is None:
+                range_end = range_end.replace(tzinfo=UTC)
+            age_days = (now - range_end).days
             if age_days >= policy.archive_after_days and chunk.state != HypertableChunkState.ARCHIVED_COLD_STORAGE:
                 chunk.state = HypertableChunkState.ARCHIVED_COLD_STORAGE
                 archived_count += 1

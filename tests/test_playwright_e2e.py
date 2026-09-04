@@ -384,39 +384,41 @@ def test_playwright_dynamic_role_permission_updates(page: Page, live_server: str
     assert get_resp.status == 200
     initial_permissions = get_resp.json()["module_permissions"]
 
-    # 3. Dynamically grant 'operator' access to module_4 (Investor Dashboard)
-    updated_permissions = dict(initial_permissions)
-    updated_permissions["module_4"] = ["investor", "operator"]
+    try:
+        # 3. Dynamically grant 'operator' access to module_4 (Investor Dashboard)
+        updated_permissions = dict(initial_permissions)
+        updated_permissions["module_4"] = ["investor", "operator"]
 
-    update_resp = page.request.post(
-        f"{live_server}/api/role-assignments",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "X-CSRF-Token": "csrf_valid_token",
-        },
-        data={"module_permissions": updated_permissions},
-    )
-    assert update_resp.status == 200
-    res_json = update_resp.json()
-    assert "operator" in res_json["module_permissions"]["module_4"]
+        update_resp = page.request.post(
+            f"{live_server}/api/role-assignments",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-CSRF-Token": "csrf_valid_token",
+            },
+            data={"module_permissions": updated_permissions},
+        )
+        assert update_resp.status == 200
+        res_json = update_resp.json()
+        assert "operator" in res_json["module_permissions"]["module_4"]
 
-    # 4. Verify persisted state via GET
-    verify_resp = page.request.get(
-        f"{live_server}/api/role-assignments",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert verify_resp.status == 200
-    assert "operator" in verify_resp.json()["module_permissions"]["module_4"]
-
-    # Revert to initial permissions
-    page.request.post(
-        f"{live_server}/api/role-assignments",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "X-CSRF-Token": "csrf_valid_token",
-        },
-        data={"module_permissions": initial_permissions},
-    )
+        # 4. Verify persisted state via GET
+        verify_resp = page.request.get(
+            f"{live_server}/api/role-assignments",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert verify_resp.status == 200
+        assert "operator" in verify_resp.json()["module_permissions"]["module_4"]
+    finally:
+        # Revert to initial permissions and assert restore response succeeds
+        restore_resp = page.request.post(
+            f"{live_server}/api/role-assignments",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-CSRF-Token": "csrf_valid_token",
+            },
+            data={"module_permissions": initial_permissions},
+        )
+        assert restore_resp.status == 200
 
 
 def test_playwright_cookie_expiration_and_session_boundary_cases(page: Page, live_server: str):
@@ -454,8 +456,11 @@ def test_playwright_cookie_expiration_and_session_boundary_cases(page: Page, liv
     assert logout_resp.status == 200
     assert "Successfully logged out" in logout_resp.json()["message"]
 
-    # 4. Request without session cookie fails closed with 401 Unauthorized
-    page.context.clear_cookies()
+    # 4. Assert rcf_dac_jwt cookie is absent from browser context after logout
+    post_logout_cookies = page.context.cookies()
+    assert not any(c["name"] == "rcf_dac_jwt" for c in post_logout_cookies)
+
+    # 5. Issue request using unchanged context and assert 401 Unauthorized
     unauth_resp = page.request.get(f"{live_server}/api/users")
     assert unauth_resp.status == 401
     assert "Authentication required" in unauth_resp.json()["detail"]
