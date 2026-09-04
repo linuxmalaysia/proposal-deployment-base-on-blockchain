@@ -44,3 +44,10 @@ language: "en-GB"
 - Authored Diátaxis explanation guide (`docs/explanation/httponly-cookies-and-connection-pooling.md`) conforming to OKF v0.2 frontmatter with all 13 mandatory fields.
 - Codified Rule 9 (Local Knowledge-First & Metadata Discovery Mandate) in `.agents/AGENTS.md` and updated root AI Gateway `AGENTS.md`.
 - Authored Standard Operating Procedure `docs/how-to/sop-knowledge-first-discovery.md` documenting the 3-step local OKF frontmatter search flow (`topics:` / `description:`) before remote execution or web search.
+
+## Phase 2: PostgreSQL Centralized Database API Access Layer, Soft User Archiving & OWASP REST Hardening (2026-09-02)
+- Implemented Centralized Database API Access Layer (`src/dca_service/adapters/database_api.py`) for direct PostgreSQL access across all platform modules (users, assets, cloverleaf scores, revenue splits, sub-accounts, and transaction records).
+- Enforced soft non-deletion user archiving policy: `DELETE /api/users/{username}` disables account (`is_active=False`, `is_disabled=True`, `can_login=False`, `is_archived=True`, `tags=['archive']`) without deleting database rows.
+- Hardened web layer (`src/dca_service/web_app.py`) according to OWASP REST Security Cheat Sheet: generic authentication failure messages (`"Authentication failed. Invalid username or password."`), CSRF and Origin validation on user mutation endpoints (`create_system_user`, `reset_user_password`, `delete_system_user`, `register_user`), strict `sslmode=verify-full` check on TCP `DATABASE_URL` connections, and server-side exception logging.
+- Refactored `docs/schema.sql` with idempotent `ALTER TABLE` statements and unique constraint migration catching `duplicate_object`.
+- Created `tests/test_database_api.py` and expanded `tests/test_rbac_and_resilience_scenarios.py` to verify DatabaseAPI methods, soft archiving, and registry snapshot isolation with 100% test pass rate (1,253 passed).

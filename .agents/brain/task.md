@@ -55,7 +55,10 @@ language: "en-GB"
 - [x] Update triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and regenerate `SUMMARY.md`.
 - [x] Create 38 Google Antigravity-compatible Agent Skill modules in `.agents/skills/` representing all Jules operational and domain knowledge from day 0 till present.
 - [x] Complete End of Day (EOD) and Start of Day (SOD) spatial memory synchronization across `.agents/brain/` adhering to DSOM protocol.
-- [x] Verify complete test suite (1161 tests passing) and pre-commit guardrails via `tools/install_git_guardrails.py`.
+- [x] Implement Centralized Database API Access Layer (`src/dca_service/adapters/database_api.py`) for direct PostgreSQL table access across all modules.
+- [x] Implement non-deletion soft user archiving policy (`is_active=False`, `is_disabled=True`, `can_login=False`, `is_archived=True`, `tags=['archive']`).
+- [x] Enforce OWASP REST Security Cheat Sheet guidelines (generic auth error messages, CSRF/origin verification, strict `sslmode=verify-full` connection parsing).
+- [x] Verify complete test suite (1,253 tests passing) and pre-commit guardrails via `tools/install_git_guardrails.py`.
 
 ### Pending Tasks
 
