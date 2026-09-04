@@ -65,3 +65,14 @@ language: "en-GB"
 - Updated root `AGENTS.md` and sovereign `.agents/AGENTS.md` to document Google Antigravity and Jules skill discovery protocols.
 - Updated Spatial Memory Palace anchors (`task.md`, `walkthrough.md`, `palace_registry.md`) to reflect full knowledge retention.
 - Executed full test suite (`1163 passed`) and verified pre-commit guardrail compliance via `tools/install_git_guardrails.py`.
+
+## Session Log: 2026-09-04 (Performance Compression, TimescaleDB Hypertables & E2E Palace Sync)
+
+- Verified static web asset Brotli and Gzip response compression (`Accept-Encoding: br, gzip`) in `tests/test_security_performance_headers.py`.
+- Configured TimescaleDB native columnar compression (`timescaledb.compress_segmentby`, `timescaledb.compress_orderby`) and automated chunk compression policies on `blockchain_transactions` in `docs/schema.sql` and `TimescaleDBAdapter` (`compress_transaction_history`, `get_compression_stats`).
+- Safely normalised naive `now` and `range_end` datetimes to UTC in `TimescaleDBAdapter` (`compress_transaction_history`, `apply_archiving_policy`, `add_chunk_info`), backed by regression tests.
+- Enforced hypertable-compatible primary key and unique constraints incorporating `timestamp` on `blockchain_transactions` in `docs/schema.sql` (`PRIMARY KEY (id, timestamp)` and `CONSTRAINT uq_blockchain_tx_id_timestamp UNIQUE (transaction_id, timestamp)`).
+- Maintained strict Mypy type annotations (`mypy --strict src/`) with 0 errors.
+- Expanded Playwright E2E browser integration tests in `tests/test_playwright_e2e.py` covering dynamic role permission updates via `/api/role-assignments` and session cookie expiration boundary cases.
+- Completed End of Day (EOD) spatial memory synchronization across `.agents/brain/` adhering to DSOM protocol.
+- Executed full test suite (`1254 passed`) and verified pre-commit guardrails.
