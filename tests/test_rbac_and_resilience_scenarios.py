@@ -21,6 +21,7 @@ import pytest
 TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
 
 from fastapi.testclient import TestClient
+from dca_service.adapters.database_api import USER_REGISTRY, ASSET_REGISTRY
 from dca_service.web_app import (
     ACCOUNT_REGISTRY,
     EXPECTED_AUDIENCE,
@@ -53,11 +54,17 @@ def isolate_account_registry(monkeypatch):
     from dca_service.web_app import seed_initial_accounts
     seed_initial_accounts()
     original_accounts = copy.deepcopy(ACCOUNT_REGISTRY)
+    original_users = copy.deepcopy(USER_REGISTRY)
+    original_assets = copy.deepcopy(ASSET_REGISTRY)
     original_permissions = copy.deepcopy(ROLE_MODULE_PERMISSIONS)
     RATE_LIMIT_BUCKETS.clear()
     yield
     ACCOUNT_REGISTRY.clear()
     ACCOUNT_REGISTRY.update(original_accounts)
+    USER_REGISTRY.clear()
+    USER_REGISTRY.update(original_users)
+    ASSET_REGISTRY.clear()
+    ASSET_REGISTRY.update(original_assets)
     ROLE_MODULE_PERMISSIONS.clear()
     ROLE_MODULE_PERMISSIONS.update(original_permissions)
     RATE_LIMIT_BUCKETS.clear()
@@ -148,6 +155,7 @@ def test_rbac_authentication_login_flow(monkeypatch):
     """
     monkeypatch.setenv("ADMIN_INITIAL_PASSWORD", "AdminPass123!")
     monkeypatch.setenv("SUPERUSER_INITIAL_PASSWORD", "SuperPass123!")
+    ACCOUNT_REGISTRY.clear()
     from dca_service.web_app import seed_initial_accounts
     seed_initial_accounts()
 

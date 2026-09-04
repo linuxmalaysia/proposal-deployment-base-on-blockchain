@@ -226,7 +226,7 @@ def test_failed_database_write_does_not_populate_registry(monkeypatch: pytest.Mo
 
 
 def test_duplicate_creation_on_archived_user_preserves_archived_state():
-    """Regression test: duplicate create_user calls on an archived user must preserve archived/disabled state."""
+    """Regression test: duplicate create_user calls on an archived user must preserve archived/disabled state and password hash."""
     user_record = {
         "username": "archived_dup_user",
         "password_hash": hash_password("ValidPass123!"),
@@ -237,13 +237,14 @@ def test_duplicate_creation_on_archived_user_preserves_archived_state():
         "did": "did:univ:archiveddup01",
     }
     DatabaseAPI.create_user(user_record)
+    original_hash = ACCOUNT_REGISTRY["archived_dup_user"]["password_hash"]
 
     # Disable & archive user
     DatabaseAPI.disable_and_archive_user("archived_dup_user")
     assert ACCOUNT_REGISTRY["archived_dup_user"]["is_archived"] is True
     assert ACCOUNT_REGISTRY["archived_dup_user"]["can_login"] is False
 
-    # Attempt duplicate create_user with updated name/role
+    # Attempt duplicate create_user with updated name/role and new password hash
     duplicate_record = {
         "username": "archived_dup_user",
         "password_hash": hash_password("NewPass123!"),
@@ -255,13 +256,14 @@ def test_duplicate_creation_on_archived_user_preserves_archived_state():
     }
     DatabaseAPI.create_user(duplicate_record)
 
-    # Verify archived & disabled status preserved
+    # Verify archived & disabled status preserved and password_hash remains unchanged
     updated_user = ACCOUNT_REGISTRY["archived_dup_user"]
     assert updated_user["is_archived"] is True
     assert updated_user["is_disabled"] is True
     assert updated_user["can_login"] is False
     assert updated_user["name"] == "Updated Name"
+    assert updated_user["password_hash"] == original_hash
 
-    # Attempt login -> must be rejected
+    # Attempt login using original valid password -> must be rejected due to disabled/archived status
     res = client.post("/api/login", json={"username": "archived_dup_user", "password": "ValidPass123!"})
     assert res.status_code == 401

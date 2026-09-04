@@ -1608,8 +1608,10 @@ def register_user(
     request: Request,
     authorization: str | None = Header(None, alias="Authorization"),
     rcf_dac_jwt: str | None = Cookie(None),
+    x_csrf_token: str | None = Header(None, alias="X-CSRF-Token"),
 ) -> dict[str, Any]:
     """Mint W3C Decentralised Identifier (DID) and register user in PostgreSQL (Admin ONLY)."""
+    verify_csrf_and_origin(request, x_csrf_token)
     payload = extract_current_user_payload(authorization, rcf_dac_jwt, request)
     role = payload.get("role", "")
     if role != "admin":

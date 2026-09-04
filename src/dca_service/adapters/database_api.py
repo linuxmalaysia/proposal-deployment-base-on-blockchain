@@ -87,7 +87,11 @@ def get_database_url() -> str | None:
         if is_unix_socket:
             return database_url
 
-        if "sslmode=verify-full" in database_url:
+        import urllib.parse
+        parsed = urllib.parse.urlparse(database_url)
+        params = urllib.parse.parse_qs(parsed.query)
+        sslmode_vals = params.get("sslmode", [])
+        if sslmode_vals and sslmode_vals[0] == "verify-full":
             return database_url
 
         ca_file = Path(os.environ.get("SUPABASE_SSLROOTCERT", "/etc/secrets/prod-supabase-ca.crt"))
@@ -231,7 +235,6 @@ class DatabaseAPI:
         if existing:
             user_record = dict(existing)
             user_record.update({
-                "password_hash": user_data.get("password_hash", user_record["password_hash"]),
                 "role": user_data.get("role", user_record["role"]),
                 "name": user_data.get("name", user_record["name"]),
                 "dept": user_data.get("dept", user_record["dept"]),
