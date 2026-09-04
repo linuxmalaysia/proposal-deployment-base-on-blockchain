@@ -223,31 +223,42 @@ class DatabaseAPI:
         Create and persist a new user account into PostgreSQL.
         ON CONFLICT (username) updates name, role, dept, email, did, updated_at
         WITHOUT overwriting password_hash, is_active, is_disabled, can_login, is_archived, archived_at, or tags.
+        Registry entries are populated only after successful database transaction.
         """
         username = user_data["username"]
+
+        existing = ACCOUNT_REGISTRY.get(username)
+        if existing:
+            user_record = dict(existing)
+            user_record.update({
+                "password_hash": user_data.get("password_hash", user_record["password_hash"]),
+                "role": user_data.get("role", user_record["role"]),
+                "name": user_data.get("name", user_record["name"]),
+                "dept": user_data.get("dept", user_record["dept"]),
+                "email": user_data.get("email", user_record["email"]),
+                "did": user_data.get("did", user_record["did"]),
+                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            })
+        else:
+            user_record = {
+                "username": username,
+                "password_hash": user_data["password_hash"],
+                "role": user_data["role"],
+                "name": user_data["name"],
+                "dept": user_data["dept"],
+                "email": user_data["email"],
+                "did": user_data["did"],
+                "is_active": user_data.get("is_active", True),
+                "is_disabled": user_data.get("is_disabled", False),
+                "can_login": user_data.get("can_login", True),
+                "is_archived": user_data.get("is_archived", False),
+                "archived_at": user_data.get("archived_at"),
+                "tags": user_data.get("tags", ["active"]),
+                "created_at": user_data.get("created_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
+                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+
         conn, msg = get_postgresql_connection()
-
-        user_record = {
-            "username": username,
-            "password_hash": user_data["password_hash"],
-            "role": user_data["role"],
-            "name": user_data["name"],
-            "dept": user_data["dept"],
-            "email": user_data["email"],
-            "did": user_data["did"],
-            "is_active": user_data.get("is_active", True),
-            "is_disabled": user_data.get("is_disabled", False),
-            "can_login": user_data.get("can_login", True),
-            "is_archived": user_data.get("is_archived", False),
-            "archived_at": user_data.get("archived_at"),
-            "tags": user_data.get("tags", ["active"]),
-            "created_at": user_data.get("created_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
-            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        }
-
-        ACCOUNT_REGISTRY[username] = dict(user_record)
-        USER_REGISTRY[user_record["did"]] = dict(user_record)
-
         if conn:
             try:
                 with conn.cursor() as cur:
@@ -291,6 +302,9 @@ class DatabaseAPI:
                 raise RuntimeError(f"Database user creation failed: {exc}") from exc
             finally:
                 close_postgresql_connection(conn)
+
+        ACCOUNT_REGISTRY[username] = dict(user_record)
+        USER_REGISTRY[user_record["did"]] = dict(user_record)
 
         return user_record
 

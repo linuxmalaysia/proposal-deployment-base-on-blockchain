@@ -13,6 +13,7 @@ default_test_secret = "".join(["test_", "rcf_", "dac_", "jwt_", "secret_", "key_
 os.environ.setdefault("INVESTOR_JWT_SECRET", default_test_secret)
 
 import copy  # noqa: E402
+from unittest.mock import MagicMock  # noqa: E402
 from dca_service.adapters.database_api import DatabaseAPI, ACCOUNT_REGISTRY, USER_REGISTRY, ASSET_REGISTRY  # noqa: E402
 from dca_service.web_app import app, create_system_jwt, hash_password, seed_initial_accounts  # noqa: E402
 
@@ -194,3 +195,73 @@ def test_database_api_asset_and_scores_persistence():
     }
     saved_split = DatabaseAPI.save_revenue_split(split_rec)
     assert saved_split["revenue_type"] == "licensing"
+
+
+def test_failed_database_write_does_not_populate_registry(monkeypatch: pytest.MonkeyPatch):
+    """Verify that a failed PostgreSQL transaction raises RuntimeError and leaves registry unmodified."""
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.execute.side_effect = RuntimeError("Simulated Database Error")
+    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+    monkeypatch.setattr(
+        "dca_service.adapters.database_api.get_postgresql_connection",
+        lambda: (mock_conn, "Connected"),
+    )
+
+    user_data = {
+        "username": "failed_db_write_user",
+        "password_hash": hash_password("ValidPass123!"),
+        "role": "operator",
+        "name": "Failed Write User",
+        "dept": "Testing Dept",
+        "email": "failedwrite@rcf-dac.univ.edu.my",
+        "did": "did:univ:failedwrite01",
+    }
+
+    with pytest.raises(RuntimeError, match="Database user creation failed"):
+        DatabaseAPI.create_user(user_data)
+
+    assert "failed_db_write_user" not in ACCOUNT_REGISTRY
+
+
+def test_duplicate_creation_on_archived_user_preserves_archived_state():
+    """Regression test: duplicate create_user calls on an archived user must preserve archived/disabled state."""
+    user_record = {
+        "username": "archived_dup_user",
+        "password_hash": hash_password("ValidPass123!"),
+        "role": "operator",
+        "name": "Archived Dup User",
+        "dept": "Testing Dept",
+        "email": "archiveddup@rcf-dac.univ.edu.my",
+        "did": "did:univ:archiveddup01",
+    }
+    DatabaseAPI.create_user(user_record)
+
+    # Disable & archive user
+    DatabaseAPI.disable_and_archive_user("archived_dup_user")
+    assert ACCOUNT_REGISTRY["archived_dup_user"]["is_archived"] is True
+    assert ACCOUNT_REGISTRY["archived_dup_user"]["can_login"] is False
+
+    # Attempt duplicate create_user with updated name/role
+    duplicate_record = {
+        "username": "archived_dup_user",
+        "password_hash": hash_password("NewPass123!"),
+        "role": "admin",
+        "name": "Updated Name",
+        "dept": "New Dept",
+        "email": "archiveddup@rcf-dac.univ.edu.my",
+        "did": "did:univ:archiveddup01",
+    }
+    DatabaseAPI.create_user(duplicate_record)
+
+    # Verify archived & disabled status preserved
+    updated_user = ACCOUNT_REGISTRY["archived_dup_user"]
+    assert updated_user["is_archived"] is True
+    assert updated_user["is_disabled"] is True
+    assert updated_user["can_login"] is False
+    assert updated_user["name"] == "Updated Name"
+
+    # Attempt login -> must be rejected
+    res = client.post("/api/login", json={"username": "archived_dup_user", "password": "ValidPass123!"})
+    assert res.status_code == 401
