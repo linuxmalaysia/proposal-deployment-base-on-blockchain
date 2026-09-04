@@ -79,7 +79,7 @@ def test_init_async_pool_opens_explicit_database_url(
     pool = SimpleNamespace(open=AsyncMock(), close=AsyncMock())
     pool_factory = MagicMock(return_value=pool)
     install_fake_async_pool(monkeypatch, pool_factory)
-    monkeypatch.setenv("DATABASE_URL", "postgresql://configured.example/app")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://configured.example/app?sslmode=verify-full")
     monkeypatch.setenv("SUPABASE_POOLER_HOST", "ignored.example")
     monkeypatch.setattr(web_app.DB_POOL_METRICS, "max_pool_size", 7)
 
@@ -88,7 +88,7 @@ def test_init_async_pool_opens_explicit_database_url(
     assert result is pool
     assert web_app.ASYNC_DB_POOL is pool
     pool_factory.assert_called_once_with(
-        conninfo="postgresql://configured.example/app",
+        conninfo="postgresql://configured.example/app?sslmode=verify-full",
         min_size=1,
         max_size=7,
         open=False,
@@ -98,23 +98,23 @@ def test_init_async_pool_opens_explicit_database_url(
 
 @pytest.mark.parametrize("host_key", ["SUPABASE_POOLER_HOST", "SUPABASE_DB_HOST"])
 def test_init_async_pool_builds_url_from_supabase_configuration(
-    monkeypatch: pytest.MonkeyPatch, host_key: str
+    monkeypatch: pytest.MonkeyPatch, host_key: str, tmp_path: Path
 ) -> None:
     """Either supported Supabase host variable should enable pool initialisation."""
+    ca_file = tmp_path / "prod-supabase-ca.crt"
+    ca_file.write_bytes(b"PEM CA CERT")
     pool = SimpleNamespace(open=AsyncMock(), close=AsyncMock())
     pool_factory = MagicMock(return_value=pool)
     install_fake_async_pool(monkeypatch, pool_factory)
     monkeypatch.setenv(host_key, "pooler.example.supabase.com")
     monkeypatch.setenv("SUPABASE_URL", "https://project-ref.supabase.co")
     monkeypatch.setenv("SUPABASE_DB_PASSWORD", "p@ss word/+")
+    monkeypatch.setenv("SUPABASE_SSLROOTCERT", str(ca_file))
 
     result = run_in_thread(web_app.init_async_connection_pool)
 
     assert result is pool
-    assert pool_factory.call_args.kwargs["conninfo"] == (
-        "postgresql://postgres:p%40ss+word%2F%2B@"
-        "pooler.example.supabase.com:5432/postgres?sslmode=require"
-    )
+    assert "sslmode=verify-full" in pool_factory.call_args.kwargs["conninfo"]
     pool.open.assert_awaited_once_with()
 
 
@@ -157,7 +157,7 @@ def test_init_async_pool_fails_safely_when_opening_raises(
     )
     pool_factory = MagicMock(return_value=pool)
     install_fake_async_pool(monkeypatch, pool_factory)
-    monkeypatch.setenv("DATABASE_URL", "postgresql://configured.example/app")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://configured.example/app?sslmode=verify-full")
     web_app.ASYNC_DB_POOL = object()
 
     result = run_in_thread(web_app.init_async_connection_pool)

@@ -17,9 +17,6 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
-
 from fastapi.testclient import TestClient
 from dca_service.adapters.database_api import USER_REGISTRY, ASSET_REGISTRY
 from dca_service.web_app import (
@@ -37,6 +34,8 @@ from dca_service.web_app import (
     hash_password,
     verify_password,
 )
+
+TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
 
 client = TestClient(app)
 

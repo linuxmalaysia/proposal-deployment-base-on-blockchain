@@ -37,6 +37,7 @@ from dca_service.adapters.database_api import (
     ConnectionPoolMetrics,
     DatabaseAPI,
     close_postgresql_connection,
+    get_database_url,
     get_postgresql_connection,
 )
 
@@ -295,17 +296,7 @@ ASYNC_DB_POOL: Any = None
 async def init_async_connection_pool() -> Any:
     """Initialize and open asynchronous PostgreSQL connection pool when database configuration is available."""
     global ASYNC_DB_POOL
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        pooler_host = os.environ.get("SUPABASE_POOLER_HOST") or os.environ.get("SUPABASE_DB_HOST")
-        supabase_url = os.environ.get("SUPABASE_URL", "")
-        db_pass = os.environ.get("SUPABASE_DB_PASSWORD", "")
-        if pooler_host and supabase_url and db_pass:
-            import urllib.parse
-            project_ref = supabase_url.replace("https://", "").replace("http://", "").split(".")[0]
-            db_user = f"postgres.{project_ref}" if "." not in pooler_host else "postgres"
-            encoded_pass = urllib.parse.quote_plus(db_pass)
-            database_url = f"postgresql://{db_user}:{encoded_pass}@{pooler_host}:5432/postgres?sslmode=require"
+    database_url = get_database_url()
 
     if database_url:
         try:

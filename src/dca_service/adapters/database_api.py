@@ -277,7 +277,9 @@ class DatabaseAPI:
                             dept = EXCLUDED.dept,
                             email = EXCLUDED.email,
                             did = EXCLUDED.did,
-                            updated_at = CURRENT_TIMESTAMP;
+                            updated_at = CURRENT_TIMESTAMP
+                        RETURNING username, password_hash, role, name, dept, email, did,
+                                  is_active, is_disabled, can_login, is_archived, archived_at, tags, created_at;
                         """,
                         (
                             user_record["username"],
@@ -295,6 +297,24 @@ class DatabaseAPI:
                             user_record["tags"],
                         ),
                     )
+                    row = cur.fetchone()
+                    if row:
+                        user_record = {
+                            "username": row[0],
+                            "password_hash": row[1],
+                            "role": row[2],
+                            "name": row[3],
+                            "dept": row[4],
+                            "email": row[5],
+                            "did": row[6],
+                            "is_active": row[7],
+                            "is_disabled": row[8],
+                            "can_login": row[9],
+                            "is_archived": row[10],
+                            "archived_at": row[11].isoformat() if row[11] else None,
+                            "tags": list(row[12]) if row[12] else [],
+                            "created_at": row[13].isoformat() if row[13] else None,
+                        }
                 conn.commit()
             except Exception as exc:
                 logger.warning("PostgreSQL insert user error: %s", exc)
