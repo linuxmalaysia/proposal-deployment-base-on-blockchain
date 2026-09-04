@@ -61,7 +61,6 @@ language: "en-GB"
 - [x] Maintain Mypy `--strict` type checking across all adapter modules with zero type errors (`mypy --strict src/`).
 - [x] Expand Playwright E2E browser integration tests in `tests/test_playwright_e2e.py` covering dynamic role permission updates (`/api/role-assignments`) and cookie expiration boundary cases.
 - [x] Complete End of Day (EOD) and Start of Day (SOD) spatial memory synchronization across `.agents/brain/` adhering to DSOM protocol.
-- [x] Verify complete test suite (1254 tests passing) and pre-commit guardrails via `tools/install_git_guardrails.py`.
 
 ### Pending Tasks
 
