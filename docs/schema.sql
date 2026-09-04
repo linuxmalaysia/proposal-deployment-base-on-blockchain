@@ -68,3 +68,17 @@ CREATE INDEX IF NOT EXISTS idx_blockchain_sync_state ON blockchain_transactions(
 CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_state ON blockchain_transactions(timestamp, sync_state);
 CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_asset ON blockchain_transactions(timestamp, asset_symbol);
 CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_account ON blockchain_transactions(timestamp, account_id);
+
+-- TimescaleDB Hypertables & Compression Policy Configuration
+-- Converts blockchain_transactions table into a TimescaleDB hypertable partitioned by time
+SELECT create_hypertable('blockchain_transactions', 'timestamp', if_not_exists => TRUE);
+
+-- Configure native columnar compression on transaction history (segment by account/asset, order by timestamp)
+ALTER TABLE blockchain_transactions SET (
+    timescaledb.compress,
+    timescaledb.compress_segmentby = 'account_id, asset_symbol',
+    timescaledb.compress_orderby = 'timestamp DESC'
+);
+
+-- Automatically compress transaction history chunks older than 7 days
+SELECT add_compression_policy('blockchain_transactions', INTERVAL '7 days', if_not_exists => TRUE);

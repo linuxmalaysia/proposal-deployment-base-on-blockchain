@@ -60,6 +60,82 @@ class TimescaleDBAdapter:
         self.hypertable_name = hypertable_name
         self._records: dict[str, TimeSeriesTransactionEntry] = {}
         self._chunks: list[HypertableChunkInfo] = []
+        self.compression_enabled: bool = False
+        self.compress_segment_by: list[str] = ["account_id", "asset_symbol"]
+        self.compress_order_by: str = "timestamp DESC"
+
+    def enable_hypertable_compression(
+        self, segment_by: list[str] | None = None, order_by: str = "timestamp DESC"
+    ) -> dict[str, Any]:
+        """Enable TimescaleDB native columnar compression configuration for transaction history."""
+        self.compression_enabled = True
+        if segment_by is not None:
+            self.compress_segment_by = segment_by
+        self.compress_order_by = order_by
+        return {
+            "hypertable_name": self.hypertable_name,
+            "compression_enabled": True,
+            "compress_segmentby": ", ".join(self.compress_segment_by),
+            "compress_orderby": self.compress_order_by,
+        }
+
+    def compress_transaction_history(
+        self, compress_older_than_days: int = 7, now: datetime | None = None
+    ) -> dict[str, int]:
+        """Compress transaction history chunks older than specified threshold days."""
+        if now is None:
+            now = datetime.now(UTC)
+
+        if not self.compression_enabled:
+            self.enable_hypertable_compression()
+
+        compressed_chunks = 0
+        total_uncompressed_bytes = 0
+        total_compressed_bytes = 0
+
+        for chunk in self._chunks:
+            age_days = (now - chunk.range_end).days
+            if age_days >= compress_older_than_days and chunk.state == HypertableChunkState.ACTIVE_UNCOMPRESSED:
+                chunk.state = HypertableChunkState.COMPRESSED
+                chunk.compressed_size_bytes = max(100, chunk.record_count * 15)
+                compressed_chunks += 1
+
+            if chunk.state == HypertableChunkState.COMPRESSED:
+                total_uncompressed_bytes += chunk.record_count * 200
+                total_compressed_bytes += chunk.compressed_size_bytes or 0
+
+        return {
+            "compressed_chunks_count": compressed_chunks,
+            "total_uncompressed_bytes": total_uncompressed_bytes,
+            "total_compressed_bytes": total_compressed_bytes,
+        }
+
+    def get_compression_stats(self) -> dict[str, Any]:
+        """Return compression statistics across hypertable transaction history chunks."""
+        total_chunks = len(self._chunks)
+        compressed_chunks = [c for c in self._chunks if c.state == HypertableChunkState.COMPRESSED]
+        archived_chunks = [c for c in self._chunks if c.state == HypertableChunkState.ARCHIVED_COLD_STORAGE]
+        uncompressed_chunks = [c for c in self._chunks if c.state == HypertableChunkState.ACTIVE_UNCOMPRESSED]
+
+        uncompressed_size = sum(c.record_count * 200 for c in compressed_chunks)
+        compressed_size = sum(c.compressed_size_bytes or 0 for c in compressed_chunks)
+        compression_ratio = (
+            round(uncompressed_size / compressed_size, 2)
+            if compressed_size > 0
+            else 1.0
+        )
+
+        return {
+            "hypertable_name": self.hypertable_name,
+            "compression_enabled": self.compression_enabled,
+            "total_chunks": total_chunks,
+            "uncompressed_chunks": len(uncompressed_chunks),
+            "compressed_chunks": len(compressed_chunks),
+            "archived_chunks": len(archived_chunks),
+            "uncompressed_bytes": uncompressed_size,
+            "compressed_bytes": compressed_size,
+            "compression_ratio": compression_ratio,
+        }
 
     def insert_transaction(self, entry: TimeSeriesTransactionEntry) -> TimeSeriesTransactionEntry:
         """Insert a transaction into the TimescaleDB hypertable idempotently."""

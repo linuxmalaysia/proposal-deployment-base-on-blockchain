@@ -81,6 +81,59 @@ def test_dual_write_failure_recovery():
     assert pending[0].transaction_id == "tx_1002"
 
 
+def test_timescaledb_transaction_history_compression_policy_and_stats():
+    """Verify TimescaleDB native columnar compression configuration and stats on transaction history."""
+    db_adapter = TimescaleDBAdapter(hypertable_name="blockchain_transactions")
+    now = datetime.now(timezone.utc)
+
+    # Configure hypertable compression
+    config = db_adapter.enable_hypertable_compression(
+        segment_by=["account_id", "asset_symbol"],
+        order_by="timestamp DESC",
+    )
+    assert config["compression_enabled"] is True
+    assert config["compress_segmentby"] == "account_id, asset_symbol"
+    assert config["compress_orderby"] == "timestamp DESC"
+
+    # Add chunks: 1 active (<7 days), 2 historical (>7 days)
+    chunk_active = HypertableChunkInfo(
+        chunk_name="_hyper_tx_1_chunk",
+        range_start=now - timedelta(days=5),
+        range_end=now - timedelta(days=2),
+        record_count=1000,
+    )
+    chunk_hist_1 = HypertableChunkInfo(
+        chunk_name="_hyper_tx_2_chunk",
+        range_start=now - timedelta(days=30),
+        range_end=now - timedelta(days=15),
+        record_count=10000,
+    )
+    chunk_hist_2 = HypertableChunkInfo(
+        chunk_name="_hyper_tx_3_chunk",
+        range_start=now - timedelta(days=60),
+        range_end=now - timedelta(days=45),
+        record_count=20000,
+    )
+
+    db_adapter.add_chunk_info(chunk_active)
+    db_adapter.add_chunk_info(chunk_hist_1)
+    db_adapter.add_chunk_info(chunk_hist_2)
+
+    # Compress transaction history older than 7 days
+    res = db_adapter.compress_transaction_history(compress_older_than_days=7, now=now)
+    assert res["compressed_chunks_count"] == 2
+    assert res["total_uncompressed_bytes"] == 30000 * 200
+
+    # Get compression stats
+    stats = db_adapter.get_compression_stats()
+    assert stats["hypertable_name"] == "blockchain_transactions"
+    assert stats["compression_enabled"] is True
+    assert stats["total_chunks"] == 3
+    assert stats["compressed_chunks"] == 2
+    assert stats["uncompressed_chunks"] == 1
+    assert stats["compression_ratio"] > 1.0
+
+
 def test_hypertable_chunk_compression_and_archiving():
     """Verify TimescaleDB chunk age-based compression and archiving policy execution."""
     db_adapter = TimescaleDBAdapter()

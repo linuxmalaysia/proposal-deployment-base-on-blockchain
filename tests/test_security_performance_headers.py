@@ -149,6 +149,19 @@ def test_large_html_responses_support_configured_compression(
     assert response.text.startswith("<!DOCTYPE html>")
 
 
+@pytest.mark.parametrize("asset_path", ["/assets/css/style.css", "/assets/js/rcf-dac-app.js"])
+@pytest.mark.parametrize(("accepted_encoding", "expected_encoding"), [("gzip", "gzip"), ("br", "br")])
+def test_static_web_assets_support_gzip_and_brotli_compression(
+    asset_path: str, accepted_encoding: str, expected_encoding: str
+) -> None:
+    response = client.get(asset_path, headers={"Accept-Encoding": accepted_encoding})
+
+    assert response.status_code == 200
+    assert response.headers["content-encoding"] == expected_encoding
+    assert "vary" in response.headers
+    assert "Accept-Encoding" in response.headers.get_list("vary")
+
+
 def test_small_responses_remain_uncompressed_at_minimum_size_boundary() -> None:
     response = client.get("/health", headers={"Accept-Encoding": "gzip, br"})
 
