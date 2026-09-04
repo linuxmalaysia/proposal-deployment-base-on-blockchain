@@ -44,8 +44,8 @@ CREATE TABLE IF NOT EXISTS revenue_splits (
 );
 
 CREATE TABLE IF NOT EXISTS blockchain_transactions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    transaction_id VARCHAR(255) UNIQUE NOT NULL,
+    id UUID DEFAULT gen_random_uuid(),
+    transaction_id VARCHAR(255) NOT NULL,
     account_id VARCHAR(255) NOT NULL,
     asset_symbol VARCHAR(50) NOT NULL,
     amount NUMERIC(28, 8) NOT NULL,
@@ -55,7 +55,9 @@ CREATE TABLE IF NOT EXISTS blockchain_transactions (
     retry_count INT DEFAULT 0,
     failure_reason TEXT,
     metadata JSONB DEFAULT '{}'::jsonb,
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id, timestamp),
+    CONSTRAINT uq_blockchain_tx_id_timestamp UNIQUE (transaction_id, timestamp)
 );
 
 -- Indexes for high-concurrency lookup

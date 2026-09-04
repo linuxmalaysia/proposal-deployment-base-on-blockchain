@@ -85,6 +85,8 @@ class TimescaleDBAdapter:
         """Compress transaction history chunks older than specified threshold days."""
         if now is None:
             now = datetime.now(UTC)
+        elif now.tzinfo is None:
+            now = now.replace(tzinfo=UTC)
 
         if not self.compression_enabled:
             self.enable_hypertable_compression()
@@ -219,6 +221,9 @@ class TimescaleDBAdapter:
             raise ValueError(
                 f"Policy hypertable name '{policy.hypertable_name}' does not match adapter hypertable '{self.hypertable_name}'."
             )
+
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=UTC)
 
         compressed_count = 0
         archived_count = 0

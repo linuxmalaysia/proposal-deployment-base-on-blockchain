@@ -217,11 +217,11 @@ def test_insert_transaction_idempotency_and_conflict():
 
 
 def test_hypertable_naive_range_end_datetime_normalisation():
-    """Verify TimescaleDBAdapter handles naive range_end datetimes safely without tzinfo mismatch errors."""
+    """Verify TimescaleDBAdapter handles naive range_end and now datetimes safely without tzinfo mismatch errors."""
     db_adapter = TimescaleDBAdapter(hypertable_name="blockchain_transactions")
-    now = datetime.now(timezone.utc)
+    now_naive = datetime.now()  # Naive datetime for 'now'
 
-    # Add chunk with naive range_end and range_start (no tzinfo)
+    # Add chunk with non-UTC-aware naive range_end and range_start (no tzinfo)
     naive_end = datetime.now() - timedelta(days=20)
     naive_start = datetime.now() - timedelta(days=30)
 
@@ -234,14 +234,24 @@ def test_hypertable_naive_range_end_datetime_normalisation():
 
     db_adapter.add_chunk_info(chunk_naive)
 
-    # Verify add_chunk_info normalized tzinfo to UTC
+    # Verify add_chunk_info normalized tzinfo to timezone.utc
     stored_chunks = db_adapter.get_chunks()
-    assert stored_chunks[0].range_end.tzinfo is not None
-    assert stored_chunks[0].range_start.tzinfo is not None
+    assert stored_chunks[0].range_end.tzinfo == timezone.utc
+    assert stored_chunks[0].range_start.tzinfo == timezone.utc
 
-    # Compress transaction history older than 7 days safely
-    res = db_adapter.compress_transaction_history(compress_older_than_days=7, now=now)
+    # Compress transaction history older than 7 days safely with naive now
+    res = db_adapter.compress_transaction_history(compress_older_than_days=7, now=now_naive)
     assert res["compressed_chunks_count"] == 1
+
+    # Apply archiving policy with naive now
+    policy = HypertableArchivingPolicy(
+        hypertable_name="blockchain_transactions",
+        compress_after_days=7,
+        archive_after_days=15,
+    )
+    arch_res = db_adapter.apply_archiving_policy(policy, now=now_naive)
+    assert arch_res["archived"] == 1
+    assert stored_chunks[0].state == HypertableChunkState.ARCHIVED_COLD_STORAGE
 
 
 def test_archiving_policy_hypertable_mismatch_validation():
