@@ -556,15 +556,16 @@ class DatabaseAPI:
                         for row in rows:
                             mod_id = row[0]
                             allowed = row[1] if isinstance(row[1], list) else json.loads(row[1])
-                            res[mod_id] = [str(r) for r in allowed]
-                            ROLE_MODULE_PERMISSIONS[mod_id] = res[mod_id]
-                        return res
+                            copied_allowed = [str(r) for r in allowed]
+                            res[mod_id] = list(copied_allowed)
+                            ROLE_MODULE_PERMISSIONS[mod_id] = list(copied_allowed)
+                        return {k: list(v) for k, v in res.items()}
                 except Exception as exc:
                     logger.warning("PostgreSQL load_role_permissions error: %s", exc)
                 finally:
                     close_postgresql_connection(conn)
 
-            return dict(ROLE_MODULE_PERMISSIONS)
+            return {k: list(v) for k, v in ROLE_MODULE_PERMISSIONS.items()}
 
     # --- Asset Registration API Methods ---
 

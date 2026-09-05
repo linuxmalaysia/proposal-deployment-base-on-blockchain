@@ -20,12 +20,36 @@ from unittest.mock import patch
 TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
 os.environ["INVESTOR_JWT_SECRET"] = TEST_JWT_SECRET.decode()
 
+import copy
+import pytest
 from fastapi.testclient import TestClient  # noqa: E402
 from dca_service.web_app import app, ACCOUNT_REGISTRY, USER_REGISTRY, base64url_encode, hash_password, seed_initial_accounts  # noqa: E402
 
-seed_initial_accounts()
 client = TestClient(app)
 ROOT_DIR = Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture(autouse=True)
+def isolate_account_and_user_registries(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """
+    Seeds initial accounts, asserts all required accounts exist, and isolates registry state for each test.
+    """
+    seed_initial_accounts()
+    assert "dca_admin_mgr" in ACCOUNT_REGISTRY
+    assert "dca_sys_root" in ACCOUNT_REGISTRY
+    assert "dca_operator_01" in ACCOUNT_REGISTRY
+    assert "dca_investor_01" in ACCOUNT_REGISTRY
+    assert "dca_auditor_01" in ACCOUNT_REGISTRY
+
+    orig_accounts = copy.deepcopy(ACCOUNT_REGISTRY)
+    orig_users = copy.deepcopy(USER_REGISTRY)
+
+    yield
+
+    ACCOUNT_REGISTRY.clear()
+    ACCOUNT_REGISTRY.update(orig_accounts)
+    USER_REGISTRY.clear()
+    USER_REGISTRY.update(orig_users)
 
 
 def create_investor_jwt(
