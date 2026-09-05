@@ -93,7 +93,7 @@ language: "en-GB"
 
 ### Tests (`tests/`)
 
-- Pytest test suites covering core domain, web application, RBAC permissions, Playwright E2E browser automation, database status, and OKF frontmatter validation (1161 tests total).
+- Pytest test suites covering core domain, web application, RBAC permissions, Playwright E2E browser automation, database status, and OKF frontmatter validation (1254 tests total).
 
 ### Documentation (`docs/`)
 

@@ -1,5 +1,6 @@
 -- RCF & DAC Platform Database Schema Definition for Supabase / PostgreSQL
 -- Governed by DSOM Protocol // Clean Architecture
+-- Note: docs/schema.sql provides fresh database initialization. transaction_id serves as the sole deterministic unique key for insertion, retrieval, and state reconciliation across the application layer.
 
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -35,7 +36,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE D
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'uq_users_username'
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'uq_users_username'
+          AND conrelid = 'users'::regclass
+          AND contype = 'u'
     ) THEN
         ALTER TABLE users ADD CONSTRAINT uq_users_username UNIQUE (username);
     END IF;
@@ -92,9 +96,14 @@ CREATE TABLE IF NOT EXISTS sub_accounts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS blockchain_transaction_identity (
+    transaction_id VARCHAR(255) PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS blockchain_transactions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    transaction_id VARCHAR(255) UNIQUE NOT NULL,
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    transaction_id VARCHAR(255) NOT NULL,
     account_id VARCHAR(255) NOT NULL,
     asset_symbol VARCHAR(50) NOT NULL,
     amount NUMERIC(28, 8) NOT NULL,
@@ -104,7 +113,9 @@ CREATE TABLE IF NOT EXISTS blockchain_transactions (
     retry_count INT DEFAULT 0,
     failure_reason TEXT,
     metadata JSONB DEFAULT '{}'::jsonb,
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id, timestamp),
+    CONSTRAINT uq_blockchain_tx_id_timestamp UNIQUE (transaction_id, timestamp)
 );
 
 -- Indexes for high-concurrency lookup & archiving queries
@@ -118,3 +129,17 @@ CREATE INDEX IF NOT EXISTS idx_blockchain_sync_state ON blockchain_transactions(
 CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_state ON blockchain_transactions(timestamp, sync_state);
 CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_asset ON blockchain_transactions(timestamp, asset_symbol);
 CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_account ON blockchain_transactions(timestamp, account_id);
+
+-- TimescaleDB Hypertables & Compression Policy Configuration
+-- Converts blockchain_transactions table into a TimescaleDB hypertable partitioned by time
+SELECT create_hypertable('blockchain_transactions', 'timestamp', if_not_exists => TRUE);
+
+-- Configure native columnar compression on transaction history (segment by account/asset, order by timestamp)
+ALTER TABLE blockchain_transactions SET (
+    timescaledb.compress,
+    timescaledb.compress_segmentby = 'account_id, asset_symbol',
+    timescaledb.compress_orderby = 'timestamp DESC'
+);
+
+-- Automatically compress transaction history chunks older than 7 days
+SELECT add_compression_policy('blockchain_transactions', INTERVAL '7 days', if_not_exists => TRUE);

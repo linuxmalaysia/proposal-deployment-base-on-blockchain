@@ -33,6 +33,7 @@ from dca_service.adapters.database_api import (
     ASSET_REGISTRY,
     DB_POOL_METRICS,
     ROLE_MODULE_PERMISSIONS,
+    ROLE_PERMISSIONS_LOCK,
     USER_REGISTRY,
     ConnectionPoolMetrics,
     DatabaseAPI,
@@ -279,9 +280,6 @@ def seed_initial_accounts() -> None:
             logger.warning("Could not seed account %s: %s", u, exc)
 
 
-seed_initial_accounts()
-
-
 DB_STATUS_CACHE_TTL: float = float(os.environ.get("DB_STATUS_CACHE_TTL", "5.0"))
 _DB_STATUS_CACHE: dict[str, Any] | None = None
 _DB_STATUS_CACHE_TIMESTAMP: float = 0.0
@@ -521,13 +519,18 @@ async def security_and_preload_middleware(request: Request, call_next: Any) -> A
     content_type = response.headers.get("content-type", "")
     if "text/html" in content_type:
         path = request.url.path
-        if path == "/" or path.startswith("/docs") or path.endswith(".html"):
-            response.headers["Link"] = (
-                "</assets/css/style.css>; rel=preload; as=style; crossorigin=anonymous, "
-                "</assets/js/rcf-dac-app.js>; rel=preload; as=script; crossorigin=anonymous"
+        css_sri = get_asset_sri("/assets/css/style.css")
+        js_sri = get_asset_sri("/assets/js/rcf-dac-app.js")
+
+        link_headers = [
+            f'</assets/css/style.css>; rel=preload; as=style; integrity="{css_sri}"; crossorigin=anonymous',
+        ]
+        if path not in ("/login", "/user-management") and not path.endswith("/login") and not path.endswith("/user-management"):
+            link_headers.append(
+                f'</assets/js/rcf-dac-app.js>; rel=preload; as=script; integrity="{js_sri}"; crossorigin=anonymous'
             )
-        else:
-            response.headers["Link"] = "</assets/css/style.css>; rel=preload; as=style; crossorigin=anonymous"
+
+        response.headers["Link"] = ", ".join(link_headers)
 
     return response
 
@@ -583,6 +586,57 @@ def initialize_database_schema() -> dict[str, Any]:
         return {"success": False, "message": f"Failed to execute schema DDL: {exc}"}
 
 
+def apply_schema_migrations(existing_conn: Any = None) -> dict[str, Any]:
+    """Apply targeted, idempotent DDL migrations (e.g. TimescaleDB hypertable setup, identity tables)."""
+    conn = existing_conn
+    close_conn_on_exit = False
+    if not conn:
+        conn, msg = get_postgresql_connection()
+        close_conn_on_exit = True
+        if not conn:
+            return {"success": False, "message": msg}
+
+    migration_sql = """
+    CREATE TABLE IF NOT EXISTS blockchain_transaction_identity (
+        transaction_id VARCHAR(255) PRIMARY KEY,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    INSERT INTO blockchain_transaction_identity (transaction_id)
+    SELECT DISTINCT transaction_id FROM blockchain_transactions
+    ON CONFLICT (transaction_id) DO NOTHING;
+
+    DO $$
+    BEGIN
+        IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'create_hypertable') THEN
+            PERFORM create_hypertable('blockchain_transactions', 'timestamp', if_not_exists => TRUE, migrate_data => TRUE);
+            ALTER TABLE blockchain_transactions SET (
+                timescaledb.compress,
+                timescaledb.compress_segmentby = 'account_id, asset_symbol',
+                timescaledb.compress_orderby = 'timestamp DESC'
+            );
+            PERFORM add_compression_policy('blockchain_transactions', INTERVAL '7 days', if_not_exists => TRUE);
+        END IF;
+    END $$;
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SET statement_timeout = 10000; SET lock_timeout = 5000;")
+            cur.execute(migration_sql)
+        conn.commit()
+        if close_conn_on_exit:
+            close_postgresql_connection(conn)
+        return {"success": True, "message": "Schema migrations applied successfully."}
+    except Exception as exc:
+        try:
+            conn.rollback()
+            if close_conn_on_exit:
+                close_postgresql_connection(conn)
+        except Exception:
+            pass
+        return {"success": False, "message": f"Schema migration failed: {exc}"}
+
+
 def auto_check_and_build_schema() -> dict[str, Any]:
     """Automatic schema check and table build routine for application deployment."""
     global LAST_SCHEMA_AUTO_CHECK_RESULT
@@ -606,9 +660,21 @@ def auto_check_and_build_schema() -> dict[str, Any]:
             existing_tables = {r[0] for r in cur.fetchall()}
 
         missing_tables = [tbl for tbl in expected_tables if tbl not in existing_tables]
-        close_postgresql_connection(conn)
 
         if not missing_tables:
+            mig_res = apply_schema_migrations(existing_conn=conn)
+            close_postgresql_connection(conn)
+            if not mig_res.get("success"):
+                res = {
+                    "success": False,
+                    "message": f"Table verification succeeded but schema migration failed: {mig_res.get('message')}",
+                    "db_connected": True,
+                    "tables_created": [],
+                    "missing_tables": [],
+                }
+                LAST_SCHEMA_AUTO_CHECK_RESULT = res
+                return res
+
             res = {
                 "success": True,
                 "message": "All required schema tables verified in PostgreSQL database.",
@@ -618,6 +684,8 @@ def auto_check_and_build_schema() -> dict[str, Any]:
             }
             LAST_SCHEMA_AUTO_CHECK_RESULT = res
             return res
+
+        close_postgresql_connection(conn)
 
         res_init = initialize_database_schema()
         if res_init.get("success"):
@@ -1988,7 +2056,8 @@ def check_module_access(
             )
         return
 
-    allowed_roles = ROLE_MODULE_PERMISSIONS.get(module_id, [])
+    with ROLE_PERMISSIONS_LOCK:
+        allowed_roles = list(ROLE_MODULE_PERMISSIONS.get(module_id, []))
     if role not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -2076,8 +2145,10 @@ def get_role_assignments(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Authorisation failed. Access restricted to Admin or Superuser roles.",
         )
+    with ROLE_PERMISSIONS_LOCK:
+        permissions_copy = {k: list(v) for k, v in ROLE_MODULE_PERMISSIONS.items()}
     return {
-        "module_permissions": ROLE_MODULE_PERMISSIONS,
+        "module_permissions": permissions_copy,
         "requested_by": payload.get("sub"),
     }
 
@@ -2100,30 +2171,36 @@ def update_role_assignments(
             detail="Authorisation failed. Administrator role required to update role-to-module assignments.",
         )
 
-    for mod_id, roles_list in req.module_permissions.items():
-        if mod_id not in ROLE_MODULE_PERMISSIONS:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid module ID '{mod_id}'. Allowed modules: module_1, module_2, module_3, module_4, module_5.",
-            )
-        if mod_id == "module_1":
-            ROLE_MODULE_PERMISSIONS["module_1"] = ["admin"]
-        else:
-            cleaned_roles = [r.lower().strip() for r in roles_list if isinstance(r, str)]
-            ROLE_MODULE_PERMISSIONS[mod_id] = cleaned_roles
+    with ROLE_PERMISSIONS_LOCK:
+        new_permissions = {k: list(v) for k, v in ROLE_MODULE_PERMISSIONS.items()}
+        for mod_id, roles_list in req.module_permissions.items():
+            if mod_id not in new_permissions:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Invalid module ID '{mod_id}'. Allowed modules: module_1, module_2, module_3, module_4, module_5.",
+                )
+            if mod_id == "module_1":
+                new_permissions["module_1"] = ["admin"]
+            else:
+                cleaned_roles = [r.lower().strip() for r in roles_list if isinstance(r, str)]
+                new_permissions[mod_id] = cleaned_roles
 
-    try:
-        save_role_module_permissions(ROLE_MODULE_PERMISSIONS)
-    except Exception as exc:
-        logger.error("Database role assignments update failed: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service error. Transaction could not be completed.",
-        ) from exc
+        try:
+            save_role_module_permissions(new_permissions)
+            for mod_id, roles in new_permissions.items():
+                ROLE_MODULE_PERMISSIONS[mod_id] = list(roles)
+        except Exception as exc:
+            logger.error("Database role assignments update failed: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database service error. Transaction could not be completed.",
+            ) from exc
+
+        published_permissions = {k: list(v) for k, v in ROLE_MODULE_PERMISSIONS.items()}
 
     return {
         "message": "Role-to-module assignment mappings updated successfully.",
-        "module_permissions": ROLE_MODULE_PERMISSIONS,
+        "module_permissions": published_permissions,
         "updated_by": payload.get("sub"),
     }
 
@@ -2310,10 +2387,32 @@ def delete_system_user(
             detail="Database service error. Transaction could not be completed.",
         ) from exc
 
+    if not archived_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User account '{username}' not found.",
+        )
+
+    user_projection = {
+        "username": archived_user["username"],
+        "role": archived_user["role"],
+        "name": archived_user["name"],
+        "dept": archived_user["dept"],
+        "email": archived_user["email"],
+        "did": archived_user["did"],
+        "is_active": archived_user.get("is_active", False),
+        "is_disabled": archived_user.get("is_disabled", True),
+        "can_login": archived_user.get("can_login", False),
+        "is_archived": archived_user.get("is_archived", True),
+        "archived_at": archived_user.get("archived_at"),
+        "tags": archived_user.get("tags", ["archive"]),
+        "created_at": archived_user.get("created_at"),
+    }
+
     return {
         "message": f"User account '{username}' successfully disabled, set to non-login, and archived with archive tag.",
         "archived_by": payload.get("sub"),
-        "user": archived_user,
+        "user": user_projection,
     }
 
 
