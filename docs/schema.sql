@@ -36,7 +36,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE D
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'uq_users_username'
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'uq_users_username'
+          AND conrelid = 'users'::regclass
+          AND contype = 'u'
     ) THEN
         ALTER TABLE users ADD CONSTRAINT uq_users_username UNIQUE (username);
     END IF;

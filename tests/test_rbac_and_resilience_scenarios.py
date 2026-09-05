@@ -6,12 +6,10 @@ Governed by DSOM Protocol // OKF v0.2 Standard.
 
 from __future__ import annotations
 
-import base64
 import copy
 import hashlib
 import hmac
 import json
-import os
 import time
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -30,8 +28,6 @@ from dca_service.web_app import (
     base64url_encode,
     check_database_connection,
     create_system_jwt,
-    get_postgresql_connection,
-    hash_password,
     verify_password,
 )
 
@@ -46,8 +42,17 @@ def isolate_account_registry(monkeypatch):
     Isolate account, environment, role module permissions, and rate-limit state for each test.
     """
     monkeypatch.setenv("INVESTOR_JWT_SECRET", TEST_JWT_SECRET.decode())
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_DB_PASSWORD", raising=False)
+    monkeypatch.delenv("SUPABASE_POOLER_HOST", raising=False)
+    monkeypatch.delenv("SUPABASE_DB_HOST", raising=False)
     monkeypatch.setattr(
         "dca_service.adapters.database_api.get_postgresql_connection",
+        lambda: (None, "Disconnected for test isolation"),
+    )
+    monkeypatch.setattr(
+        "dca_service.web_app.get_postgresql_connection",
         lambda: (None, "Disconnected for test isolation"),
     )
     from dca_service.web_app import seed_initial_accounts
@@ -263,7 +268,7 @@ def test_strict_rbac_module_isolation_and_role_assignment():
     admin_jwt = create_system_jwt(username="dca_admin_mgr", role="admin")
     super_jwt = create_system_jwt(username="dca_sys_root", role="superuser")
     operator_jwt = create_system_jwt(username="dca_operator_01", role="operator")
-    investor_jwt = create_system_jwt(username="dca_investor_01", role="investor")
+    _ = create_system_jwt(username="dca_investor_01", role="investor")
     auditor_jwt = create_system_jwt(username="dca_auditor_01", role="auditor")
 
     # A. User creation rules: Admin vs Superuser

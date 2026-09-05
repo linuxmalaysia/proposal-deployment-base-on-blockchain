@@ -279,9 +279,6 @@ def seed_initial_accounts() -> None:
             logger.warning("Could not seed account %s: %s", u, exc)
 
 
-seed_initial_accounts()
-
-
 DB_STATUS_CACHE_TTL: float = float(os.environ.get("DB_STATUS_CACHE_TTL", "5.0"))
 _DB_STATUS_CACHE: dict[str, Any] | None = None
 _DB_STATUS_CACHE_TIMESTAMP: float = 0.0
@@ -2105,20 +2102,23 @@ def update_role_assignments(
             detail="Authorisation failed. Administrator role required to update role-to-module assignments.",
         )
 
+    new_permissions = {k: list(v) for k, v in ROLE_MODULE_PERMISSIONS.items()}
     for mod_id, roles_list in req.module_permissions.items():
-        if mod_id not in ROLE_MODULE_PERMISSIONS:
+        if mod_id not in new_permissions:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Invalid module ID '{mod_id}'. Allowed modules: module_1, module_2, module_3, module_4, module_5.",
             )
         if mod_id == "module_1":
-            ROLE_MODULE_PERMISSIONS["module_1"] = ["admin"]
+            new_permissions["module_1"] = ["admin"]
         else:
             cleaned_roles = [r.lower().strip() for r in roles_list if isinstance(r, str)]
-            ROLE_MODULE_PERMISSIONS[mod_id] = cleaned_roles
+            new_permissions[mod_id] = cleaned_roles
 
     try:
-        save_role_module_permissions(ROLE_MODULE_PERMISSIONS)
+        save_role_module_permissions(new_permissions)
+        ROLE_MODULE_PERMISSIONS.clear()
+        ROLE_MODULE_PERMISSIONS.update(new_permissions)
     except Exception as exc:
         logger.error("Database role assignments update failed: %s", exc)
         raise HTTPException(
@@ -2315,10 +2315,32 @@ def delete_system_user(
             detail="Database service error. Transaction could not be completed.",
         ) from exc
 
+    if not archived_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User account '{username}' not found.",
+        )
+
+    user_projection = {
+        "username": archived_user["username"],
+        "role": archived_user["role"],
+        "name": archived_user["name"],
+        "dept": archived_user["dept"],
+        "email": archived_user["email"],
+        "did": archived_user["did"],
+        "is_active": archived_user.get("is_active", False),
+        "is_disabled": archived_user.get("is_disabled", True),
+        "can_login": archived_user.get("can_login", False),
+        "is_archived": archived_user.get("is_archived", True),
+        "archived_at": archived_user.get("archived_at"),
+        "tags": archived_user.get("tags", ["archive"]),
+        "created_at": archived_user.get("created_at"),
+    }
+
     return {
         "message": f"User account '{username}' successfully disabled, set to non-login, and archived with archive tag.",
         "archived_by": payload.get("sub"),
-        "user": archived_user,
+        "user": user_projection,
     }
 
 

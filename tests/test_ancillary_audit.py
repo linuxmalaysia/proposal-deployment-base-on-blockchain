@@ -11,7 +11,7 @@ def test_audit_logger_event_immutability():
     logger = AuditLogger()
     details = {"amount": "100.0", "asset": "USDC"}
 
-    event = logger.log(
+    logger.log(
         event_id="e1",
         action="DEPOSIT",
         actor_id="client-1",
