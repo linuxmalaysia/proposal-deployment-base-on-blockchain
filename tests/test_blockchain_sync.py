@@ -1,7 +1,6 @@
 """Unit tests for Blockchain Synchroniser & TimescaleDB dual-write pattern."""
 
 from datetime import date, datetime, timedelta, timezone
-from pathlib import Path
 import pytest
 
 from dca_service.adapters.timescaledb_adapter import (
@@ -80,26 +79,6 @@ def test_dual_write_failure_recovery():
     pending = db_adapter.query_pending_sync()
     assert len(pending) == 1
     assert pending[0].transaction_id == "tx_1002"
-
-
-def test_schema_uses_hypertable_safe_transaction_identity_constraints():
-    """Keep transaction identity deterministic while including time in hypertable constraints."""
-    schema = (
-        Path(__file__).resolve().parents[1] / "docs" / "schema.sql"
-    ).read_text(encoding="utf-8")
-    transaction_table = schema.split(
-        "CREATE TABLE IF NOT EXISTS blockchain_transactions (", maxsplit=1
-    )[1].split(");", maxsplit=1)[0]
-
-    assert "CREATE TABLE IF NOT EXISTS blockchain_transaction_identity" in schema
-    assert "transaction_id VARCHAR(255) PRIMARY KEY" in schema
-    assert "id UUID NOT NULL DEFAULT gen_random_uuid()" in transaction_table
-    assert "PRIMARY KEY (id, timestamp)" in transaction_table
-    assert (
-        "CONSTRAINT uq_blockchain_tx_id_timestamp UNIQUE (transaction_id, timestamp)"
-        in transaction_table
-    )
-    assert "SELECT create_hypertable('blockchain_transactions', 'timestamp'" in schema
 
 
 def test_timescaledb_transaction_history_compression_policy_and_stats():

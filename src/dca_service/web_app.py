@@ -602,13 +602,21 @@ def apply_schema_migrations(existing_conn: Any = None) -> dict[str, Any]:
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
+    INSERT INTO blockchain_transaction_identity (transaction_id)
+    SELECT DISTINCT transaction_id FROM blockchain_transactions
+    ON CONFLICT (transaction_id) DO NOTHING;
+
     DO $$
     BEGIN
         IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'create_hypertable') THEN
             PERFORM create_hypertable('blockchain_transactions', 'timestamp', if_not_exists => TRUE);
+            ALTER TABLE blockchain_transactions SET (
+                timescaledb.compress,
+                timescaledb.compress_segmentby = 'account_id, asset_symbol',
+                timescaledb.compress_orderby = 'timestamp DESC'
+            );
+            PERFORM add_compression_policy('blockchain_transactions', INTERVAL '7 days', if_not_exists => TRUE);
         END IF;
-    EXCEPTION
-        WHEN OTHERS THEN NULL;
     END $$;
     """
     try:
@@ -654,8 +662,19 @@ def auto_check_and_build_schema() -> dict[str, Any]:
         missing_tables = [tbl for tbl in expected_tables if tbl not in existing_tables]
 
         if not missing_tables:
-            apply_schema_migrations(existing_conn=conn)
+            mig_res = apply_schema_migrations(existing_conn=conn)
             close_postgresql_connection(conn)
+            if not mig_res.get("success"):
+                res = {
+                    "success": False,
+                    "message": f"Table verification succeeded but schema migration failed: {mig_res.get('message')}",
+                    "db_connected": True,
+                    "tables_created": [],
+                    "missing_tables": [],
+                }
+                LAST_SCHEMA_AUTO_CHECK_RESULT = res
+                return res
+
             res = {
                 "success": True,
                 "message": "All required schema tables verified in PostgreSQL database.",
