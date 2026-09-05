@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Digital Custody Asset (DCA) Domain Model Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "dca-service"
   - "domain"
@@ -12,11 +12,12 @@ description: "Define core domain architecture for digital asset custody, key man
 resource: "file:///.agents/skills/dca-service-domain-architecture/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "dca-service-domain-architecture"
 ---
@@ -34,6 +35,10 @@ Represents the core domain responsibilities of the `dca-service` platform.
 - Policy engine approval quorums and spending limits.
 - Immutable audit trail logging.
 
+
+## Sovereign Knowledge Mandate
+
+- The project is a Digital Custody Asset (DCA) as a Service platform (dca-service) providing key management (MPC/HSM), asset segregation, policy engines, and ancillary rails.
 
 ---
 

@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Supabase PostgreSQL Deployment on Render.com Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "supabase"
   - "render"
@@ -12,11 +12,12 @@ description: "Configure Supabase PostgreSQL database connections on Render using
 resource: "file:///.agents/skills/supabase-render-deployment/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "supabase-render-deployment"
 ---
@@ -33,6 +34,10 @@ Governs cloud database configuration for Render Web Services.
 - Enforce SSL mode: `sslmode=require`.
 - `render.yaml` setting: `sync: false` to prevent accidental key commits.
 
+
+## Sovereign Knowledge Mandate
+
+- Supabase PostgreSQL database connections on Render.com are configured via environment variables (DATABASE_URL, SUPABASE_PROJECT_REF) or Secret Files (/etc/secrets/) with enforced SSL (sslmode=require) and sync: false in render.yaml to prevent committing secrets.
 
 ---
 

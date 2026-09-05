@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "FastAPI Web Service Deployment via uv & Uvicorn on Render Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "fastapi"
   - "uvicorn"
@@ -12,11 +12,12 @@ description: "Configure FastAPI application deployment on Render using uv sync b
 resource: "file:///.agents/skills/fastapi-uvicorn-render-config/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "fastapi-uvicorn-render-config"
 ---
@@ -32,6 +33,10 @@ Configures web application runtime environment on Render.com.
 - Build command: `uv sync`.
 - Start command: `uv run uvicorn src.dca_service.web_app:app --host 0.0.0.0 --port $PORT`.
 
+
+## Sovereign Knowledge Mandate
+
+- The web application uses FastAPI (src/dca_service/web_app.py) and is configured for Render.com deployment via render.yaml using uv sync build command and uvicorn runner.
 
 ---
 

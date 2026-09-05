@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Open-Source MPC Wallet Threshold Cryptography Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "cb-mpc"
   - "mpc"
@@ -12,11 +12,12 @@ description: "Integrate Coinbase cb-mpc library for Distributed Key Generation (
 resource: "file:///.agents/skills/cb-mpc-wallet-architecture/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "cb-mpc-wallet-architecture"
 ---
@@ -33,6 +34,10 @@ Governs threshold MPC key management and signing protocol implementation.
 - Distributed Key Generation (DKG) without a single point of compromise.
 - Threshold signature quorums integrated with policy engine approvals.
 
+
+## Sovereign Knowledge Mandate
+
+- The open-source MPC wallet architecture leverages Coinbase's cb-mpc cryptography library for Distributed Key Generation (DKG) and threshold signing quorums.
 
 ---
 

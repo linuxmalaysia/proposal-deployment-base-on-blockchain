@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "HttpOnly Cookie & Dual JWT Session Management Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "httponly"
   - "jwt"
@@ -12,11 +12,12 @@ description: "Implement HttpOnly, SameSite=lax, Secure session cookies with dual
 resource: "file:///.agents/skills/httponly-jwt-session-management/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "httponly-jwt-session-management"
 ---
@@ -33,6 +34,10 @@ Provides secure authentication session management in FastAPI.
 - Revokes session cookies on `/api/logout`.
 - `extract_current_user_payload` seamlessly parses both JWT Bearer headers and session cookies.
 
+
+## Sovereign Knowledge Mandate
+
+- The FastAPI web app implements HttpOnly, SameSite="lax", and Secure session cookies (rcf_dac_jwt) on /api/login and revokes them via /api/logout, while extract_current_user_payload supports both JWT Bearer headers and session cookies.
 
 ---
 

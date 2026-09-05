@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Database-First Dual-Write Blockchain Synchronisation Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "dual-write"
   - "blockchain-sync"
@@ -12,11 +12,12 @@ description: "Enforce database-first dual-write pattern where transactions are c
 resource: "file:///.agents/skills/dual-write-blockchain-sync/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "dual-write-blockchain-sync"
 ---
@@ -34,6 +35,10 @@ Guarantees transaction persistence and state reconciliation during network parti
 3. Broadcast transaction to blockchain network.
 4. Update status to `SyncState.CHAIN_CONFIRMED` or `SyncState.SYNC_FAILED` based on network receipt.
 
+
+## Sovereign Knowledge Mandate
+
+- The system architecture uses a dual-write pattern where all transaction data intended for the blockchain is written to PostgreSQL first before broadcasting to the blockchain.
 
 ---
 

@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Concentric Clean Architecture Inward Dependency Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "clean-architecture"
   - "dependencies"
@@ -12,11 +12,12 @@ description: "Enforce Concentric Clean Architecture where core domain entities i
 resource: "file:///.agents/skills/concentric-clean-architecture/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "concentric-clean-architecture"
 ---
@@ -32,6 +33,10 @@ Guarantees clean separation of business logic from external frameworks.
 - `src/dca_service/core/` entities must have ZERO third-party library dependencies.
 - Storage drivers, HTTP frameworks, and external APIs must be isolated in `src/dca_service/adapters/`.
 
+
+## Sovereign Knowledge Mandate
+
+- The repository follows Concentric Clean Architecture; core domain entities in src/dca_service/core/ must have zero external third-party dependencies.
 
 ---
 

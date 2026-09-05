@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Project SQL DDL Schema Definitions Management Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "schema"
   - "ddl"
@@ -12,11 +12,12 @@ description: "Maintain canonical DDL schema definitions for users, assets, score
 resource: "file:///.agents/skills/ddl-schema-definitions/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "ddl-schema-definitions"
 ---
@@ -35,6 +36,10 @@ Manages canonical database schema DDL inside `docs/schema.sql`.
 - `revenue_splits`: Institutional fee distribution models.
 - `blockchain_transactions`: Audit log of on-chain sync transactions.
 
+
+## Sovereign Knowledge Mandate
+
+- Project DDL schema definitions (users, assets, cloverleaf_scores, revenue_splits, blockchain_transactions) are stored in docs/schema.sql.
 
 ---
 

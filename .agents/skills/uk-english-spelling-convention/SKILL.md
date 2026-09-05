@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "UK English Spelling & Terminology Sovereignty Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "uk-english"
   - "spelling"
@@ -12,11 +12,12 @@ description: "Strictly enforce UK English spelling conventions across code comme
 resource: "file:///.agents/skills/uk-english-spelling-convention/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "uk-english-spelling-convention"
 ---
@@ -32,6 +33,10 @@ Enforces linguistic consistency across all project artifacts.
 - Use `-ise` endings (e.g. `initialise`, `prioritise`, `customise`).
 - Use UK spellings (e.g. `segregated`, `synchronise`, `behaviour`).
 
+
+## Sovereign Knowledge Mandate
+
+- The codebase and documentation strictly adhere to UK English spelling conventions (e.g., 'initialise', 'prioritise', 'segregated').
 
 ---
 
