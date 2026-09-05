@@ -51,3 +51,11 @@ language: "en-GB"
 - Hardened web layer (`src/dca_service/web_app.py`) according to OWASP REST Security Cheat Sheet: generic authentication failure messages (`"Authentication failed. Invalid username or password."`), CSRF and Origin validation on user mutation endpoints (`create_system_user`, `reset_user_password`, `delete_system_user`, `register_user`), strict `sslmode=verify-full` check on TCP `DATABASE_URL` connections, and server-side exception logging.
 - Refactored `docs/schema.sql` with idempotent `ALTER TABLE` statements and unique constraint migration catching `duplicate_object`.
 - Created `tests/test_database_api.py` and expanded `tests/test_rbac_and_resilience_scenarios.py` to verify DatabaseAPI methods, soft archiving, and registry snapshot isolation with 100% test pass rate (1,253 passed).
+
+## Phase 3: Render DB Diagnostic, PR Refactoring & Jules Knowledge Base Consolidation (2026-09-05)
+- Diagnosed database status DISCONNECTED issue on Render (`/db-status?bypass_cache=true`): `DATABASE_URL` or `SUPABASE_DB_PASSWORD` parameters are not configured in Render environment or `/etc/secrets/.env`.
+- Ingested 42 core operational knowledge statements into Jules knowledge base across `.agents/skills/` skill modules and `.agents/brain/` spatial memory palace anchors (`task.md`, `walkthrough.md`, `palace_registry.md`, `checkpoint_summary.txt`).
+- Re-generated all 39 agent skill modules via `uv run python tools/create_antigravity_skills.py` enforcing OKF v0.2 frontmatter schema formatting, repository-relative `.agents/skills` resource URIs, and DSOM compliance footers.
+- Refactored `src/dca_service/web_app.py` and `src/dca_service/adapters/database_api.py` with `_filter_non_privileged_roles()` helper, post-commit in-memory registry updates, `SYNC_POOL_LOCK` thread protection, `asyncio.to_thread` lifespan startup, and sanitized HTML status details.
+- Updated `tools/install_git_guardrails.py` and `tests/test_install_git_guardrails.py` to enforce `mypy --strict src/` guardrail.
+- Executed full test suite (`1,261 passed`) and verified pre-commit guardrails via `python3 tools/install_git_guardrails.py --run-now`.
