@@ -86,3 +86,25 @@ language: "en-GB"
 - Enforced OWASP REST Security Cheat Sheet guidelines: generic login error messages (`"Authentication failed. Invalid username or password."`), CSRF/Origin validation on user mutation endpoints (`create_system_user`, `reset_user_password`, `delete_system_user`, `register_user`), strict `sslmode=verify-full` check on TCP `DATABASE_URL` connections, and server-side exception logging.
 - Created `tests/test_database_api.py` and expanded `tests/test_rbac_and_resilience_scenarios.py` to verify DatabaseAPI methods, soft archiving, and registry snapshot isolation.
 - Verified all 1,253 pytest test cases passing cleanly and executed pre-commit guardrails via `tools/install_git_guardrails.py`.
+
+## Session Log: 2026-09-04 (Performance Compression, TimescaleDB Hypertables & E2E Palace Sync)
+
+- Verified static web asset Brotli and Gzip response compression (`Accept-Encoding: br, gzip`) in `tests/test_security_performance_headers.py`.
+- Configured TimescaleDB native columnar compression (`timescaledb.compress_segmentby`, `timescaledb.compress_orderby`) and automated chunk compression policies on `blockchain_transactions` in `docs/schema.sql` and `TimescaleDBAdapter` (`compress_transaction_history`, `get_compression_stats`).
+- Safely normalised naive `now` and `range_end` datetimes to UTC in `TimescaleDBAdapter` (`compress_transaction_history`, `apply_archiving_policy`, `add_chunk_info`), backed by regression tests.
+- Enforced hypertable-compatible primary key and unique constraints incorporating `timestamp` on `blockchain_transactions` in `docs/schema.sql` (`PRIMARY KEY (id, timestamp)` and `CONSTRAINT uq_blockchain_tx_id_timestamp UNIQUE (transaction_id, timestamp)`).
+- Maintained strict Mypy type annotations (`mypy --strict src/`) with 0 errors.
+- Expanded Playwright E2E browser integration tests in `tests/test_playwright_e2e.py` covering dynamic role permission updates via `/api/role-assignments` and session cookie expiration boundary cases.
+- Completed End of Day (EOD) spatial memory synchronization across `.agents/brain/` adhering to DSOM protocol.
+- Executed full test suite (`1254 passed`) and verified pre-commit guardrails.
+
+## Session Log: 2026-09-05 (PR Merge, Role Permission Thread Safety, Hypertable Migrations & EOD Palace Sync)
+
+- Merged `main` into PR head branch `jules-8076040222397270862-4abc4743` with `--allow-unrelated-histories` and resolved merge conflict markers across DDL schema, web application endpoints, adapters, test suites, and documentation files.
+- Added `blockchain_transaction_identity` table in `docs/schema.sql` to maintain global `transaction_id` idempotency and updated `blockchain_transactions` primary key (`PRIMARY KEY (id, timestamp)`) and unique constraint (`CONSTRAINT uq_blockchain_tx_id_timestamp UNIQUE (transaction_id, timestamp)`) incorporating `timestamp` partition column before `create_hypertable` execution.
+- Serialized read-modify-write workflows in `update_role_assignments`, `get_role_assignments`, `authorize_module_access`, `load_role_permissions`, and `save_role_permissions` using reentrant lock (`ROLE_PERMISSIONS_LOCK = threading.RLock()`), publishing in-memory `ROLE_MODULE_PERMISSIONS` snapshot updates only after successful database commits.
+- Enforced deep copying of role permission lists across `DatabaseAPI.load_role_permissions`, `save_role_permissions`, and web app endpoints to prevent caller side-effect mutations on shared state.
+- Updated `auto_check_and_build_schema()` in `src/dca_service/web_app.py` to run `apply_schema_migrations()`, backfilling `blockchain_transaction_identity` and configuring TimescaleDB hypertable columnar compression without swallowing errors.
+- Isolated test registries in `tests/test_web_app_render.py` using `isolate_account_and_user_registries` fixture wrapped in `try...finally` block to prevent state leakage.
+- Executed full test suite (`1261 passed`), Ruff linting check on `src/` and `tests/`, Mypy `--strict` static type check on `src/`, and DSOM pre-commit guardrails via `tools/install_git_guardrails.py`.
+- Completed End of Day (EOD) spatial memory palace synchronization across `.agents/brain/` adhering to DSOM protocol.
