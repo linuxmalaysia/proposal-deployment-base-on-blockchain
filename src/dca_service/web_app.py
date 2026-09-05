@@ -10,10 +10,12 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import html
 import json
 import logging
 import math
 import os
+import re
 import secrets
 import time
 import uuid
@@ -163,7 +165,7 @@ def load_role_module_permissions() -> dict[str, list[str]]:
                     if k == "module_1":
                         res["module_1"] = ["admin"]
                     else:
-                        res[k] = [str(r).lower().strip() for r in v if isinstance(r, str)]
+                        res[k] = [str(r).lower().strip() for r in v if isinstance(r, str) and str(r).lower().strip() not in ("admin", "superuser")]
             return res
     except Exception:
         pass
@@ -808,13 +810,14 @@ def check_database_connection(bypass_cache: bool = False) -> dict[str, Any]:
             tbl_status = "VERIFIED DDL SCHEMA FILE"
         tables.append({"table_name": tbl_name, "description": desc, "status": tbl_status})
 
+    sanitized_details = [re.sub(r"://([^:]+):([^@]+)@", r"://\1:***@", d) for d in details]
     res = {
         "status": connection_status,
         "is_connected": db_connected,
         "db_connected": db_connected,
         "http_api_connected": http_connected,
         "latency_ms": latency_ms,
-        "status_detail": " | ".join(details),
+        "status_detail": " | ".join(sanitized_details),
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "schema_tables": tables,
         "schema_file": "docs/schema.sql",
@@ -1595,6 +1598,7 @@ def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTM
         else '<span style="color: #28a745; font-size: 0.9rem; margin-left: 0.5rem;">(🔄 Fresh query)</span>'
     )
 
+    escaped_detail = html.escape(db_info['status_detail'])
     css_sri = get_asset_sri("/assets/css/style.css")
     html_content = f"""<!DOCTYPE html>
 <html lang="en-GB">
@@ -1621,7 +1625,7 @@ def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTM
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
           <td style="padding: 0.5rem 0;"><strong>Connection Status:</strong></td>
-          <td style="padding: 0.5rem 0;">{db_info['status']} ({db_info['status_detail']})</td>
+          <td style="padding: 0.5rem 0;">{db_info['status']} ({escaped_detail})</td>
         </tr>
         <tr>
           <td style="padding: 0.5rem 0;"><strong>Round-Trip Latency:</strong></td>
@@ -2182,7 +2186,7 @@ def update_role_assignments(
             if mod_id == "module_1":
                 new_permissions["module_1"] = ["admin"]
             else:
-                cleaned_roles = [r.lower().strip() for r in roles_list if isinstance(r, str)]
+                cleaned_roles = [r.lower().strip() for r in roles_list if isinstance(r, str) and r.lower().strip() not in ("admin", "superuser")]
                 new_permissions[mod_id] = cleaned_roles
 
         try:

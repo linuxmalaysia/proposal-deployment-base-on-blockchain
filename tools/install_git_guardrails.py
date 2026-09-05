@@ -91,7 +91,7 @@ def run_pre_commit_checks() -> int:
 
     # Run Mypy static type checker
     print("🔍 Running Mypy type check...")
-    mypy_result = subprocess.run(["uv", "run", "mypy", "src/"], cwd=repo_root)
+    mypy_result = subprocess.run(["uv", "run", "mypy", "--strict", "src/"], cwd=repo_root)
     if mypy_result.returncode != 0:
         print("❌ Pre-commit guardrails failed: Mypy type check failed.")
         return mypy_result.returncode

@@ -75,7 +75,7 @@ class TestSummaryAutoGenerationStep:
         assert fake_run.calls[0]["args"] == ["uv", "run", "python", str(summary_script)]
         assert fake_run.calls[0]["cwd"] == tmp_path
         assert fake_run.calls[1]["args"] == ["uv", "run", "ruff", "check", "src/"]
-        assert fake_run.calls[2]["args"] == ["uv", "run", "mypy", "src/"]
+        assert fake_run.calls[2]["args"] == ["uv", "run", "mypy", "--strict", "src/"]
         assert fake_run.calls[3]["args"] == ["uv", "run", "pytest"]
         assert fake_run.calls[3]["cwd"] == tmp_path
 
@@ -119,7 +119,7 @@ class TestSummaryAutoGenerationStep:
         assert result == 0
         assert len(fake_run.calls) == 3
         assert fake_run.calls[0]["args"] == ["uv", "run", "ruff", "check", "src/"]
-        assert fake_run.calls[1]["args"] == ["uv", "run", "mypy", "src/"]
+        assert fake_run.calls[1]["args"] == ["uv", "run", "mypy", "--strict", "src/"]
         assert fake_run.calls[2]["args"] == ["uv", "run", "pytest"]
 
         captured = capsys.readouterr()

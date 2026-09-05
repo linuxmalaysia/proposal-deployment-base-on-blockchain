@@ -102,4 +102,4 @@ language: "en-GB"
 
 - Diagnosed database status DISCONNECTED issue on Render (`/db-status?bypass_cache=true`): `DATABASE_URL` or `SUPABASE_DB_PASSWORD` parameters are not configured in Render environment or `/etc/secrets/.env`.
 - Ingested and updated 42 core operational knowledge points into Jules knowledge base across `.agents/skills/` skill modules and `.agents/brain/` spatial memory palace anchors (`task.md`, `walkthrough.md`, `palace_registry.md`).
-- Re-generated all 39 agent skill modules via `python3 tools/create_antigravity_skills.py` enforcing OKF v0.2 frontmatter and DSOM compliance footers.
+- Re-generated all 39 agent skill modules via `uv run python tools/create_antigravity_skills.py` enforcing OKF v0.2 frontmatter and DSOM compliance footers.
