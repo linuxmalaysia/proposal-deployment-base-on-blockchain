@@ -128,13 +128,19 @@ def test_rendered_pages_include_preloads_and_matching_integrity_attributes(
     js_integrity = _expected_sri(web_app.ASSETS_DIR / "js" / "rcf-dac-app.js")
 
     assert response.status_code == 200
-    assert '<link rel="preload" href="/assets/css/style.css" as="style" crossorigin="anonymous">' in response.text
+    assert (
+        f'<link rel="preload" href="/assets/css/style.css" as="style" '
+        f'integrity="{css_integrity}" crossorigin="anonymous">'
+    ) in response.text
     assert (
         f'<link rel="stylesheet" href="/assets/css/style.css" '
         f'integrity="{css_integrity}" crossorigin="anonymous">'
     ) in response.text
     if includes_javascript:
-        assert '<link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" crossorigin="anonymous">' in response.text
+        assert (
+            f'<link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" '
+            f'integrity="{js_integrity}" crossorigin="anonymous">'
+        ) in response.text
         assert (
             f'<script src="/assets/js/rcf-dac-app.js" integrity="{js_integrity}" '
             'crossorigin="anonymous" defer></script>'

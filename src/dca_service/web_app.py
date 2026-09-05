@@ -875,7 +875,7 @@ def serve_login_page() -> HTMLResponse:
 <head>
   <meta charset="UTF-8">
   <title>System Login | RCF & DAC Platform</title>
-  <link rel="preload" href="/assets/css/style.css" as="style" crossorigin="anonymous">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="__CSS_SRI__" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="__CSS_SRI__" crossorigin="anonymous">
 </head>
 <body>
@@ -972,7 +972,7 @@ def serve_user_management_page() -> HTMLResponse:
 <head>
   <meta charset="UTF-8">
   <title>User Management Interface | RCF & DAC Platform</title>
-  <link rel="preload" href="/assets/css/style.css" as="style" crossorigin="anonymous">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="__CSS_SRI__" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="__CSS_SRI__" crossorigin="anonymous">
 </head>
 <body>
@@ -2471,8 +2471,8 @@ def _render_doc_file(doc_file: Path) -> HTMLResponse:
 <head>
   <meta charset="UTF-8">
   <title>RCF & DAC Documentation</title>
-  <link rel="preload" href="/assets/css/style.css" as="style" crossorigin="anonymous">
-  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" crossorigin="anonymous">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="{css_sri}" crossorigin="anonymous">
+  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" integrity="{js_sri}" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="{css_sri}" crossorigin="anonymous">
   <script src="/assets/js/rcf-dac-app.js" integrity="{js_sri}" crossorigin="anonymous" defer></script>
 </head>
@@ -2545,8 +2545,8 @@ def serve_index() -> HTMLResponse:
 <head>
   <meta charset="UTF-8">
   <title>RCF & DAC Interactive Web Portal</title>
-  <link rel="preload" href="/assets/css/style.css" as="style" crossorigin="anonymous">
-  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" crossorigin="anonymous">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="{css_sri}" crossorigin="anonymous">
+  <link rel="preload" href="/assets/js/rcf-dac-app.js" as="script" integrity="{js_sri}" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="{css_sri}" crossorigin="anonymous">
   <script src="/assets/js/rcf-dac-app.js" integrity="{js_sri}" crossorigin="anonymous" defer></script>
 </head>
