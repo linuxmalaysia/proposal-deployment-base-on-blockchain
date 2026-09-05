@@ -66,6 +66,16 @@ language: "en-GB"
 - Updated Spatial Memory Palace anchors (`task.md`, `walkthrough.md`, `palace_registry.md`) to reflect full knowledge retention.
 - Executed full test suite (`1163 passed`) and verified pre-commit guardrail compliance via `tools/install_git_guardrails.py`.
 
+## Session Log: 2026-09-02 (Centralized Database API, PostgreSQL Migration & Soft User Archiving)
+
+- Implemented Centralized Database API Access Layer (`src/dca_service/adapters/database_api.py`) for direct PostgreSQL access with `psycopg_pool` connection pooling and offline fallback registries.
+- Refactored `docs/schema.sql` with idempotent table definitions and unique constraint migrations for `users`, `assets`, `cloverleaf_scores`, `revenue_splits`, `sub_accounts`, and `blockchain_transactions`.
+- Refactored `src/dca_service/web_app.py` user management and data room endpoints to persist strictly into PostgreSQL via `DatabaseAPI`.
+- Implemented soft non-deletion user archiving policy: `DELETE /api/users/{username}` disables account (`is_active=False`, `is_disabled=True`, `can_login=False`, `is_archived=True`, `tags=['archive']`) without deleting database records.
+- Enforced OWASP REST Security Cheat Sheet guidelines: generic login error messages (`"Authentication failed. Invalid username or password."`), CSRF/Origin validation on user mutation endpoints (`create_system_user`, `reset_user_password`, `delete_system_user`, `register_user`), strict `sslmode=verify-full` check on TCP `DATABASE_URL` connections, and server-side exception logging.
+- Created `tests/test_database_api.py` and expanded `tests/test_rbac_and_resilience_scenarios.py` to verify DatabaseAPI methods, soft archiving, and registry snapshot isolation.
+- Verified all 1,253 pytest test cases passing cleanly and executed pre-commit guardrails via `tools/install_git_guardrails.py`.
+
 ## Session Log: 2026-09-04 (Performance Compression, TimescaleDB Hypertables & E2E Palace Sync)
 
 - Verified static web asset Brotli and Gzip response compression (`Accept-Encoding: br, gzip`) in `tests/test_security_performance_headers.py`.
@@ -76,15 +86,6 @@ language: "en-GB"
 - Expanded Playwright E2E browser integration tests in `tests/test_playwright_e2e.py` covering dynamic role permission updates via `/api/role-assignments` and session cookie expiration boundary cases.
 - Completed End of Day (EOD) spatial memory synchronization across `.agents/brain/` adhering to DSOM protocol.
 - Executed full test suite (`1254 passed`) and verified pre-commit guardrails.
-## Session Log: 2026-09-02 (Centralized Database API, PostgreSQL Migration & Soft User Archiving)
-
-- Implemented Centralized Database API Access Layer (`src/dca_service/adapters/database_api.py`) for direct PostgreSQL access with `psycopg_pool` connection pooling and offline fallback registries.
-- Refactored `docs/schema.sql` with idempotent table definitions and unique constraint migrations for `users`, `assets`, `cloverleaf_scores`, `revenue_splits`, `sub_accounts`, and `blockchain_transactions`.
-- Refactored `src/dca_service/web_app.py` user management and data room endpoints to persist strictly into PostgreSQL via `DatabaseAPI`.
-- Implemented soft non-deletion user archiving policy: `DELETE /api/users/{username}` disables account (`is_active=False`, `is_disabled=True`, `can_login=False`, `is_archived=True`, `tags=['archive']`) without deleting database records.
-- Enforced OWASP REST Security Cheat Sheet guidelines: generic login error messages (`"Authentication failed. Invalid username or password."`), CSRF/Origin validation on user mutation endpoints (`create_system_user`, `reset_user_password`, `delete_system_user`, `register_user`), strict `sslmode=verify-full` check on TCP `DATABASE_URL` connections, and server-side exception logging.
-- Created `tests/test_database_api.py` and expanded `tests/test_rbac_and_resilience_scenarios.py` to verify DatabaseAPI methods, soft archiving, and registry snapshot isolation.
-- Verified all 1,253 pytest test cases passing cleanly and executed pre-commit guardrails via `tools/install_git_guardrails.py`.
 
 ## Session Log: 2026-09-05 (PR Merge, Role Permission Thread Safety, Hypertable Migrations & EOD Palace Sync)
 

@@ -609,7 +609,7 @@ def apply_schema_migrations(existing_conn: Any = None) -> dict[str, Any]:
     DO $$
     BEGIN
         IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'create_hypertable') THEN
-            PERFORM create_hypertable('blockchain_transactions', 'timestamp', if_not_exists => TRUE);
+            PERFORM create_hypertable('blockchain_transactions', 'timestamp', if_not_exists => TRUE, migrate_data => TRUE);
             ALTER TABLE blockchain_transactions SET (
                 timescaledb.compress,
                 timescaledb.compress_segmentby = 'account_id, asset_symbol',
