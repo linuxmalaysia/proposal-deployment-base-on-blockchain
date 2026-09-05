@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "summary"
 title: "Documentation Index & Navigation Summary"
-timestamp: "2026-09-05T01:53:53Z"
+timestamp: "2026-09-05T03:07:26Z"
 topics:
   - "summary"
   - "index"
@@ -15,7 +15,7 @@ sources:
 generated: "generate_summary.py"
 verified: true
 status: "approved"
-stale_after: "2027-09-05T01:53:53Z"
+stale_after: "2027-09-05T03:07:26Z"
 language: "en-GB"
 ---
 

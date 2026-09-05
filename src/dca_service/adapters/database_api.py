@@ -11,11 +11,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("dca_service.database_api")
+
+ROLE_PERMISSIONS_LOCK = threading.RLock()
 
 # Centralized memory registries for runtime caching and offline compatibility
 ACCOUNT_REGISTRY: dict[str, dict[str, Any]] = {}
@@ -507,58 +510,61 @@ class DatabaseAPI:
 
     @staticmethod
     def save_role_permissions(permissions: dict[str, list[str]]) -> None:
-        """Save role-to-module access permissions to PostgreSQL or in-memory fallback."""
-        for mod_id, roles in permissions.items():
-            ROLE_MODULE_PERMISSIONS[mod_id] = list(roles)
-
-        conn, _ = get_postgresql_connection()
-        if conn:
-            try:
-                with conn.cursor() as cur:
-                    for mod_id, roles in permissions.items():
-                        cur.execute(
-                            """
-                            INSERT INTO role_permissions (module_id, allowed_roles, updated_at)
-                            VALUES (%s, %s, CURRENT_TIMESTAMP)
-                            ON CONFLICT (module_id) DO UPDATE SET
-                                allowed_roles = EXCLUDED.allowed_roles,
-                                updated_at = CURRENT_TIMESTAMP;
-                            """,
-                            (mod_id, json.dumps(roles)),
-                        )
-                conn.commit()
-            except Exception as exc:
-                logger.warning("PostgreSQL save_role_permissions error: %s", exc)
+        """Save role-to-module access permissions to PostgreSQL or in-memory fallback atomically."""
+        with ROLE_PERMISSIONS_LOCK:
+            conn, _ = get_postgresql_connection()
+            if conn:
                 try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                raise RuntimeError(f"Database save role permissions failed: {exc}") from exc
-            finally:
-                close_postgresql_connection(conn)
+                    with conn.cursor() as cur:
+                        for mod_id, roles in permissions.items():
+                            cur.execute(
+                                """
+                                INSERT INTO role_permissions (module_id, allowed_roles, updated_at)
+                                VALUES (%s, %s, CURRENT_TIMESTAMP)
+                                ON CONFLICT (module_id) DO UPDATE SET
+                                    allowed_roles = EXCLUDED.allowed_roles,
+                                    updated_at = CURRENT_TIMESTAMP;
+                                """,
+                                (mod_id, json.dumps(roles)),
+                            )
+                    conn.commit()
+                except Exception as exc:
+                    logger.warning("PostgreSQL save_role_permissions error: %s", exc)
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    raise RuntimeError(f"Database save role permissions failed: {exc}") from exc
+                finally:
+                    close_postgresql_connection(conn)
+
+            # Publish updated mapping to in-memory state only after successful DB persistence
+            for mod_id, roles in permissions.items():
+                ROLE_MODULE_PERMISSIONS[mod_id] = list(roles)
 
     @staticmethod
     def load_role_permissions() -> dict[str, list[str]]:
-        """Load role-to-module access permissions from PostgreSQL or fallback."""
-        conn, _ = get_postgresql_connection()
-        if conn:
-            try:
-                with conn.cursor() as cur:
-                    cur.execute("SELECT module_id, allowed_roles FROM role_permissions;")
-                    rows = cur.fetchall()
-                    res = {}
-                    for row in rows:
-                        mod_id = row[0]
-                        allowed = row[1] if isinstance(row[1], list) else json.loads(row[1])
-                        res[mod_id] = [str(r) for r in allowed]
-                        ROLE_MODULE_PERMISSIONS[mod_id] = res[mod_id]
-                    return res
-            except Exception as exc:
-                logger.warning("PostgreSQL load_role_permissions error: %s", exc)
-            finally:
-                close_postgresql_connection(conn)
+        """Load role-to-module access permissions from PostgreSQL or fallback thread-safely."""
+        with ROLE_PERMISSIONS_LOCK:
+            conn, _ = get_postgresql_connection()
+            if conn:
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT module_id, allowed_roles FROM role_permissions;")
+                        rows = cur.fetchall()
+                        res = {}
+                        for row in rows:
+                            mod_id = row[0]
+                            allowed = row[1] if isinstance(row[1], list) else json.loads(row[1])
+                            res[mod_id] = [str(r) for r in allowed]
+                            ROLE_MODULE_PERMISSIONS[mod_id] = res[mod_id]
+                        return res
+                except Exception as exc:
+                    logger.warning("PostgreSQL load_role_permissions error: %s", exc)
+                finally:
+                    close_postgresql_connection(conn)
 
-        return dict(ROLE_MODULE_PERMISSIONS)
+            return dict(ROLE_MODULE_PERMISSIONS)
 
     # --- Asset Registration API Methods ---
 

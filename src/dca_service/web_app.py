@@ -33,6 +33,7 @@ from dca_service.adapters.database_api import (
     ASSET_REGISTRY,
     DB_POOL_METRICS,
     ROLE_MODULE_PERMISSIONS,
+    ROLE_PERMISSIONS_LOCK,
     USER_REGISTRY,
     ConnectionPoolMetrics,
     DatabaseAPI,
@@ -2102,29 +2103,30 @@ def update_role_assignments(
             detail="Authorisation failed. Administrator role required to update role-to-module assignments.",
         )
 
-    new_permissions = {k: list(v) for k, v in ROLE_MODULE_PERMISSIONS.items()}
-    for mod_id, roles_list in req.module_permissions.items():
-        if mod_id not in new_permissions:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid module ID '{mod_id}'. Allowed modules: module_1, module_2, module_3, module_4, module_5.",
-            )
-        if mod_id == "module_1":
-            new_permissions["module_1"] = ["admin"]
-        else:
-            cleaned_roles = [r.lower().strip() for r in roles_list if isinstance(r, str)]
-            new_permissions[mod_id] = cleaned_roles
+    with ROLE_PERMISSIONS_LOCK:
+        new_permissions = {k: list(v) for k, v in ROLE_MODULE_PERMISSIONS.items()}
+        for mod_id, roles_list in req.module_permissions.items():
+            if mod_id not in new_permissions:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Invalid module ID '{mod_id}'. Allowed modules: module_1, module_2, module_3, module_4, module_5.",
+                )
+            if mod_id == "module_1":
+                new_permissions["module_1"] = ["admin"]
+            else:
+                cleaned_roles = [r.lower().strip() for r in roles_list if isinstance(r, str)]
+                new_permissions[mod_id] = cleaned_roles
 
-    try:
-        save_role_module_permissions(new_permissions)
-        ROLE_MODULE_PERMISSIONS.clear()
-        ROLE_MODULE_PERMISSIONS.update(new_permissions)
-    except Exception as exc:
-        logger.error("Database role assignments update failed: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service error. Transaction could not be completed.",
-        ) from exc
+        try:
+            save_role_module_permissions(new_permissions)
+            ROLE_MODULE_PERMISSIONS.clear()
+            ROLE_MODULE_PERMISSIONS.update(new_permissions)
+        except Exception as exc:
+            logger.error("Database role assignments update failed: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database service error. Transaction could not be completed.",
+            ) from exc
 
     return {
         "message": "Role-to-module assignment mappings updated successfully.",

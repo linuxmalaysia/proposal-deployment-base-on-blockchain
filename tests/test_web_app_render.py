@@ -21,8 +21,9 @@ TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
 os.environ["INVESTOR_JWT_SECRET"] = TEST_JWT_SECRET.decode()
 
 from fastapi.testclient import TestClient  # noqa: E402
-from dca_service.web_app import app, ACCOUNT_REGISTRY, USER_REGISTRY, base64url_encode, hash_password  # noqa: E402
+from dca_service.web_app import app, ACCOUNT_REGISTRY, USER_REGISTRY, base64url_encode, hash_password, seed_initial_accounts  # noqa: E402
 
+seed_initial_accounts()
 client = TestClient(app)
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
