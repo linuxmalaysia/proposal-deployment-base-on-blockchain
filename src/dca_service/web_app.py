@@ -437,8 +437,8 @@ async def lifespan(app_instance: FastAPI) -> Any:
     import asyncio
 
     # Execute DB initialisations inside lifespan context manager
-    ROLE_MODULE_PERMISSIONS.update(load_role_module_permissions())
-    seed_initial_accounts()
+    ROLE_MODULE_PERMISSIONS.update(await asyncio.to_thread(load_role_module_permissions))
+    await asyncio.to_thread(seed_initial_accounts)
 
     try:
         await init_async_connection_pool()
@@ -623,7 +623,7 @@ def apply_schema_migrations(existing_conn: Any = None) -> dict[str, Any]:
     """
     try:
         with conn.cursor() as cur:
-            cur.execute("SET statement_timeout = 10000; SET lock_timeout = 5000;")
+            cur.execute("SET statement_timeout = 60000; SET lock_timeout = 30000;")
             cur.execute(migration_sql)
         conn.commit()
         if close_conn_on_exit:
