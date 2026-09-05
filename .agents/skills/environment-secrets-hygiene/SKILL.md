@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Strict Environment Secrets & Credentials Protection Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "secrets"
   - "security"
@@ -12,11 +12,12 @@ description: "Enforce zero exposure of secrets, credentials, or API keys in outp
 resource: "file:///.agents/skills/environment-secrets-hygiene/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "environment-secrets-hygiene"
 ---
@@ -33,6 +34,10 @@ Guarantees sensitive keys are sanitized across all outputs and documentation.
 - Use generic placeholders (e.g. `sb_sk_placeholder_123`) in tests and examples.
 - Exclude secret files via `.gitignore`.
 
+
+## Sovereign Knowledge Mandate
+
+- Environment secrets and Supabase credentials must never be exposed or displayed in application output, web endpoints, code repositories, PRs, or documentation; only generic placeholder values must be used in examples.
 
 ---
 

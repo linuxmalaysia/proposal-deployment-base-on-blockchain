@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "User Registration & W3C DID Minting Control Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "user-registration"
   - "w3c-did"
@@ -12,11 +12,12 @@ description: "Enforce strict role restrictions on user creation (/api/users) and
 resource: "file:///.agents/skills/user-registration-did-minting/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "user-registration-did-minting"
 ---
@@ -33,6 +34,10 @@ Governs user registration and decentralised identifier (DID) minting permissions
 - For account creation (`/api/users`), `admin` can create any role EXCEPT `superuser`.
 - The `superuser` role can ONLY create `admin` accounts.
 
+
+## Sovereign Knowledge Mandate
+
+- User Registration & W3C DID Minting functionality (/api/register-user) is strictly restricted to the admin role. In account creation (/api/users), admin can create any role except superuser, whereas superuser can ONLY create admin accounts.
 
 ---
 

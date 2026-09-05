@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Psycopg Binary Dependency Configuration Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "psycopg"
   - "postgresql"
@@ -12,11 +12,12 @@ description: "Include psycopg[binary] in pyproject.toml to ensure standard impor
 resource: "file:///.agents/skills/postgresql-dependency-configuration/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "postgresql-dependency-configuration"
 ---
@@ -31,6 +32,10 @@ Ensures standard Python `import psycopg` calls work reliably across development 
 
 - `pyproject.toml` dependencies specify single `psycopg[binary]` installation mode.
 
+
+## Sovereign Knowledge Mandate
+
+- Both psycopg and psycopg-binary must be included in pyproject.toml dependencies to allow standard Python import psycopg imports for PostgreSQL connections.
 
 ---
 

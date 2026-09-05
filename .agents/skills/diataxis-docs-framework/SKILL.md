@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "DiÁtaxis Documentation Framework Adherence Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "diataxis"
   - "documentation"
@@ -12,11 +12,12 @@ description: "Organise all project documentation strictly according to the four 
 resource: "file:///.agents/skills/diataxis-docs-framework/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "diataxis-docs-framework"
 ---
@@ -34,6 +35,10 @@ Ensures all system documentation inside `docs/` conforms to the DiÁtaxis framew
 - `docs/reference/`: Technical information and API specifications.
 - `docs/explanation/`: High-level architectural explanations and concepts.
 
+
+## Sovereign Knowledge Mandate
+
+- Documentation under docs/ strictly adheres to the DiÁtaxis Framework, organized into tutorials/, how-to/, reference/, and explanation/ subdirectories.
 
 ---
 

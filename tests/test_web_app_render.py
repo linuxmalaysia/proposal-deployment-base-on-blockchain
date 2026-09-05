@@ -35,6 +35,7 @@ def isolate_account_and_user_registries(monkeypatch: pytest.MonkeyPatch) -> Any:
     """
     Seeds initial accounts, asserts all required accounts exist, and isolates registry state for each test.
     """
+    monkeypatch.setattr("dca_service.adapters.database_api.get_postgresql_connection", lambda: (None, "Test mock DB connection disabled"))
     orig_accounts = copy.deepcopy(ACCOUNT_REGISTRY)
     orig_users = copy.deepcopy(USER_REGISTRY)
     try:

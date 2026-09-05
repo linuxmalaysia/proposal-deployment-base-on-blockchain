@@ -80,6 +80,7 @@ class ConnectionPoolMetrics:
 
 DB_POOL_METRICS = ConnectionPoolMetrics()
 SYNC_DB_POOL: Any = None
+SYNC_POOL_LOCK = threading.Lock()
 
 
 def get_database_url() -> str | None:
@@ -129,22 +130,26 @@ def get_sync_db_pool() -> Any:
     if SYNC_DB_POOL is not None:
         return SYNC_DB_POOL
 
-    database_url = get_database_url()
-    if database_url:
-        try:
-            from psycopg_pool import ConnectionPool
-            pool = ConnectionPool(
-                conninfo=database_url,
-                min_size=DB_POOL_METRICS.min_pool_size,
-                max_size=DB_POOL_METRICS.max_pool_size,
-                open=True,
-            )
-            SYNC_DB_POOL = pool
+    with SYNC_POOL_LOCK:
+        if SYNC_DB_POOL is not None:
             return SYNC_DB_POOL
-        except Exception as exc:
-            logger.warning("ConnectionPool initialization failed: %s", exc)
-            return None
-    return None
+
+        database_url = get_database_url()
+        if database_url:
+            try:
+                from psycopg_pool import ConnectionPool
+                pool = ConnectionPool(
+                    conninfo=database_url,
+                    min_size=DB_POOL_METRICS.min_pool_size,
+                    max_size=DB_POOL_METRICS.max_pool_size,
+                    open=True,
+                )
+                SYNC_DB_POOL = pool
+                return SYNC_DB_POOL
+            except Exception as exc:
+                logger.warning("ConnectionPool initialization failed: %s", exc)
+                return None
+        return None
 
 
 def get_postgresql_connection() -> tuple[Any, str]:
@@ -430,9 +435,6 @@ class DatabaseAPI:
         if not user:
             return False
 
-        user["password_hash"] = new_password_hash
-        ACCOUNT_REGISTRY[username] = user
-
         conn, _ = get_postgresql_connection()
         if conn:
             try:
@@ -452,6 +454,8 @@ class DatabaseAPI:
             finally:
                 close_postgresql_connection(conn)
 
+        user["password_hash"] = new_password_hash
+        ACCOUNT_REGISTRY[username] = dict(user)
         return True
 
     @staticmethod
@@ -466,14 +470,13 @@ class DatabaseAPI:
             return None
 
         archived_at_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        user["is_active"] = False
-        user["is_disabled"] = True
-        user["can_login"] = False
-        user["is_archived"] = True
-        user["archived_at"] = archived_at_str
-        user["tags"] = ["archive"]
-
-        ACCOUNT_REGISTRY[username] = user
+        updated_user = dict(user)
+        updated_user["is_active"] = False
+        updated_user["is_disabled"] = True
+        updated_user["can_login"] = False
+        updated_user["is_archived"] = True
+        updated_user["archived_at"] = archived_at_str
+        updated_user["tags"] = ["archive"]
 
         conn, _ = get_postgresql_connection()
         if conn:
@@ -504,7 +507,8 @@ class DatabaseAPI:
             finally:
                 close_postgresql_connection(conn)
 
-        return user
+        ACCOUNT_REGISTRY[username] = dict(updated_user)
+        return updated_user
 
     # --- Role Permissions API Methods ---
 
@@ -573,7 +577,6 @@ class DatabaseAPI:
     def save_asset(asset_record: dict[str, Any]) -> dict[str, Any]:
         """Save research asset record into PostgreSQL or fallback."""
         asset_id = asset_record["asset_id"]
-        ASSET_REGISTRY[asset_id] = dict(asset_record)
 
         conn, _ = get_postgresql_connection()
         if conn:
@@ -612,6 +615,7 @@ class DatabaseAPI:
             finally:
                 close_postgresql_connection(conn)
 
+        ASSET_REGISTRY[asset_id] = dict(asset_record)
         return asset_record
 
     @staticmethod
@@ -655,8 +659,6 @@ class DatabaseAPI:
     @staticmethod
     def save_cloverleaf_score(score_record: dict[str, Any]) -> dict[str, Any]:
         """Save Cloverleaf score record into PostgreSQL or fallback."""
-        _IN_MEMORY_CLOVERLEAF_SCORES.append(dict(score_record))
-
         conn, _ = get_postgresql_connection()
         if conn:
             try:
@@ -687,6 +689,7 @@ class DatabaseAPI:
             finally:
                 close_postgresql_connection(conn)
 
+        _IN_MEMORY_CLOVERLEAF_SCORES.append(dict(score_record))
         return score_record
 
     # --- Revenue Split API Methods ---
@@ -694,8 +697,6 @@ class DatabaseAPI:
     @staticmethod
     def save_revenue_split(split_record: dict[str, Any]) -> dict[str, Any]:
         """Save IP revenue split allocation into PostgreSQL or fallback."""
-        _IN_MEMORY_REVENUE_SPLITS.append(dict(split_record))
-
         conn, _ = get_postgresql_connection()
         if conn:
             try:
@@ -722,4 +723,5 @@ class DatabaseAPI:
             finally:
                 close_postgresql_connection(conn)
 
+        _IN_MEMORY_REVENUE_SPLITS.append(dict(split_record))
         return split_record

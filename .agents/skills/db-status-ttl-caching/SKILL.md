@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Database Status In-Memory TTL Caching Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "caching"
   - "db-status"
@@ -12,11 +12,12 @@ description: "Provide high-concurrency database status caching with configurable
 resource: "file:///.agents/skills/db-status-ttl-caching/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "db-status-ttl-caching"
 ---
@@ -32,6 +33,10 @@ Prevents database polling overload using in-memory TTL caching in `check_databas
 - Default TTL: 5.0 seconds (configurable via `DB_STATUS_CACHE_TTL`).
 - Supports explicit cache bypass for instant diagnostic refresh.
 
+
+## Sovereign Knowledge Mandate
+
+- The database status diagnostic function check_database_connection in src/dca_service/web_app.py implements in-memory TTL caching (configurable via environment variable DB_STATUS_CACHE_TTL, defaulting to 5.0s) to prevent redundant database round-trips under high polling concurrency, with support for cache bypass.
 
 ---
 

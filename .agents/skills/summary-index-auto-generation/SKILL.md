@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Documentation Summary Index Auto-Generation Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "summary"
   - "generate-summary"
@@ -12,11 +12,12 @@ description: "Automatically scan docs/ and root ledgers to build and update SUMM
 resource: "file:///.agents/skills/summary-index-auto-generation/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "summary-index-auto-generation"
 ---
@@ -32,6 +33,10 @@ Maintains automated documentation routing and table of contents.
 - Script: `tools/generate_summary.py`.
 - Function: Scans `docs/` and root-level Markdown ledgers to re-index `SUMMARY.md`.
 
+
+## Sovereign Knowledge Mandate
+
+- Documentation indexing is managed dynamically via tools/generate_summary.py, which scans all .md files to update SUMMARY.md and is executed during pre-commit guardrail checks.
 
 ---
 

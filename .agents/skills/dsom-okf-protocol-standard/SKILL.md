@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "DSOM Protocol & OKF v0.2 Frontmatter Standard Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "dsom"
   - "okf"
@@ -12,11 +12,12 @@ description: "Enforce Deep State of Mind Protocol and mandatory 13-field OKF v0.
 resource: "file:///.agents/skills/dsom-okf-protocol-standard/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "dsom-okf-protocol-standard"
 ---
@@ -43,6 +44,10 @@ Mandates repository-wide metadata standardisation under the Deep State of Mind (
 12. `stale_after`
 13. `language`
 
+
+## Sovereign Knowledge Mandate
+
+- The repository adopts the Deep State of Mind (DSOM) Protocol, enforcing Open Knowledge Format (OKF v0.2) YAML frontmatter across all Markdown files with all 13 mandatory fields: okf_version, type, title, timestamp, topics, description, resource, sources, generated, verified, status, stale_after, and language.
 
 ---
 

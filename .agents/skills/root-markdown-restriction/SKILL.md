@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Root-Level Markdown File Restriction Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "markdown"
   - "root-restriction"
@@ -12,11 +12,12 @@ description: "Restrict root-level Markdown files strictly to README.md, CHANGELO
 resource: "file:///.agents/skills/root-markdown-restriction/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "root-markdown-restriction"
 ---
@@ -35,6 +36,10 @@ Enforces strict file organization in the repository root.
 - `HISTORY.md`
 *Note: All other documentation must reside inside `docs/` or `.agents/`.*
 
+
+## Sovereign Knowledge Mandate
+
+- Root-level Markdown files are restricted to README.md, CHANGELOG.md, SUMMARY.md, and HISTORY.md, with all other documentation stored inside docs/.
 
 ---
 

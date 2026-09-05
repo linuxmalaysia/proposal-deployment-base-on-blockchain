@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "uv Environment & Pytest Execution Standard Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "uv"
   - "pytest"
@@ -12,11 +12,12 @@ description: "Execute all Python environment commands and tests strictly through
 resource: "file:///.agents/skills/uv-environment-testing-standard/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "uv-environment-testing-standard"
 ---
@@ -33,6 +34,11 @@ Mandates consistent virtual environment management via `uv`.
 - Python scripts: `uv run python <script.py>`.
 - Zero global mutations or direct system `pip` invocations allowed.
 
+
+## Sovereign Knowledge Mandate
+
+- Tests are executed using uv run pytest.
+- The repository uses uv as the Python environment and package management tool for all project operations.
 
 ---
 

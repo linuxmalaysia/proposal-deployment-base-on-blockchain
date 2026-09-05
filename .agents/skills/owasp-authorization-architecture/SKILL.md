@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "OWASP Authorization Cheat Sheet Principles Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "owasp"
   - "authorization"
@@ -12,11 +12,12 @@ description: "Implement least privilege, deny by default, server-side object-lev
 resource: "file:///.agents/skills/owasp-authorization-architecture/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "owasp-authorization-architecture"
 ---
@@ -33,6 +34,10 @@ Enforces OWASP authorization standards across the system.
 - Require server-side object-level authorization for every object request, retaining W3C DIDs and cryptographic hashing for identity and integrity controls.
 - Stateless JWT verification and fine-grained ABAC/ReBAC policies.
 
+
+## Sovereign Knowledge Mandate
+
+- The application's access control architecture adopts OWASP Authorization Cheat Sheet principles (least privilege, deny by default, IDOR prevention via W3C DIDs and cryptographic hashes, stateless JWT verification, ABAC/ReBAC), as documented in docs/explanation/owasp-authorization-framework.md.
 
 ---
 
