@@ -13,14 +13,15 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 # Configure environment secret before importing web_app module
 TEST_JWT_SECRET = b"test_rcf_dac_jwt_secret_key_2026"
 os.environ["INVESTOR_JWT_SECRET"] = TEST_JWT_SECRET.decode()
 
-from fastapi.testclient import TestClient
-from dca_service.web_app import app, ACCOUNT_REGISTRY, USER_REGISTRY, base64url_encode, hash_password
+from fastapi.testclient import TestClient  # noqa: E402
+from dca_service.web_app import app, ACCOUNT_REGISTRY, USER_REGISTRY, base64url_encode, hash_password  # noqa: E402
 
 client = TestClient(app)
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -68,7 +69,7 @@ def test_health_check_endpoint():
     assert data["service"] == "rcf-dac-web-app"
 
 
-from dca_service.web_app import create_system_jwt
+from dca_service.web_app import create_system_jwt  # noqa: E402
 
 
 def test_user_registration_endpoint_and_unique_did_generation():

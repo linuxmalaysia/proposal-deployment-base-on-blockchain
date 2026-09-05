@@ -54,11 +54,13 @@ language: "en-GB"
 - [x] Enforce Strict Role-Based Access Control (RBAC) and Module Access Isolation in `src/dca_service/web_app.py` and `docs/role_module_permissions.json`.
 - [x] Update triple-ledger (`README.md`, `CHANGELOG.md`, `HISTORY.md`) and regenerate `SUMMARY.md`.
 - [x] Create 38 Google Antigravity-compatible Agent Skill modules in `.agents/skills/` representing all Jules operational and domain knowledge from day 0 till present.
+- [x] Implement static web asset Gzip and Brotli response compression middleware verification (`tests/test_security_performance_headers.py`).
+- [x] Configure TimescaleDB native columnar compression and archiving policy execution on transaction history (`docs/schema.sql` and `src/dca_service/adapters/timescaledb_adapter.py`).
+- [x] Safely normalise naive `now` and `range_end` datetimes to timezone-aware UTC in `TimescaleDBAdapter` (`compress_transaction_history`, `apply_archiving_policy`, `add_chunk_info`).
+- [x] Enforce hypertable-compatible constraints on `blockchain_transactions` in `docs/schema.sql` incorporating the `timestamp` partition column (`PRIMARY KEY (id, timestamp)` and `CONSTRAINT uq_blockchain_tx_id_timestamp UNIQUE (transaction_id, timestamp)`).
+- [x] Maintain Mypy `--strict` type checking across all adapter modules with zero type errors (`mypy --strict src/`).
+- [x] Expand Playwright E2E browser integration tests in `tests/test_playwright_e2e.py` covering dynamic role permission updates (`/api/role-assignments`) and cookie expiration boundary cases.
 - [x] Complete End of Day (EOD) and Start of Day (SOD) spatial memory synchronization across `.agents/brain/` adhering to DSOM protocol.
-- [x] Implement Centralized Database API Access Layer (`src/dca_service/adapters/database_api.py`) for direct PostgreSQL table access across all modules.
-- [x] Implement non-deletion soft user archiving policy (`is_active=False`, `is_disabled=True`, `can_login=False`, `is_archived=True`, `tags=['archive']`).
-- [x] Enforce OWASP REST Security Cheat Sheet guidelines (generic auth error messages, CSRF/origin verification, strict `sslmode=verify-full` connection parsing).
-- [x] Verify complete test suite (1,253 tests passing) and pre-commit guardrails via `tools/install_git_guardrails.py`.
 
 ### Pending Tasks
 

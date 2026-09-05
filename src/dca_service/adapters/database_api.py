@@ -132,7 +132,7 @@ def get_sync_db_pool() -> Any:
             from psycopg_pool import ConnectionPool
             pool = ConnectionPool(
                 conninfo=database_url,
-                min_size=1,
+                min_size=DB_POOL_METRICS.min_pool_size,
                 max_size=DB_POOL_METRICS.max_pool_size,
                 open=True,
             )
@@ -370,6 +370,7 @@ class DatabaseAPI:
                     return None
             except Exception as exc:
                 logger.warning("PostgreSQL fetch user error: %s", exc)
+                return None
             finally:
                 close_postgresql_connection(conn)
 

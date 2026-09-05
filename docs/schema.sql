@@ -1,5 +1,6 @@
 -- RCF & DAC Platform Database Schema Definition for Supabase / PostgreSQL
 -- Governed by DSOM Protocol // Clean Architecture
+-- Note: docs/schema.sql provides fresh database initialization. transaction_id serves as the sole deterministic unique key for insertion, retrieval, and state reconciliation across the application layer.
 
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -35,7 +36,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE D
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'uq_users_username'
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'uq_users_username'
+          AND conrelid = 'users'::regclass
+          AND contype = 'u'
     ) THEN
         ALTER TABLE users ADD CONSTRAINT uq_users_username UNIQUE (username);
     END IF;
@@ -118,3 +122,17 @@ CREATE INDEX IF NOT EXISTS idx_blockchain_sync_state ON blockchain_transactions(
 CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_state ON blockchain_transactions(timestamp, sync_state);
 CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_asset ON blockchain_transactions(timestamp, asset_symbol);
 CREATE INDEX IF NOT EXISTS idx_blockchain_tx_timestamp_account ON blockchain_transactions(timestamp, account_id);
+
+-- TimescaleDB Hypertables & Compression Policy Configuration
+-- Converts blockchain_transactions table into a TimescaleDB hypertable partitioned by time
+SELECT create_hypertable('blockchain_transactions', 'timestamp', if_not_exists => TRUE);
+
+-- Configure native columnar compression on transaction history (segment by account/asset, order by timestamp)
+ALTER TABLE blockchain_transactions SET (
+    timescaledb.compress,
+    timescaledb.compress_segmentby = 'account_id, asset_symbol',
+    timescaledb.compress_orderby = 'timestamp DESC'
+);
+
+-- Automatically compress transaction history chunks older than 7 days
+SELECT add_compression_policy('blockchain_transactions', INTERVAL '7 days', if_not_exists => TRUE);

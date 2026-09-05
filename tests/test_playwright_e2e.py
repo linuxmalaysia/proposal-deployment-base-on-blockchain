@@ -364,6 +364,108 @@ def test_playwright_db_status_mobile_and_dark_mode_visual_regression(page: Page,
     assert os.path.getsize(shot_path) > 0
 
 
+def test_playwright_dynamic_role_permission_updates(page: Page, live_server: str):
+    """E2E browser test scenario for dynamic role permission updates via /api/role-assignments."""
+    ACCOUNT_REGISTRY["dca_admin_mgr"]["password_hash"] = hash_password("InitPass_admin_2026!")
+
+    # 1. Login as Admin
+    login_resp = page.request.post(
+        f"{live_server}/api/login",
+        data={"username": "dca_admin_mgr", "password": "InitPass_admin_2026!"},
+    )
+    assert login_resp.status == 200
+    token = login_resp.json()["access_token"]
+
+    # 2. Query initial role assignments
+    get_resp = page.request.get(
+        f"{live_server}/api/role-assignments",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert get_resp.status == 200
+    initial_permissions = get_resp.json()["module_permissions"]
+
+    try:
+        # 3. Dynamically grant 'operator' access to module_4 (Investor Dashboard)
+        updated_permissions = dict(initial_permissions)
+        updated_permissions["module_4"] = ["investor", "operator"]
+
+        update_resp = page.request.post(
+            f"{live_server}/api/role-assignments",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-CSRF-Token": "csrf_valid_token",
+            },
+            data={"module_permissions": updated_permissions},
+        )
+        assert update_resp.status == 200
+        res_json = update_resp.json()
+        assert "operator" in res_json["module_permissions"]["module_4"]
+
+        # 4. Verify persisted state via GET
+        verify_resp = page.request.get(
+            f"{live_server}/api/role-assignments",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert verify_resp.status == 200
+        assert "operator" in verify_resp.json()["module_permissions"]["module_4"]
+    finally:
+        # Revert to initial permissions and assert restore response succeeds
+        restore_resp = page.request.post(
+            f"{live_server}/api/role-assignments",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-CSRF-Token": "csrf_valid_token",
+            },
+            data={"module_permissions": initial_permissions},
+        )
+        assert restore_resp.status == 200
+
+
+def test_playwright_cookie_expiration_and_session_boundary_cases(page: Page, live_server: str):
+    """E2E test scenario for session cookie boundary cases, expiration, and logout revocation."""
+    from dca_service.web_app import create_system_jwt
+
+    ACCOUNT_REGISTRY["dca_admin_mgr"]["password_hash"] = hash_password("InitPass_admin_2026!")
+
+    # 1. Successful authentication sets HttpOnly session cookie
+    login_resp = page.request.post(
+        f"{live_server}/api/login",
+        data={"username": "dca_admin_mgr", "password": "InitPass_admin_2026!"},
+    )
+    assert login_resp.status == 200
+    cookies = page.context.cookies()
+    jwt_cookie = next((c for c in cookies if c["name"] == "rcf_dac_jwt"), None)
+    assert jwt_cookie is not None
+    assert jwt_cookie["httpOnly"] is True
+    assert jwt_cookie["sameSite"].lower() == "lax"
+
+    # 2. Expired session token boundary test (exp in past)
+    expired_token = create_system_jwt(username="dca_admin_mgr", role="admin", exp_delta=-100.0)
+    expired_resp = page.request.get(
+        f"{live_server}/api/users",
+        headers={"Authorization": f"Bearer {expired_token}"},
+    )
+    assert expired_resp.status == 403
+    assert "Token has expired" in expired_resp.json()["detail"]
+
+    # 3. Revoke session via /api/logout
+    logout_resp = page.request.post(
+        f"{live_server}/api/logout",
+        headers={"X-CSRF-Token": "csrf_valid_token"},
+    )
+    assert logout_resp.status == 200
+    assert "Successfully logged out" in logout_resp.json()["message"]
+
+    # 4. Assert rcf_dac_jwt cookie is absent from browser context after logout
+    post_logout_cookies = page.context.cookies()
+    assert not any(c["name"] == "rcf_dac_jwt" for c in post_logout_cookies)
+
+    # 5. Issue request using unchanged context and assert 401 Unauthorized
+    unauth_resp = page.request.get(f"{live_server}/api/users")
+    assert unauth_resp.status == 401
+    assert "Authentication required" in unauth_resp.json()["detail"]
+
+
 def test_playwright_security_and_preload_headers_verification(page: Page, live_server: str):
     """Verify CSP security headers, SRI attributes, and HTTP/2 asset preloading headers in E2E browser context."""
     response = page.goto(f"{live_server}/")
