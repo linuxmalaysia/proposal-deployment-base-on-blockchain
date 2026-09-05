@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Multi-Platform Documentation Build & Deployment Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "github-pages"
   - "gitlab-pages"
@@ -12,11 +12,12 @@ description: "Build Jekyll documentation and deploy via GitHub Pages, GitLab Pag
 resource: "file:///.agents/skills/multi-platform-docs-deployment/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "multi-platform-docs-deployment"
 ---
@@ -34,6 +35,10 @@ Supports cross-platform documentation builds and hosting.
 - GitBook: `.gitbook.yaml`.
 - Read the Docs: `.readthedocs.yaml`.
 
+
+## Sovereign Knowledge Mandate
+
+- Documentation is built using Jekyll and deployed automatically to GitHub Pages via .github/workflows/jekyll-gh-pages.yml, with cross-platform support configured for GitLab Pages (.gitlab-ci.yml), GitBook (.gitbook.yaml), and Read the Docs (.readthedocs.yaml).
 
 ---
 

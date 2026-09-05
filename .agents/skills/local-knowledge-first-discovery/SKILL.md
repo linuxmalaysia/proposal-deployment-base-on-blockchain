@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Local Knowledge-First & OKF Discovery Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "knowledge-first"
   - "okf"
@@ -12,11 +12,12 @@ description: "Mandate local project knowledge search in .agents/brain/ and docs/
 resource: "file:///.agents/skills/local-knowledge-first-discovery/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "local-knowledge-first-discovery"
 ---
@@ -33,6 +34,10 @@ Codifies the 3-step local discovery workflow before attempting external web sear
 2. Inspect local documentation files for relevant domain knowledge.
 3. Proceed to external web searches or remote server calls only if local knowledge is insufficient.
 
+
+## Sovereign Knowledge Mandate
+
+- AI agents must search local project knowledge in .agents/brain/ and docs/ using OKF frontmatter metadata (topics: and description:) before executing remote server calls or web searches, as codified in .agents/AGENTS.md and docs/how-to/sop-knowledge-first-discovery.md.
 
 ---
 

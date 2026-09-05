@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Pre-Commit Guardrails & OKF Validation Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "guardrails"
   - "pre-commit"
@@ -12,11 +12,12 @@ description: "Execute OKF frontmatter validation, Ruff linting, Mypy typing, Pyt
 resource: "file:///.agents/skills/pre-commit-guardrails-validation/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "pre-commit-guardrails-validation"
 ---
@@ -35,6 +36,10 @@ Automates pre-commit quality enforcement via `tools/install_git_guardrails.py`.
 4. Pytest suite execution (`uv run pytest`).
 5. SUMMARY.md auto-generation via `tools/generate_summary.py`.
 
+
+## Sovereign Knowledge Mandate
+
+- Pre-commit guardrail script (tools/install_git_guardrails.py) runs OKF frontmatter validation, Ruff linting (ruff check src/), Mypy static type checking (mypy src/), Pytest suite, and SUMMARY.md auto-generation.
 
 ---
 

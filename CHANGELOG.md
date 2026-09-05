@@ -27,7 +27,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-09-02
+## [Unreleased] - 2026-09-05
+
+### Added
+
+- Render database connection diagnostic analysis and error sanitization in `src/dca_service/web_app.py`.
+- Ingested 42 operational knowledge statements into Jules knowledge base across `.agents/skills/` skill modules and `.agents/brain/` spatial memory anchors (`task.md`, `walkthrough.md`, `palace_registry.md`, `checkpoint_summary.txt`).
+- Refactored `_filter_non_privileged_roles()` helper to enforce strict module isolation against assigning `admin` and `superuser` roles to operational modules (Modules 2-5).
+- Thread-protected `ConnectionPool` creation in `DatabaseAPI.get_sync_db_pool()` via `SYNC_POOL_LOCK`.
+- Off-thread execution of synchronous lifespan initialisations (`load_role_module_permissions`, `seed_initial_accounts`) via `asyncio.to_thread`.
+- Enforced strict Mypy static type checking (`mypy --strict src/`) in `tools/install_git_guardrails.py` and `tests/test_install_git_guardrails.py`.
+
+## [0.1.1] - 2026-09-02
 
 ### Added
 

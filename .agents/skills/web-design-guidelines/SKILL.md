@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Vercel Web Interface Guidelines UI Review Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "web-design-guidelines"
   - "ui-ux"
@@ -14,11 +14,12 @@ description: "Review UI code for Web Interface Guidelines compliance, accessibil
 resource: "file:///.agents/skills/web-design-guidelines/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "web-design-guidelines"
 ---
@@ -130,6 +131,10 @@ src/dca_service/web_app.py:995 - dynamic alert box missing aria-live="polite"
 src/dca_service/web_app.py:1012 - input missing autocomplete attribute
 ```
 
+
+## Sovereign Knowledge Mandate
+
+- End-to-end browser automation, Web Interface Guidelines compliance, and visual regression snapshot comparison testing across themes and viewports are implemented with Playwright in tests/test_playwright_e2e.py.
 
 ---
 

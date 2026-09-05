@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Strict RBAC and Operational Module Isolation Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "rbac"
   - "module-isolation"
@@ -12,11 +12,12 @@ description: "Enforce strict role-based access control and module isolation acro
 resource: "file:///.agents/skills/rbac-module-isolation/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "rbac-module-isolation"
 ---
@@ -34,6 +35,10 @@ Defines role boundaries and module access isolation policies in `src/dca_service
 - Auditor role is granted read-only access to operational modules.
 - Dynamic module-role mappings are configurable via `/api/role-assignments`.
 
+
+## Sovereign Knowledge Mandate
+
+- The application enforces strict RBAC and module isolation: admin and superuser roles are forbidden from accessing operational modules (Modules 2-5), operational endpoints require authentication, auditor has read-only access to operational modules, and module-role mappings are dynamically configurable via /api/role-assignments.
 
 ---
 

@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Strict Mypy Type Annotation Enforcement Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "mypy"
   - "typing"
@@ -12,11 +12,12 @@ description: "Enforce strict Mypy type checking across adapter layer and web app
 resource: "file:///.agents/skills/strict-mypy-type-annotations/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "strict-mypy-type-annotations"
 ---
@@ -33,6 +34,10 @@ Mandates 100% type annotation coverage using `uv run mypy --strict src/`.
 - `src/dca_service/web_app.py` (FastAPI application layer).
 - Mandatory use of `from __future__ import annotations` across Python files.
 
+
+## Sovereign Knowledge Mandate
+
+- Strict Mypy type annotations (mypy --strict) are enforced across the adapter layer (src/dca_service/adapters/) and web layer (src/dca_service/web_app.py).
 
 ---
 

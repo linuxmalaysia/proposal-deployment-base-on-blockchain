@@ -66,6 +66,7 @@ language: "en-GB"
 - [x] Update `auto_check_and_build_schema()` in `src/dca_service/web_app.py` to run `apply_schema_migrations()`, backfilling transaction identities and configuring hypertable compression without swallowing errors.
 - [x] Isolate test registries in `tests/test_web_app_render.py` using `isolate_account_and_user_registries` fixture with `try...finally` block.
 - [x] Complete End of Day (EOD) and Start of Day (SOD) spatial memory palace synchronization across `.agents/brain/` adhering to DSOM protocol.
+- [x] Ingest and consolidate all Jules operational knowledge points across `.agents/brain/` spatial memory anchors and `.agents/skills/` agent skill modules.
 
 ### Pending Tasks
 

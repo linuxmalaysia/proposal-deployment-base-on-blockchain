@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Render.com Free Tier Manual Step-by-Step Setup Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "render"
   - "free-tier"
@@ -12,11 +12,12 @@ description: "Manage Render.com Free tier Web Service setup constraints requirin
 resource: "file:///.agents/skills/render-free-tier-setup/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "render-free-tier-setup"
 ---
@@ -32,6 +33,10 @@ Navigates platform limitations when deploying under Render Free tier.
 - Use manual Web Service creation instead of automated Blueprint auto-sync.
 - Attach required environment variables manually in Render Dashboard.
 
+
+## Sovereign Knowledge Mandate
+
+- Render.com deployments for the user are limited to the Free tier, requiring manual step-by-step Web Service setup instead of Blueprint (render.yaml) auto-configuration.
 
 ---
 

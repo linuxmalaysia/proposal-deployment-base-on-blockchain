@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "Jules Memory Enablement and Context Loading Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "jules"
   - "context-memory"
@@ -12,11 +12,12 @@ description: "Enable and load context memories across sessions to align Google J
 resource: "file:///.agents/skills/jules-context-memory/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "jules-context-memory"
 ---
@@ -32,8 +33,12 @@ This skill governs how Google Jules and Google Antigravity persist and restore c
 1. At start-of-day (SOD), read `.agents/brain/task.md`, `.agents/brain/walkthrough.md`, and `.agents/brain/palace_registry.md`.
 2. Extract historical session decisions, active backlog, and repository asset locations.
 3. Inject past context memories into active reasoning prior to taking actions.
-4. At end-of-day (EOD), persist all newly acquired knowledge back into `.agents/brain/`.
+4. Spatial Memory Palace anchors under `.agents/brain/` (`task.md` for objective backlogs, `walkthrough.md` for session execution logs, and `palace_registry.md` for repository maps) are updated during End-of-Day (EOD) persistence according to the Deep State of Mind (DSOM) Protocol.
 
+
+## Sovereign Knowledge Mandate
+
+- Spatial Memory Palace anchors under .agents/brain/ (task.md for objective backlogs, walkthrough.md for session execution logs, and palace_registry.md for repository maps) are updated during End-of-Day (EOD) persistence according to the Deep State of Mind (DSOM) Protocol.
 
 ---
 

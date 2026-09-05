@@ -2,7 +2,7 @@
 okf_version: "0.2"
 type: "agent_skill"
 title: "FastAPI Lifespan Automatic Schema Builder Skill"
-timestamp: "2026-08-25T00:00:00Z"
+timestamp: "2026-09-01T00:00:00Z"
 topics:
   - "fastapi"
   - "lifespan"
@@ -12,11 +12,12 @@ description: "Automatically check and build missing database tables from docs/sc
 resource: "file:///.agents/skills/fastapi-lifespan-schema-builder/SKILL.md"
 sources:
   - ".agents/AGENTS.md"
-  - "README.md"
+  - "src/dca_service/web_app.py"
+  - "src/dca_service/adapters/database_api.py"
 generated: "jules"
 verified: true
 status: "approved"
-stale_after: "2027-08-25T00:00:00Z"
+stale_after: "2027-09-01T00:00:00Z"
 language: "en-GB"
 name: "fastapi-lifespan-schema-builder"
 ---
@@ -33,6 +34,10 @@ Executes non-destructive schema initialization during FastAPI application startu
 - Source DDL: `docs/schema.sql`.
 - Fail-safe error handling prevents startup crashes during temporary database outages.
 
+
+## Sovereign Knowledge Mandate
+
+- FastAPI application startup in src/dca_service/web_app.py uses a lifespan context manager (auto_check_and_build_schema) to automatically check and build missing database tables from docs/schema.sql non-destructively with fail-safe error handling.
 
 ---
 
