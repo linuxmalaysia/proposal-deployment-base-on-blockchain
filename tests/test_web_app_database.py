@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 
 os.environ.setdefault("INVESTOR_JWT_SECRET", "test_rcf_dac_jwt_secret_key_2026")
 
+from dca_service.adapters import database_api
 from dca_service import web_app
 
 
@@ -36,6 +37,7 @@ def isolate_database_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep database tests independent from workstation configuration."""
     web_app._DB_STATUS_CACHE = None
     web_app._DB_STATUS_CACHE_TIMESTAMP = 0.0
+    monkeypatch.setattr(database_api, "get_sync_db_pool", lambda: None)
     for key in DATABASE_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
 
@@ -305,6 +307,95 @@ def test_check_database_connection_uses_ttl_cache_unless_bypassed(
     assert get_conn_mock.call_count == 2
 
 
+def test_apply_schema_migrations_reuses_caller_connection_without_closing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Apply idempotent DDL on a caller-owned connection without taking ownership of it."""
+    connection, cursor = make_connection()
+    get_connection = MagicMock()
+    close_connection = MagicMock()
+    monkeypatch.setattr(web_app, "get_postgresql_connection", get_connection)
+    monkeypatch.setattr(web_app, "close_postgresql_connection", close_connection)
+
+    result = web_app.apply_schema_migrations(existing_conn=connection)
+
+    assert result == {
+        "success": True,
+        "message": "Schema migrations applied successfully.",
+    }
+    assert cursor.execute.call_count == 2
+    assert cursor.execute.call_args_list[0].args == (
+        "SET statement_timeout = 10000; SET lock_timeout = 5000;",
+    )
+    migration_sql = cursor.execute.call_args_list[1].args[0]
+    assert "CREATE TABLE IF NOT EXISTS blockchain_transaction_identity" in migration_sql
+    assert "IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'create_hypertable')" in migration_sql
+    connection.commit.assert_called_once_with()
+    get_connection.assert_not_called()
+    close_connection.assert_not_called()
+
+
+def test_apply_schema_migrations_closes_owned_connection_after_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Close a connection acquired internally after committing the migration."""
+    connection, _ = make_connection()
+    close_connection = MagicMock()
+    monkeypatch.setattr(
+        web_app,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected"),
+    )
+    monkeypatch.setattr(web_app, "close_postgresql_connection", close_connection)
+
+    result = web_app.apply_schema_migrations()
+
+    assert result["success"] is True
+    connection.commit.assert_called_once_with()
+    close_connection.assert_called_once_with(connection)
+
+
+def test_apply_schema_migrations_reports_unavailable_connection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Return the connection diagnostic without attempting any migration work."""
+    monkeypatch.setattr(
+        web_app,
+        "get_postgresql_connection",
+        lambda: (None, "PostgreSQL unavailable"),
+    )
+
+    assert web_app.apply_schema_migrations() == {
+        "success": False,
+        "message": "PostgreSQL unavailable",
+    }
+
+
+def test_apply_schema_migrations_rolls_back_and_closes_owned_connection_on_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Roll back failed DDL and release a connection acquired by the migration helper."""
+    connection, cursor = make_connection()
+    cursor.execute.side_effect = [None, RuntimeError("migration rejected")]
+    close_connection = MagicMock()
+    monkeypatch.setattr(
+        web_app,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected"),
+    )
+    monkeypatch.setattr(web_app, "close_postgresql_connection", close_connection)
+
+    result = web_app.apply_schema_migrations()
+
+    assert result == {
+        "success": False,
+        "message": "Schema migration failed: migration rejected",
+    }
+    connection.commit.assert_not_called()
+    connection.rollback.assert_called_once_with()
+    close_connection.assert_called_once_with(connection)
+
+
 def test_auto_check_and_build_schema_builds_missing_tables(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -351,7 +442,9 @@ def test_auto_check_and_build_schema_skips_when_all_tables_exist(
         lambda: (connection, "Connected to PostgreSQL"),
     )
     mock_init = MagicMock()
+    mock_migrations = MagicMock(return_value={"success": True})
     monkeypatch.setattr(web_app, "initialize_database_schema", mock_init)
+    monkeypatch.setattr(web_app, "apply_schema_migrations", mock_migrations)
 
     res = web_app.auto_check_and_build_schema()
 
@@ -359,6 +452,7 @@ def test_auto_check_and_build_schema_skips_when_all_tables_exist(
     assert res["db_connected"] is True
     assert res["tables_created"] == []
     mock_init.assert_not_called()
+    mock_migrations.assert_called_once_with(existing_conn=connection)
     connection.close.assert_called_once()
 
 

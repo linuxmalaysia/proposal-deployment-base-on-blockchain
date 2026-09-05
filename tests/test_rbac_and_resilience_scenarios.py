@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 from dca_service.adapters.database_api import USER_REGISTRY, ASSET_REGISTRY
+import dca_service.web_app as web_app
 from dca_service.web_app import (
     ACCOUNT_REGISTRY,
     EXPECTED_AUDIENCE,
@@ -352,6 +353,197 @@ def test_strict_rbac_module_isolation_and_role_assignment():
     # Auditor accessing read endpoint (Module 4 investor assets) -> 200
     res_auditor_m4 = client.get("/api/investor-assets", headers={"Authorization": f"Bearer {auditor_jwt}"})
     assert res_auditor_m4.status_code == 200
+
+
+def test_role_assignment_update_normalises_roles_and_preserves_module_one(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Publish a complete normalised mapping while keeping registration admin-only."""
+    admin_jwt = create_system_jwt(username="dca_admin_mgr", role="admin")
+    original_module_three = list(ROLE_MODULE_PERMISSIONS["module_3"])
+    save_permissions = MagicMock()
+    monkeypatch.setattr(web_app, "save_role_module_permissions", save_permissions)
+
+    response = client.post(
+        "/api/role-assignments",
+        json={
+            "module_permissions": {
+                "module_1": ["superuser", "operator"],
+                "module_2": [" Operator ", "RESEARCHER"],
+            }
+        },
+        headers={
+            "Authorization": f"Bearer {admin_jwt}",
+            "X-CSRF-Token": "valid",
+        },
+    )
+
+    assert response.status_code == 200
+    published = response.json()["module_permissions"]
+    assert published["module_1"] == ["admin"]
+    assert published["module_2"] == ["operator", "researcher"]
+    assert published["module_3"] == original_module_three
+    save_permissions.assert_called_once_with(published)
+    published["module_2"].append("auditor")
+    assert ROLE_MODULE_PERMISSIONS["module_2"] == ["operator", "researcher"]
+
+
+def test_role_assignment_persistence_failure_leaves_mapping_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Return a service error without exposing an unpersisted in-memory permission change."""
+    admin_jwt = create_system_jwt(username="dca_admin_mgr", role="admin")
+    original_permissions = copy.deepcopy(ROLE_MODULE_PERMISSIONS)
+    monkeypatch.setattr(
+        web_app,
+        "save_role_module_permissions",
+        MagicMock(side_effect=RuntimeError("write conflict")),
+    )
+
+    response = client.post(
+        "/api/role-assignments",
+        json={"module_permissions": {"module_2": ["researcher"]}},
+        headers={
+            "Authorization": f"Bearer {admin_jwt}",
+            "X-CSRF-Token": "valid",
+        },
+    )
+
+    assert response.status_code == 503
+    assert ROLE_MODULE_PERMISSIONS == original_permissions
+
+
+def test_role_assignment_invalid_module_does_not_persist_or_mutate(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Reject unknown modules before persistence and retain the previous mapping."""
+    admin_jwt = create_system_jwt(username="dca_admin_mgr", role="admin")
+    original_permissions = copy.deepcopy(ROLE_MODULE_PERMISSIONS)
+    save_permissions = MagicMock()
+    monkeypatch.setattr(web_app, "save_role_module_permissions", save_permissions)
+
+    response = client.post(
+        "/api/role-assignments",
+        json={"module_permissions": {"module_6": ["operator"]}},
+        headers={
+            "Authorization": f"Bearer {admin_jwt}",
+            "X-CSRF-Token": "valid",
+        },
+    )
+
+    assert response.status_code == 422
+    assert ROLE_MODULE_PERMISSIONS == original_permissions
+    save_permissions.assert_not_called()
+
+
+def test_get_role_assignments_returns_a_detached_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Prevent callers from mutating the live mapping through the returned structure."""
+    monkeypatch.setattr(
+        web_app,
+        "extract_current_user_payload",
+        lambda *_args: {"sub": "dca_admin_mgr", "role": "admin"},
+    )
+
+    result = web_app.get_role_assignments(
+        request=MagicMock(),
+        authorization="Bearer test-token",
+        rcf_dac_jwt=None,
+    )
+
+    result["module_permissions"]["module_2"].append("researcher")
+    assert "researcher" not in ROLE_MODULE_PERMISSIONS["module_2"]
+
+
+def test_archive_response_omits_credentials_and_unrecognised_database_fields(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Expose only the explicit archive projection returned by the endpoint."""
+    admin_jwt = create_system_jwt(username="dca_admin_mgr", role="admin")
+    archived_user = {
+        "username": "archived_projection_user",
+        "password_hash": "must-not-be-returned",
+        "role": "operator",
+        "name": "Archived Projection User",
+        "dept": "Operations",
+        "email": "archive@example.test",
+        "did": "did:univ:archived-projection-user",
+        "is_active": False,
+        "is_disabled": True,
+        "can_login": False,
+        "is_archived": True,
+        "archived_at": "2026-09-05T00:00:00Z",
+        "tags": ["archive"],
+        "created_at": "2026-09-01T00:00:00Z",
+        "internal_note": "must-not-be-returned",
+    }
+    monkeypatch.setattr(
+        web_app.DatabaseAPI,
+        "get_user_by_username",
+        MagicMock(return_value=archived_user),
+    )
+    monkeypatch.setattr(
+        web_app.DatabaseAPI,
+        "disable_and_archive_user",
+        MagicMock(return_value=archived_user),
+    )
+
+    response = client.delete(
+        "/api/users/archived_projection_user",
+        headers={
+            "Authorization": f"Bearer {admin_jwt}",
+            "X-CSRF-Token": "valid",
+        },
+    )
+
+    assert response.status_code == 200
+    returned_user = response.json()["user"]
+    assert set(returned_user) == {
+        "username",
+        "role",
+        "name",
+        "dept",
+        "email",
+        "did",
+        "is_active",
+        "is_disabled",
+        "can_login",
+        "is_archived",
+        "archived_at",
+        "tags",
+        "created_at",
+    }
+    assert "password_hash" not in returned_user
+    assert "internal_note" not in returned_user
+
+
+def test_archive_returns_not_found_when_user_disappears_during_update(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Handle the boundary where a user vanishes between lookup and archive operations."""
+    admin_jwt = create_system_jwt(username="dca_admin_mgr", role="admin")
+    monkeypatch.setattr(
+        web_app.DatabaseAPI,
+        "get_user_by_username",
+        MagicMock(return_value={"username": "vanished_user", "role": "operator"}),
+    )
+    monkeypatch.setattr(
+        web_app.DatabaseAPI,
+        "disable_and_archive_user",
+        MagicMock(return_value=None),
+    )
+
+    response = client.delete(
+        "/api/users/vanished_user",
+        headers={
+            "Authorization": f"Bearer {admin_jwt}",
+            "X-CSRF-Token": "valid",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "User account 'vanished_user' not found."
 
 
 def test_html_login_and_user_management_views():

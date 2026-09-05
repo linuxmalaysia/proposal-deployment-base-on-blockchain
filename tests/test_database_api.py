@@ -14,7 +14,14 @@ os.environ.setdefault("INVESTOR_JWT_SECRET", default_test_secret)
 
 import copy  # noqa: E402
 from unittest.mock import MagicMock  # noqa: E402
-from dca_service.adapters.database_api import DatabaseAPI, ACCOUNT_REGISTRY, USER_REGISTRY, ASSET_REGISTRY  # noqa: E402
+from dca_service.adapters import database_api  # noqa: E402
+from dca_service.adapters.database_api import (  # noqa: E402
+    ACCOUNT_REGISTRY,
+    ASSET_REGISTRY,
+    ROLE_MODULE_PERMISSIONS,
+    USER_REGISTRY,
+    DatabaseAPI,
+)
 from dca_service.web_app import app, create_system_jwt, hash_password, seed_initial_accounts  # noqa: E402
 
 client = TestClient(app)
@@ -31,6 +38,7 @@ def isolate_database_api_registries(monkeypatch):
     orig_accts = copy.deepcopy(ACCOUNT_REGISTRY)
     orig_users = copy.deepcopy(USER_REGISTRY)
     orig_assets = copy.deepcopy(ASSET_REGISTRY)
+    orig_permissions = copy.deepcopy(ROLE_MODULE_PERMISSIONS)
     yield
     ACCOUNT_REGISTRY.clear()
     ACCOUNT_REGISTRY.update(orig_accts)
@@ -38,6 +46,8 @@ def isolate_database_api_registries(monkeypatch):
     USER_REGISTRY.update(orig_users)
     ASSET_REGISTRY.clear()
     ASSET_REGISTRY.update(orig_assets)
+    ROLE_MODULE_PERMISSIONS.clear()
+    ROLE_MODULE_PERMISSIONS.update(orig_permissions)
 
 
 def test_database_api_user_creation_and_fields():
@@ -267,3 +277,165 @@ def test_duplicate_creation_on_archived_user_preserves_archived_state():
     # Attempt login using original valid password -> must be rejected due to disabled/archived status
     res = client.post("/api/login", json={"username": "archived_dup_user", "password": "ValidPass123!"})
     assert res.status_code == 401
+
+
+def test_get_sync_db_pool_uses_connection_pool_metric_limits(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Build the synchronous pool with the configured minimum and maximum sizes."""
+    pool = MagicMock()
+    pool_constructor = MagicMock(return_value=pool)
+    monkeypatch.setattr(database_api, "SYNC_DB_POOL", None)
+    monkeypatch.setattr(
+        database_api,
+        "get_database_url",
+        lambda: "postgresql://database.example/test?sslmode=verify-full",
+    )
+    monkeypatch.setattr(database_api.DB_POOL_METRICS, "min_pool_size", 3)
+    monkeypatch.setattr(database_api.DB_POOL_METRICS, "max_pool_size", 11)
+    monkeypatch.setattr("psycopg_pool.ConnectionPool", pool_constructor)
+
+    result = database_api.get_sync_db_pool()
+
+    assert result is pool
+    pool_constructor.assert_called_once_with(
+        conninfo="postgresql://database.example/test?sslmode=verify-full",
+        min_size=3,
+        max_size=11,
+        open=True,
+    )
+
+
+def test_get_user_database_failure_does_not_return_stale_registry_record(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Fail closed when an active database query fails instead of serving stale user data."""
+    ACCOUNT_REGISTRY["stale_user"] = {"username": "stale_user", "role": "admin"}
+    connection = MagicMock()
+    cursor = connection.cursor.return_value.__enter__.return_value
+    cursor.execute.side_effect = RuntimeError("query interrupted")
+    close_connection = MagicMock()
+    monkeypatch.setattr(
+        database_api,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected"),
+    )
+    monkeypatch.setattr(database_api, "close_postgresql_connection", close_connection)
+
+    assert DatabaseAPI.get_user_by_username("stale_user") is None
+    close_connection.assert_called_once_with(connection)
+
+
+def test_save_role_permissions_commits_before_publishing_defensive_copies(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Persist permission changes and detach the published mapping from caller-owned lists."""
+    connection = MagicMock()
+    cursor = connection.cursor.return_value.__enter__.return_value
+    close_connection = MagicMock()
+    monkeypatch.setattr(
+        database_api,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected"),
+    )
+    monkeypatch.setattr(database_api, "close_postgresql_connection", close_connection)
+    permissions = {"module_2": ["operator", "auditor"]}
+
+    DatabaseAPI.save_role_permissions(permissions)
+
+    connection.commit.assert_called_once_with()
+    cursor.execute.assert_called_once()
+    assert cursor.execute.call_args.args[1] == (
+        "module_2",
+        '["operator", "auditor"]',
+    )
+    assert ROLE_MODULE_PERMISSIONS["module_2"] == ["operator", "auditor"]
+    permissions["module_2"].append("investor")
+    assert ROLE_MODULE_PERMISSIONS["module_2"] == ["operator", "auditor"]
+    close_connection.assert_called_once_with(connection)
+
+
+def test_save_role_permissions_rolls_back_without_publishing_partial_state(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Keep the complete in-memory mapping unchanged when database persistence fails."""
+    original_permissions = copy.deepcopy(ROLE_MODULE_PERMISSIONS)
+    connection = MagicMock()
+    cursor = connection.cursor.return_value.__enter__.return_value
+    cursor.execute.side_effect = RuntimeError("write conflict")
+    close_connection = MagicMock()
+    monkeypatch.setattr(
+        database_api,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected"),
+    )
+    monkeypatch.setattr(database_api, "close_postgresql_connection", close_connection)
+
+    with pytest.raises(RuntimeError, match="Database save role permissions failed"):
+        DatabaseAPI.save_role_permissions(
+            {
+                "module_2": ["researcher"],
+                "module_3": ["auditor"],
+            }
+        )
+
+    assert ROLE_MODULE_PERMISSIONS == original_permissions
+    connection.commit.assert_not_called()
+    connection.rollback.assert_called_once_with()
+    close_connection.assert_called_once_with(connection)
+
+
+def test_load_role_permissions_normalises_database_values_and_returns_copies(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Support JSON and list columns while preventing returned values from aliasing cache state."""
+    connection = MagicMock()
+    cursor = connection.cursor.return_value.__enter__.return_value
+    cursor.fetchall.return_value = [
+        ("module_2", '["operator", "auditor"]'),
+        ("module_3", ["operator", 7]),
+    ]
+    close_connection = MagicMock()
+    monkeypatch.setattr(
+        database_api,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected"),
+    )
+    monkeypatch.setattr(database_api, "close_postgresql_connection", close_connection)
+
+    loaded = DatabaseAPI.load_role_permissions()
+
+    assert loaded == {
+        "module_2": ["operator", "auditor"],
+        "module_3": ["operator", "7"],
+    }
+    loaded["module_2"].append("investor")
+    assert ROLE_MODULE_PERMISSIONS["module_2"] == ["operator", "auditor"]
+    cursor.execute.assert_called_once_with(
+        "SELECT module_id, allowed_roles FROM role_permissions;"
+    )
+    close_connection.assert_called_once_with(connection)
+
+
+def test_load_role_permissions_query_failure_returns_detached_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Return a defensive fallback snapshot after a database read error."""
+    ROLE_MODULE_PERMISSIONS["module_2"] = ["operator"]
+    connection = MagicMock()
+    cursor = connection.cursor.return_value.__enter__.return_value
+    cursor.execute.side_effect = RuntimeError("database unavailable")
+    close_connection = MagicMock()
+    monkeypatch.setattr(
+        database_api,
+        "get_postgresql_connection",
+        lambda: (connection, "Connected"),
+    )
+    monkeypatch.setattr(database_api, "close_postgresql_connection", close_connection)
+
+    loaded = DatabaseAPI.load_role_permissions()
+
+    assert loaded["module_2"] == ["operator"]
+    loaded["module_2"].append("auditor")
+    assert ROLE_MODULE_PERMISSIONS["module_2"] == ["operator"]
+    close_connection.assert_called_once_with(connection)
