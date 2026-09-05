@@ -1601,7 +1601,7 @@ def serve_db_status_page(bypass_cache: bool = False, force: bool = False) -> HTM
 <head>
   <meta charset="UTF-8">
   <title>Database Connection & Schema Verification Status | RCF & DAC</title>
-  <link rel="preload" href="/assets/css/style.css" as="style" crossorigin="anonymous">
+  <link rel="preload" href="/assets/css/style.css" as="style" integrity="{css_sri}" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/style.css" integrity="{css_sri}" crossorigin="anonymous">
 </head>
 <body>
