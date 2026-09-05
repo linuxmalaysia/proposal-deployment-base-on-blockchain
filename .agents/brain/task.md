@@ -60,7 +60,12 @@ language: "en-GB"
 - [x] Enforce hypertable-compatible constraints on `blockchain_transactions` in `docs/schema.sql` incorporating the `timestamp` partition column (`PRIMARY KEY (id, timestamp)` and `CONSTRAINT uq_blockchain_tx_id_timestamp UNIQUE (transaction_id, timestamp)`).
 - [x] Maintain Mypy `--strict` type checking across all adapter modules with zero type errors (`mypy --strict src/`).
 - [x] Expand Playwright E2E browser integration tests in `tests/test_playwright_e2e.py` covering dynamic role permission updates (`/api/role-assignments`) and cookie expiration boundary cases.
-- [x] Complete End of Day (EOD) and Start of Day (SOD) spatial memory synchronization across `.agents/brain/` adhering to DSOM protocol.
+- [x] Merge `main` into PR branch `jules-8076040222397270862-4abc4743` and resolve all merge conflicts across schema, web app, adapters, test suites, and documentation.
+- [x] Implement `blockchain_transaction_identity` table in `docs/schema.sql` to maintain global `transaction_id` idempotency alongside TimescaleDB hypertable constraints.
+- [x] Enforce reentrant thread-safe locking (`ROLE_PERMISSIONS_LOCK = threading.RLock()`) and deep-copied immutable snapshot publishing for role-to-module permissions across `DatabaseAPI` and `web_app`.
+- [x] Update `auto_check_and_build_schema()` in `src/dca_service/web_app.py` to run `apply_schema_migrations()`, backfilling transaction identities and configuring hypertable compression without swallowing errors.
+- [x] Isolate test registries in `tests/test_web_app_render.py` using `isolate_account_and_user_registries` fixture with `try...finally` block.
+- [x] Complete End of Day (EOD) and Start of Day (SOD) spatial memory palace synchronization across `.agents/brain/` adhering to DSOM protocol.
 
 ### Pending Tasks
 
